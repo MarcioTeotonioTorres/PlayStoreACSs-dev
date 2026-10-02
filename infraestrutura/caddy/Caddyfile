@@ -1,0 +1,19 @@
+{$DOMINIO:mdm-corporativo.duckdns.org} {
+    # Emissão automática de certificado Let's Encrypt com DuckDNS
+    encode gzip zstd
+
+    # Download do APK DPC pelo assistente de primeiro boot dos tablets
+    handle_path /apk/* {
+        reverse_proxy backend_api:3000
+    }
+
+    # API REST de Telemetria e Comandos MDM
+    handle /api/* {
+        reverse_proxy backend_api:3000
+    }
+
+    # Painel Frontend Web React Dashboard
+    handle {
+        reverse_proxy frontend_painel:80
+    }
+}

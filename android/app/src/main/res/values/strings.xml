@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">MDM Corporativo</string>
+    <string name="admin_descricao">Agente de Gerenciamento Corporativo de Dispositivos (DPC Device Owner).</string>
+    <string name="canal_notificacao_nome">Serviço de Monitoramento MDM</string>
+    <string name="canal_notificacao_descricao">Canal para execução do serviço persistente de telemetria e recepção de comandos.</string>
+    <string name="servico_ativo_texto">MDM Corporativo ativo e sincronizado via MQTT seguro.</string>
+</resources>

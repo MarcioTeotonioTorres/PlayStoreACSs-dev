@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # 1. Banco de Dados PostgreSQL 16 para persistência dos 250 tablets e comandos
+  banco_postgresql:
+    image: postgres:16-alpine
+    container_name: mdm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PG_DATABASE:-mdm_corporativo}
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-mdm_postgres_pass_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - dados_pg:/var/lib/postgresql/data
+      - ../backend/src/banco/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - rede_mdm
+
+  # 2. Broker MQTT Seguro (Eclipse Mosquitto MQTTS com TLS na porta 8883)
+  broker_mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mdm_mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883" # Comunicação interna Fastify
+      - "8883:8883" # MQTTS Seguro com TLS para os 250 Tablets Android
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/certs:/mosquitto/certs:ro
+      - dados_mosquitto:/mosquitto/data
+    networks:
+      - rede_mdm
+
+  # 3. Backend API Fastify + Gateway de Telemetria e Comandos
+  backend_api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: mdm_backend
+    restart: unless-stopped
+    environment:
+      PORTA_API: 3000
+      HOST_API: 0.0.0.0
+      DOMINIO_DUCKDNS: ${DOMINIO_DUCKDNS:-mdm-corporativo.duckdns.org}
+      PG_HOST: banco_postgresql
+      PG_PORT: 5432
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD:-mdm_postgres_pass_2026}
+      PG_DATABASE: ${PG_DATABASE:-mdm_corporativo}
+      MQTT_BROKER_URL: mqtt://broker_mosquitto:1883
+    ports:
+      - "3000:3000"
+    depends_on:
+      - banco_postgresql
+      - broker_mosquitto
+    volumes:
+      - ../backend/public/apk:/app/public/apk
+    networks:
+      - rede_mdm
+
+  # 4. Frontend Painel Web (React + Vite distribuído via Nginx)
+  frontend_painel:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: mdm_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend_api
+    networks:
+      - rede_mdm
+
+  # 5. Proxy Reverso Caddy com Let's Encrypt Automático e DuckDNS
+  caddy_proxy:
+    image: caddy:2-alpine
+    container_name: mdm_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO_DUCKDNS:-mdm-corporativo.duckdns.org}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - dados_caddy:/data
+      - config_caddy:/config
+    depends_on:
+      - backend_api
+      - frontend_painel
+    networks:
+      - rede_mdm
+
+  # 6. Container de Compilação Autônoma do APK Android (Executado sob demanda)
+  compilador_apk:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.android-builder
+    container_name: mdm_compilador_apk
+    volumes:
+      - ../android:/app/android
+      - ../backend/public/apk:/app/backend/public/apk
+    networks:
+      - rede_mdm
+    profiles:
+      - ferramentas
+
+networks:
+  rede_mdm:
+    driver: bridge
+
+volumes:
+  dados_pg:
+  dados_mosquitto:
+  dados_caddy:
+  config_caddy:
