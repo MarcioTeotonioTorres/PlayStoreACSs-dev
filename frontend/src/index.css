@@ -433,3 +433,215 @@ tr:hover td {
     width: 100%;
   }
 }
+
+/* ============================================================
+   ESTILOS DO LAYOUT COM BARRA LATERAL (SIDEBAR NAVIGATION)
+   ============================================================ */
+
+.layout-com-sidebar {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--fundo-base);
+}
+
+/* Barra Lateral Fixa */
+.barra-lateral {
+  width: 270px;
+  min-width: 270px;
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--borda-suave);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 50;
+}
+
+.barra-lateral-topo {
+  padding: 24px 20px;
+  border-bottom: 1px solid var(--borda-suave);
+}
+
+.logo-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-titulo {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.logo-sub {
+  font-size: 11px;
+  color: var(--texto-secundario);
+  margin-top: 2px;
+}
+
+/* Menu de Navegação */
+.barra-lateral-menu {
+  flex: 1;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.item-navegacao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 9px;
+  color: var(--texto-secundario);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.item-navegacao:hover {
+  background: var(--fundo-elevado);
+  color: var(--texto-principal);
+  transform: translateX(3px);
+}
+
+.item-navegacao.ativo {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.item-navegacao.ativo svg {
+  color: #3b82f6;
+}
+
+/* Rodapé da Barra Lateral */
+.barra-lateral-rodape {
+  padding: 18px 16px;
+  border-top: 1px solid var(--borda-suave);
+}
+
+.status-conexao-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--borda-suave);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+/* Conteúdo Principal */
+.conteudo-principal {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 36px;
+  max-width: 1440px;
+  margin: 0 auto;
+  overflow-y: auto;
+}
+
+/* Estrutura Padrão das Páginas */
+.pagina-conteudo {
+  display: flex;
+  flex-direction: column;
+  animation: fadePagina 0.25s ease-out;
+}
+
+@keyframes fadePagina {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pagina-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--borda-suave);
+  margin-bottom: 26px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pagina-titulo {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.pagina-subtitulo {
+  font-size: 13px;
+  color: var(--texto-secundario);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* Cards de Atalho */
+.grid-atalhos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.card-atalho {
+  background: var(--fundo-card);
+  border: 1px solid var(--borda-suave);
+  border-radius: 12px;
+  padding: 18px;
+  transition: all 0.2s ease;
+}
+
+.card-atalho:hover {
+  border-color: var(--borda-destaque);
+  background: var(--fundo-card-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* Adaptação Responsiva da Barra Lateral */
+@media (max-width: 900px) {
+  .layout-com-sidebar {
+    flex-direction: column;
+  }
+  .barra-lateral {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--borda-suave);
+  }
+  .barra-lateral-menu {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 10px 14px;
+  }
+  .item-navegacao span {
+    font-size: 12px;
+  }
+  .barra-lateral-rodape {
+    display: none;
+  }
+  .conteudo-principal {
+    padding: 18px;
+  }
+}
+

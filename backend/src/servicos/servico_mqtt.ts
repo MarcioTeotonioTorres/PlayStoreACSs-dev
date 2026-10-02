@@ -173,26 +173,34 @@ export async function processar_resposta_comando(
 }
 
 /**
- * Publica um comando imediatamente no tópico MQTT do dispositivo.
+ * Publica um comando imediatamente no tópico MQTT do dispositivo ou broadcast da frota.
  */
 export async function despachar_comando_mqtt(
-  numeroSerie: string,
+  numeroSerieOuFrota: string,
   comandoPayload: {
     id: string;
     tipo_comando: string;
     parametros: Record<string, any>;
   }
 ): Promise<boolean> {
-  if (!clienteMqtt || !clienteMqtt.connected) {
-    console.warn('Cliente MQTT não conectado. Tentando reconectar antes do envio...');
-    clienteMqtt = inicializar_servico_mqtt();
-  }
-
-  const topico = `mdm/dispositivos/${numeroSerie}/comandos`;
+  const topico = numeroSerieOuFrota === 'todos'
+    ? 'mdm/frota/todos/comandos'
+    : `mdm/dispositivos/${numeroSerieOuFrota}/comandos`;
   const payloadStr = JSON.stringify(comandoPayload);
 
+  if (!clienteMqtt || !clienteMqtt.connected) {
+    console.warn(`[MQTT] Broker desconectado. Notificação não entregue em tempo real para: ${topico}`);
+    return false;
+  }
+
   return new Promise<boolean>((resolve) => {
+    const timeout = setTimeout(() => {
+      console.warn(`[MQTT] Timeout ao despachar comando para ${topico}`);
+      resolve(false);
+    }, 2500);
+
     clienteMqtt?.publish(topico, payloadStr, { qos: 1 }, (erro) => {
+      clearTimeout(timeout);
       if (erro) {
         console.error(`Erro ao despachar comando para ${topico}:`, erro);
         resolve(false);

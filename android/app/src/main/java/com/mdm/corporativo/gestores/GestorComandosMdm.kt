@@ -132,6 +132,68 @@ class GestorComandosMdm(
                         gestorPoliticas.limpar_dados_dispositivo(incluirSd)
                     }
 
+                    "aplicar_politica" -> {
+                        val pacotesJson = parametros.optJSONArray("pacotes_ocultos")
+                        val urlsJson = parametros.optJSONArray("urls_permitidas")
+
+                        val listaPacotes = mutableListOf<String>()
+                        if (pacotesJson != null) {
+                            for (i in 0 until pacotesJson.length()) {
+                                listaPacotes.add(pacotesJson.getString(i))
+                            }
+                        }
+
+                        val listaUrls = mutableListOf<String>()
+                        if (urlsJson != null) {
+                            for (i in 0 until urlsJson.length()) {
+                                listaUrls.add(urlsJson.getString(i))
+                            }
+                        }
+
+                        val sucesso = gestorPoliticas.aplicar_politicas_sistema_completas(listaPacotes, listaUrls)
+                        clienteMqtt.enviar_resposta_comando(
+                            comandoId,
+                            if (sucesso) "executado" else "falha",
+                            "Políticas granulares aplicadas: ${listaPacotes.size} apps ocultos, ${listaUrls.size} URLs liberadas."
+                        )
+                    }
+
+                    "ocultar_aplicativo" -> {
+                        val pacote = parametros.optString("nome_pacote", "")
+                        val sucesso = gestorPoliticas.ocultar_aplicativo_sistema(pacote)
+                        clienteMqtt.enviar_resposta_comando(
+                            comandoId,
+                            if (sucesso) "executado" else "falha",
+                            "Aplicativo $pacote ocultado com sucesso."
+                        )
+                    }
+
+                    "restaurar_aplicativo" -> {
+                        val pacote = parametros.optString("nome_pacote", "")
+                        val sucesso = gestorPoliticas.restaurar_aplicativo_sistema(pacote)
+                        clienteMqtt.enviar_resposta_comando(
+                            comandoId,
+                            if (sucesso) "executado" else "falha",
+                            "Aplicativo $pacote restaurado com sucesso."
+                        )
+                    }
+
+                    "configurar_restricoes_chrome" -> {
+                        val urlsJson = parametros.optJSONArray("urls_permitidas")
+                        val listaUrls = mutableListOf<String>()
+                        if (urlsJson != null) {
+                            for (i in 0 until urlsJson.length()) {
+                                listaUrls.add(urlsJson.getString(i))
+                            }
+                        }
+                        val sucesso = gestorPoliticas.configurar_restricoes_navegacao_chrome(listaUrls)
+                        clienteMqtt.enviar_resposta_comando(
+                            comandoId,
+                            if (sucesso) "executado" else "falha",
+                            "Restrições do Chrome configuradas: ${listaUrls.size} URLs na lista branca."
+                        )
+                    }
+
                     else -> {
                         Log.w(TAG, "Comando desconhecido: $tipoComando")
                         clienteMqtt.enviar_resposta_comando(comandoId, "rejeitado", "Tipo de comando desconhecido: $tipoComando")

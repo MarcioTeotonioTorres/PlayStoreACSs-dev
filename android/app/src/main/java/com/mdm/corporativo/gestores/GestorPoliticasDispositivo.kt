@@ -4,6 +4,7 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.os.Build
+import android.os.Bundle
 import android.os.UserManager
 import android.util.Log
 import com.mdm.corporativo.receptor.ReceptorAdministradorDispositivo
@@ -189,6 +190,96 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             Log.i(TAG, "aplicar_politicas_sistema: Políticas corporativas aplicadas com sucesso.")
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao aplicar políticas do sistema: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Oculta e desativa um aplicativo nativo indesejado (ex: YouTube, Galeria, Loja)
+     * fazendo com que o app desapareça da gaveta e não possa ser executado.
+     */
+    fun ocultar_aplicativo_sistema(nomePacote: String): Boolean {
+        return try {
+            if (verificar_se_e_device_owner()) {
+                gestorPoliticas.setApplicationHidden(adminComponente, nomePacote, true)
+                Log.i(TAG, "ocultar_aplicativo_sistema: Pacote $nomePacote ocultado com sucesso.")
+                true
+            } else {
+                Log.w(TAG, "Permissão negada: Aplicativo não é Device Owner.")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Falha ao ocultar aplicativo $nomePacote: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Restaura o estado de visibilidade e execução de um aplicativo nativo do sistema.
+     */
+    fun restaurar_aplicativo_sistema(nomePacote: String): Boolean {
+        return try {
+            if (verificar_se_e_device_owner()) {
+                gestorPoliticas.setApplicationHidden(adminComponente, nomePacote, false)
+                Log.i(TAG, "restaurar_aplicativo_sistema: Pacote $nomePacote restaurado com sucesso.")
+                true
+            } else {
+                Log.w(TAG, "Permissão negada: Aplicativo não é Device Owner.")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Falha ao restaurar aplicativo $nomePacote: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Configura políticas granulares de navegação corporativa no Google Chrome ("com.android.chrome"):
+     * - Bloqueia qualquer URL fora da lista ("URLBlocklist" = ["*"])
+     * - Libera estritamente os domínios corporativos recebidos ("URLAllowlist")
+     * - Desativa o modo anônimo ("IncognitoModeAvailability" = 1)
+     */
+    fun configurar_restricoes_navegacao_chrome(dominiosAutorizados: List<String>): Boolean {
+        return try {
+            if (verificar_se_e_device_owner()) {
+                val pacoteChrome = "com.android.chrome"
+                val restricoes = Bundle().apply {
+                    putStringArray("URLBlocklist", arrayOf("*"))
+                    putStringArray("URLAllowlist", dominiosAutorizados.toTypedArray())
+                    putInt("IncognitoModeAvailability", 1)
+                }
+
+                gestorPoliticas.setApplicationRestrictions(adminComponente, pacoteChrome, restricoes)
+                Log.i(TAG, "configurar_restricoes_navegacao_chrome: Restrições aplicadas ao Chrome com ${dominiosAutorizados.size} domínios.")
+                true
+            } else {
+                Log.w(TAG, "Permissão negada: Não é Device Owner.")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Falha ao aplicar restrições ao Google Chrome: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Aplica o conjunto completo de diretrizes de segurança, aplicativos ocultos e restrições de navegação.
+     */
+    fun aplicar_politicas_sistema_completas(pacotesOcultos: List<String>, dominiosAutorizados: List<String>): Boolean {
+        return try {
+            aplicar_politicas_sistema()
+
+            for (pacote in pacotesOcultos) {
+                ocultar_aplicativo_sistema(pacote)
+            }
+
+            if (dominiosAutorizados.isNotEmpty()) {
+                configurar_restricoes_navegacao_chrome(dominiosAutorizados)
+            }
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao aplicar políticas completas: ${e.message}", e)
+            false
         }
     }
 }

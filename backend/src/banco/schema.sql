@@ -16,13 +16,23 @@ CREATE TABLE IF NOT EXISTS politicas (
     permitir_reset_fabrica BOOLEAN NOT NULL DEFAULT FALSE,
     modo_quiosque_app VARCHAR(255) DEFAULT NULL,
     habilitar_modo_quiosque BOOLEAN NOT NULL DEFAULT FALSE,
+    pacotes_ocultos JSONB NOT NULL DEFAULT '["com.google.android.youtube", "com.android.vending", "com.google.android.apps.photos"]'::jsonb,
+    urls_permitidas JSONB NOT NULL DEFAULT '["portal.empresa.com.br", "*.empresa.com.br", "sistema.empresa.com.br"]'::jsonb,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Inserção de política inicial
-INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, habilitar_modo_quiosque)
-VALUES ('Política Padrão Tablets', TRUE, TRUE, FALSE, FALSE)
+INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas)
+VALUES (
+    'Política Padrão Tablets',
+    TRUE,
+    TRUE,
+    FALSE,
+    FALSE,
+    '["com.google.android.youtube", "com.android.vending", "com.google.android.apps.photos"]'::jsonb,
+    '["portal.empresa.com.br", "*.empresa.com.br", "sistema.empresa.com.br"]'::jsonb
+)
 ON CONFLICT DO NOTHING;
 
 -- Tabela Principal de Dispositivos da Frota

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Tablet, RefreshCw, QrCode, Layers, Shield, Plus } from 'lucide-react';
-import { MetricasFrota } from './componentes/MetricasFrota';
-import { TabelaDispositivos } from './componentes/TabelaDispositivos';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BarraLateral } from './componentes/BarraLateral';
+import { PaginaDashboard } from './paginas/PaginaDashboard';
+import { PaginaDispositivos } from './paginas/PaginaDispositivos';
+import { PaginaAplicativos } from './paginas/PaginaAplicativos';
+import { PaginaPoliticas } from './paginas/PaginaPoliticas';
+import { PaginaProvisionamento } from './paginas/PaginaProvisionamento';
 import { ModalComandos } from './componentes/ModalComandos';
-import { PainelProvisionamentoQr } from './componentes/PainelProvisionamentoQr';
-import { PainelComandosLote } from './componentes/PainelComandosLote';
 import { ModalAdicionarDispositivo } from './componentes/ModalAdicionarDispositivo';
+import { PainelComandosLote } from './componentes/PainelComandosLote';
 import {
   obter_resumo_frota_api,
   listar_dispositivos_api,
@@ -19,16 +22,15 @@ export const App: React.FC = () => {
   const [dispositivos, setDispositivos] = useState<DispositivoItem[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
 
-  // Estados dos modais
+  // Estados dos Modais Globais
   const [dispositivoSelecionado, setDispositivoSelecionado] = useState<DispositivoItem | null>(null);
-  const [modalQrVisivel, setModalQrVisivel] = useState<boolean>(false);
   const [modalLoteVisivel, setModalLoteVisivel] = useState<boolean>(false);
   const [modalAdicionarVisivel, setModalAdicionarVisivel] = useState<boolean>(false);
 
   useEffect(() => {
     carregar_dados_sistema();
 
-    // Atualização contínua de telemetria a cada 10 segundos
+    // Sincronização periódica da telemetria a cada 10 segundos
     const intervalo = setInterval(() => {
       carregar_dados_sistema(false);
     }, 10000);
@@ -37,7 +39,7 @@ export const App: React.FC = () => {
   }, []);
 
   /**
-   * Sincroniza métricas e lista de tablets com o backend.
+   * Sincroniza métricas consolidadas e inventário com a API REST.
    */
   async function carregar_dados_sistema(exibirLoader = true) {
     if (exibirLoader) setCarregando(true);
@@ -49,14 +51,14 @@ export const App: React.FC = () => {
       setMetricas(resMetricas.metricas);
       setDispositivos(resDispositivos.dispositivos);
     } catch (erro) {
-      console.error('Erro ao sincronizar dados com a API:', erro);
+      console.error('Erro ao sincronizar dados com o backend:', erro);
     } finally {
       if (exibirLoader) setCarregando(false);
     }
   }
 
   /**
-   * Dispara o bloqueio imediato da tela do tablet selecionado.
+   * Bloqueia a tela de um tablet imediatamente via MQTTS.
    */
   async function ao_bloquear_dispositivo_rapido(disp: DispositivoItem) {
     try {
@@ -69,7 +71,7 @@ export const App: React.FC = () => {
   }
 
   /**
-   * Dispara a reinicialização remota do tablet.
+   * Reinicia o tablet remotamente via comando Device Owner.
    */
   async function ao_reiniciar_dispositivo_rapido(disp: DispositivoItem) {
     if (confirm(`Deseja reiniciar remotamente o tablet ${disp.modelo} (${disp.numero_serie})?`)) {
@@ -84,7 +86,7 @@ export const App: React.FC = () => {
   }
 
   /**
-   * Abre o modal completo de comandos para um tablet.
+   * Abre o modal completo de comandos para um tablet específico.
    */
   function ao_abrir_modal_comandos(disp: DispositivoItem) {
     setDispositivoSelecionado(disp);
@@ -98,7 +100,7 @@ export const App: React.FC = () => {
   }
 
   /**
-   * Executa comando individual via modal.
+   * Executa comandos individuais pelo modal.
    */
   async function ao_enviar_comando_individual(
     dispositivoId: string,
@@ -110,80 +112,92 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="app-container">
-      {/* Cabeçalho Principal */}
-      <header className="cabecalho-principal">
-        <div className="cabecalho-titulo">
-          <Shield size={28} color="#3b82f6" />
-          <div>
-            <h1>MDM Corporativo Privado</h1>
-            <div style={{ fontSize: '13px', color: 'var(--texto-secundario)', marginTop: '2px' }}>
-              Gestão Autônoma de Dispositivos Android Enterprise (VPS + DuckDNS + MQTTS)
-            </div>
-          </div>
-          <span className="badge-frota">Frota: 250 Tablets</span>
-        </div>
+    <BrowserRouter>
+      <div className="layout-com-sidebar">
+        {/* Barra Lateral com os 5 menus requeridos */}
+        <BarraLateral
+          totalTablets={metricas?.total_dispositivos || 250}
+          onlineTablets={metricas?.conectados || 0}
+        />
 
-        <div className="cabecalho-acoes">
-          <button className="btn btn-secundario" onClick={() => carregar_dados_sistema(true)} title="Atualizar">
-            <RefreshCw size={15} />
-            Sincronizar
-          </button>
-          <button className="btn btn-secundario" onClick={() => setModalAdicionarVisivel(true)} title="Cadastrar Tablet">
-            <Plus size={15} />
-            Adicionar Tablet
-          </button>
-          <button className="btn btn-secundario" onClick={() => setModalLoteVisivel(true)}>
-            <Layers size={15} />
-            Comandos em Lote
-          </button>
-          <button className="btn btn-primario" onClick={() => setModalQrVisivel(true)}>
-            <QrCode size={15} />
-            Provisionar Tablets (QR Code)
-          </button>
-        </div>
-      </header>
+        {/* Área Principal de Conteúdo */}
+        <main className="conteudo-principal">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <PaginaDashboard
+                  metricas={metricas}
+                  dispositivos={dispositivos}
+                  carregando={carregando}
+                  aoAtualizar={() => carregar_dados_sistema(true)}
+                  aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
+                  aoAbrirComandosLote={() => setModalLoteVisivel(true)}
+                  aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
+                  aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
+                  aoAbrirComandosCompletos={ao_abrir_modal_comandos}
+                />
+              }
+            />
 
-      {/* Grid de Métricas Consolidadas */}
-      <MetricasFrota dadosMetricas={metricas} capacidadeTotal={250} />
+            <Route
+              path="/dispositivos"
+              element={
+                <PaginaDispositivos
+                  dispositivos={dispositivos}
+                  carregando={carregando}
+                  aoAtualizar={() => carregar_dados_sistema(true)}
+                  aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
+                  aoAbrirComandosLote={() => setModalLoteVisivel(true)}
+                  aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
+                  aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
+                  aoAbrirComandosCompletos={ao_abrir_modal_comandos}
+                />
+              }
+            />
 
-      {/* Tabela de Dispositivos e Telemetria em Tempo Real */}
-      <TabelaDispositivos
-        dispositivos={dispositivos}
-        carregando={carregando}
-        aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
-        aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
-        aoAbrirComandosCompletos={ao_abrir_modal_comandos}
-      />
+            <Route
+              path="/aplicativos"
+              element={<PaginaAplicativos dispositivos={dispositivos} />}
+            />
 
-      {/* Modal de Comandos Individuais */}
-      <ModalComandos
-        dispositivo={dispositivoSelecionado}
-        aoFechar={ao_fechar_modal_comandos}
-        aoEnviarComando={ao_enviar_comando_individual}
-      />
+            <Route
+              path="/politicas"
+              element={<PaginaPoliticas dispositivos={dispositivos} />}
+            />
 
-      {/* Modal de Cadastro Manual de Dispositivo */}
-      <ModalAdicionarDispositivo
-        visivel={modalAdicionarVisivel}
-        aoFechar={() => setModalAdicionarVisivel(false)}
-        aoSucesso={() => carregar_dados_sistema(false)}
-      />
+            <Route
+              path="/provisionamento"
+              element={<PaginaProvisionamento />}
+            />
 
-      {/* Modal de Provisionamento via QR Code (6 Toques no Boot) */}
-      <PainelProvisionamentoQr
-        visivel={modalQrVisivel}
-        aoFechar={() => setModalQrVisivel(false)}
-      />
+            {/* Redirecionamento padrão para rota inicial */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
 
-      {/* Modal de Ações Coletivas em Lote */}
-      <PainelComandosLote
-        visivel={modalLoteVisivel}
-        totalConectados={metricas?.conectados || 0}
-        aoFechar={() => setModalLoteVisivel(false)}
-        aoConcluirComandoLote={() => carregar_dados_sistema(false)}
-      />
-    </div>
+        {/* Modais Globais */}
+        <ModalComandos
+          dispositivo={dispositivoSelecionado}
+          aoFechar={ao_fechar_modal_comandos}
+          aoEnviarComando={ao_enviar_comando_individual}
+        />
+
+        <ModalAdicionarDispositivo
+          visivel={modalAdicionarVisivel}
+          aoFechar={() => setModalAdicionarVisivel(false)}
+          aoSucesso={() => carregar_dados_sistema(false)}
+        />
+
+        <PainelComandosLote
+          visivel={modalLoteVisivel}
+          totalConectados={metricas?.conectados || 0}
+          aoFechar={() => setModalLoteVisivel(false)}
+          aoConcluirComandoLote={() => carregar_dados_sistema(false)}
+        />
+      </div>
+    </BrowserRouter>
   );
 };
+
 export default App;
