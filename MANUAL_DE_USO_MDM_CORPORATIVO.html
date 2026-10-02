@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Manual de Uso e Governança - MDM Corporativo Privado</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    @page {
+      size: A4;
+      margin: 20mm 15mm 20mm 15mm;
+      @bottom-right {
+        content: counter(page);
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 9pt;
+        color: #64748b;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #1e293b;
+      background-color: #ffffff;
+      font-size: 10pt;
+      line-height: 1.55;
+    }
+
+    /* Utilitários de Quebra de Página */
+    .quebra-pagina {
+      page-break-before: always;
+    }
+
+    .evitar-quebra {
+      page-break-inside: avoid;
+    }
+
+    /* Capa Executiva */
+    .capa {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px 20px 20px 20px;
+      page-break-after: always;
+      background: linear-gradient(135deg, #090d16 0%, #111827 60%, #1e293b 100%);
+      color: #ffffff;
+      border-radius: 12px;
+    }
+
+    .capa-topo {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      padding-bottom: 16px;
+    }
+
+    .capa-tag {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 9pt;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .capa-centro {
+      margin: auto 0;
+      padding: 40px 0;
+    }
+
+    .capa-centro h1 {
+      font-size: 32pt;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, #ffffff 0%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .capa-centro .subtitulo {
+      font-size: 14pt;
+      color: #94a3b8;
+      font-weight: 400;
+      max-width: 650px;
+      line-height: 1.4;
+      margin-bottom: 24px;
+    }
+
+    .capa-destaques {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 30px;
+    }
+
+    .capa-destaque-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px;
+      border-radius: 10px;
+    }
+
+    .capa-destaque-item .val {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .capa-destaque-item .lbl {
+      font-size: 8.5pt;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .capa-rodape {
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5pt;
+      color: #64748b;
+    }
+
+    /* Tipografia e Estrutura dos Textos */
+    h2 {
+      font-size: 16pt;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+      margin-top: 26px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3 {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin-bottom: 10px;
+      text-align: justify;
+      color: #334155;
+    }
+
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 12px;
+      color: #334155;
+    }
+
+    li {
+      margin-bottom: 5px;
+    }
+
+    /* Caixas de Alerta e Destaque */
+    .alerta {
+      background-color: #f8fafc;
+      border-left: 4px solid #3b82f6;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 14px 0;
+      font-size: 9.5pt;
+    }
+
+    .alerta-titulo {
+      font-weight: 700;
+      color: #1e3a8a;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .alerta.sucesso {
+      background-color: #f0fdf4;
+      border-left-color: #10b981;
+    }
+    .alerta.sucesso .alerta-titulo { color: #065f46; }
+
+    .alerta.atencao {
+      background-color: #fffbeb;
+      border-left-color: #f59e0b;
+    }
+    .alerta.atencao .alerta-titulo { color: #92400e; }
+
+    .alerta.perigo {
+      background-color: #fef2f2;
+      border-left-color: #ef4444;
+    }
+    .alerta.perigo .alerta-titulo { color: #991b1b; }
+
+    /* Tabelas */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 9pt;
+    }
+
+    th {
+      background-color: #f1f5f9;
+      color: #475569;
+      font-weight: 700;
+      text-align: left;
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    td {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-verde { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .badge-azul { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+    .badge-amarelo { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+    .badge-vermelho { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+
+    /* Códigos e Comandos */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5pt;
+      background: #f1f5f9;
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+    }
+
+    pre {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5pt;
+      background: #090d16;
+      color: #e2e8f0;
+      padding: 12px 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 12px 0;
+      line-height: 1.45;
+    }
+
+    /* Diagramas e Caixas de Procedimentos */
+    .passo-caixa {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .passo-numero {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      background: #3b82f6;
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 24px;
+      font-weight: 700;
+      font-size: 9pt;
+      margin-right: 8px;
+    }
+
+    .passo-titulo {
+      font-weight: 700;
+      font-size: 10.5pt;
+      color: #0f172a;
+      display: inline;
+    }
+
+    .passo-conteudo {
+      margin-top: 8px;
+      margin-left: 32px;
+      font-size: 9.5pt;
+      color: #475569;
+    }
+
+    .grade-recursos {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .cartao-recurso {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      background: #f8fafc;
+    }
+
+    .cartao-recurso h4 {
+      font-size: 10pt;
+      color: #1e3a8a;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cartao-recurso p {
+      font-size: 8.5pt;
+      color: #64748b;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ======================================================== -->
+  <!-- CAPA EXECUTIVA                                           -->
+  <!-- ======================================================== -->
+  <div class="capa">
+    <div class="capa-topo">
+      <div style="font-weight: 800; font-size: 12pt; letter-spacing: -0.01em;">
+        🛡️ MDM CORPORATIVO PRIVADO
+      </div>
+      <div class="capa-tag">Documentação Oficial v2.0</div>
+    </div>
+
+    <div class="capa-centro">
+      <h1>MANUAL DE OPERAÇÃO E GOVERNANÇA</h1>
+      <div class="subtitulo">
+        Guia Completo de Gestão, Políticas de Restrição, Catálogo de APKs e Provisionamento Autônomo para Frota de 250 Tablets Android Enterprise.
+      </div>
+
+      <div class="capa-destaques">
+        <div class="capa-destaque-item">
+          <div class="val">250</div>
+          <div class="lbl">Tablets sob Gestão</div>
+        </div>
+        <div class="capa-destaque-item">
+          <div class="val">100%</div>
+          <div class="lbl">Privado & Autônomo</div>
+        </div>
+        <div class="capa-destaque-item">
+          <div class="val">Zero</div>
+          <div class="lbl">Contas Google / Custos de Licença</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="capa-rodape">
+      <div>Engenharia de Redes & TI Corporativa</div>
+      <div>Arquitetura: Device Owner • MQTTS TLS • Fastify • PostgreSQL • React</div>
+      <div>Outubro / 2026</div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 1. RESUMO EXECUTIVO E ARQUITETURA                       -->
+  <!-- ======================================================== -->
+  <h2>1. Visão Geral e Arquitetura do Sistema</h2>
+
+  <p>
+    O <strong>MDM Corporativo Privado</strong> é uma plataforma proprietária desenvolvida para gerenciar com total autonomia e controle estrito uma frota de <strong>250 tablets Android</strong>. Ao contrário das soluções comerciais (Google Workspace, Intune, AirWatch) que cobram mensalidades por dispositivo e exigem cadastro individual de contas Google, esta solução opera <strong>100% on-premises ou em VPS própria</strong>, utilizando prerrogativas de <strong>Device Owner (Android Enterprise)</strong> combinadas com telemetria contínua via <strong>MQTTS (TLS 8883)</strong>.
+  </p>
+
+  <div class="alerta sucesso">
+    <div class="alerta-titulo">✓ Pilares de Projeto da Plataforma</div>
+    • <strong>Independência Tecnológica:</strong> Nenhum dado dos aparelhos ou da empresa trafega por servidores de terceiros.<br>
+    • <strong>Controle de Nível de Sistema Operacional:</strong> O agente instalado possui privilégio máximo de Device Owner, impedindo desinstalação ou desativação pelo operador.<br>
+    • <strong>Economia Operacional:</strong> Eliminação definitiva de taxas de licenciamento por tablet e de complexidade de gestão de senhas/contas Google.
+  </div>
+
+  <h3>Topologia da Solução</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Componente</th>
+        <th>Tecnologia</th>
+        <th>Função Operacional</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Agente Tablet (DPC)</strong></td>
+        <td>Android SDK (Kotlin/Java)</td>
+        <td>Atua como <em>Device Owner</em>. Executa comandos do sistema, bloqueia tela, restringe Chrome, oculta apps nativos e envia telemetria a cada 10s.</td>
+      </tr>
+      <tr>
+        <td><strong>Broker MQTTS</strong></td>
+        <td>Eclipse Mosquitto (TLS)</td>
+        <td>Barramento de mensageria assíncrona bidirecional de altíssima velocidade e baixo consumo de dados móveis/bateria.</td>
+      </tr>
+      <tr>
+        <td><strong>Servidor de API</strong></td>
+        <td>Node.js, Fastify & TypeScript</td>
+        <td>Processa telemetria, autentica requisições, orquestra comandos em lote, serve catálogo de APKs e gerencia políticas.</td>
+      </tr>
+      <tr>
+        <td><strong>Banco de Dados</strong></td>
+        <td>PostgreSQL 16</td>
+        <td>Armazena histórico de telemetria, inventário de hardware, logs de auditoria e diretrizes de políticas corporativas.</td>
+      </tr>
+      <tr>
+        <td><strong>Painel Web de Gestão</strong></td>
+        <td>React, Tailwind & Lucide</td>
+        <td>Interface de alta fidelidade para monitoramento em tempo real, envio de ordens remotas e auditoria da frota.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ======================================================== -->
+  <!-- 2. RESUMO COMPLETO DAS FUNCIONALIDADES                  -->
+  <!-- ======================================================== -->
+  <div class="quebra-pagina"></div>
+  <h2>2. Resumo Completo das Funcionalidades</h2>
+
+  <div class="grade-recursos">
+    <div class="cartao-recurso">
+      <h4>📡 Telemetria e Monitoramento em Tempo Real</h4>
+      <p>Coleta de nível de carga da bateria, status de carregamento, intensidade do sinal Wi-Fi (dBm RSSI), memória RAM livre, armazenamento interno disponível e nome do aplicativo ativo em foco a cada 10 segundos.</p>
+    </div>
+    <div class="cartao-recurso">
+      <h4>🔒 Bloqueio de Apps Nativos (Sprint 2)</h4>
+      <p>Ocultação instantânea de aplicativos nativos indesejados via <code>setApplicationHidden()</code>: YouTube, Google Play Store, Galeria de Fotos, Câmera e Configurações Gerais do Android.</p>
+    </div>
+    <div class="cartao-recurso">
+      <h4>🌐 Restrição Total de Navegação Chrome</h4>
+      <p>Bloqueio universal da internet via política corporativa <code>URLBlocklist: ["*"]</code>, liberando exclusivamente domínios declarados na lista branca (<code>URLAllowlist</code>) e proibindo navegação anônima.</p>
+    </div>
+    <div class="cartao-recurso">
+      <h4>📦 Catálogo e Distribuição Silenciosa de APKs</h4>
+      <p>Área de upload para APKs corporativos com cálculo de integridade SHA-256 e disparo de instalação remota em massa sem necessidade de confirmação do operador do tablet.</p>
+    </div>
+    <div class="cartao-recurso">
+      <h4>🛡️ Proteção de Hardware e Antifurto</h4>
+      <p>Bloqueio das portas USB contra transferência de arquivos para PCs, proibição de Reset de Fábrica (FRP) pelas configurações do sistema e bloqueio remoto imediato de tela.</p>
+    </div>
+    <div class="cartao-recurso">
+      <h4>⚡ Provisionamento Zero-Touch (QR Code)</h4>
+      <p>Pareamento de tablets novos no primeiro boot com 6 toques na tela de boas-vindas "Olá", conectando automaticamente ao Wi-Fi e elevando o agente a Dono do Aparelho (Device Owner).</p>
+    </div>
+  </div>
+
+  <h3>Matriz de Políticas e Restrições Implementadas</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Recurso Controlado</th>
+        <th>Comportamento Padrão</th>
+        <th>Mecanismo Técnico (Android DPC)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>YouTube</strong></td>
+        <td><span class="badge badge-vermelho">Bloqueado / Oculto</span></td>
+        <td><code>setApplicationHidden("com.google.android.youtube", true)</code></td>
+      </tr>
+      <tr>
+        <td><strong>Google Play Store</strong></td>
+        <td><span class="badge badge-vermelho">Bloqueado / Oculto</span></td>
+        <td><code>setApplicationHidden("com.android.vending", true)</code></td>
+      </tr>
+      <tr>
+        <td><strong>Galeria / Google Fotos</strong></td>
+        <td><span class="badge badge-vermelho">Bloqueado / Oculto</span></td>
+        <td><code>setApplicationHidden("com.google.android.apps.photos", true)</code></td>
+      </tr>
+      <tr>
+        <td><strong>Câmera Física</strong></td>
+        <td><span class="badge badge-verde">Liberada</span> (comutável)</td>
+        <td><code>setCameraDisabled(adminComponente, !permitirCamera)</code></td>
+      </tr>
+      <tr>
+        <td><strong>Navegação Web (Chrome)</strong></td>
+        <td><span class="badge badge-azul">Lista Branca Restrita</span></td>
+        <td>Managed Restrictions: <code>URLBlocklist: ["*"]</code> + <code>URLAllowlist</code></td>
+      </tr>
+      <tr>
+        <td><strong>Modo Anônimo Chrome</strong></td>
+        <td><span class="badge badge-vermelho">Desativado Compulsoriamente</span></td>
+        <td>Managed Restrictions: <code>IncognitoModeAvailability: 1</code></td>
+      </tr>
+      <tr>
+        <td><strong>Depuração USB / MTP</strong></td>
+        <td><span class="badge badge-vermelho">Bloqueado</span></td>
+        <td><code>addUserRestriction(DISALLOW_USB_FILE_TRANSFER)</code></td>
+      </tr>
+      <tr>
+        <td><strong>Formatação de Fábrica</strong></td>
+        <td><span class="badge badge-vermelho">Proibido</span></td>
+        <td><code>addUserRestriction(DISALLOW_FACTORY_RESET)</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ======================================================== -->
+  <!-- 3. MANUAL PASSO A PASSO DO PAINEL WEB                   -->
+  <!-- ======================================================== -->
+  <div class="quebra-pagina"></div>
+  <h2>3. Manual Passo a Passo do Painel de Controle</h2>
+
+  <p>
+    O painel de gerenciamento pode ser acessado em qualquer computador ou notebook da rede corporativa pelo navegador web através da URL:
+    <br>
+    <strong>URL Local:</strong> <code>http://localhost:5173/</code> | <strong>URL de Produção:</strong> <code>https://mdm-corporativo.duckdns.org/</code>
+  </p>
+
+  <h3>3.1 Estrutura de Navegação (Barra Lateral)</h3>
+  <p>
+    A interface do MDM conta com uma barra lateral fixa dividida em 5 módulos de controle operacional:
+  </p>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">1</span>
+    <div class="passo-titulo">Dashboard Geral (<code>/</code>)</div>
+    <div class="passo-conteudo">
+      • <strong>Métricas Globais:</strong> Exibe a contagem total de tablets (capacidade de 250), total online no momento, aparelhos offline, tablets com bateria crítica (<15%) e sinal Wi-Fi fraco.<br>
+      • <strong>Atalhos Rápidos:</strong> Acesso em um clique para Políticas, Catálogo de Apps e Comandos em Lote.<br>
+      • <strong>Inventário Resumido:</strong> Amostragem em tempo real dos tablets mais ativos.
+    </div>
+  </div>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">2</span>
+    <div class="passo-titulo">Dispositivos (<code>/dispositivos</code>)</div>
+    <div class="passo-conteudo">
+      • <strong>Busca Instantânea:</strong> Localize qualquer tablet digitando parte do Número de Série, Modelo ou Status.<br>
+      • <strong>Filtros Dinâmicos:</strong> Visualize rapidamente apenas os "Online", "Offline" ou com "Bateria Baixa".<br>
+      • <strong>Ações Rápidas por Dispositivo:</strong>
+      <ul style="margin-top: 6px;">
+        <li><strong>Bloquear:</strong> Tranca a tela do tablet imediatamente exibindo alerta de segurança.</li>
+        <li><strong>Reiniciar:</strong> Dispara reboot remoto limpo do aparelho.</li>
+        <li><strong>Comandos:</strong> Abre o console detalhado para envio de alertas na tela, alteração de volume e ativação de Modo Quiosque.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">3</span>
+    <div class="passo-titulo">Catálogo de Apps (<code>/aplicativos</code>)</div>
+    <div class="passo-conteudo">
+      • <strong>Upload de APKs Corporativos:</strong> Arraste e solte ou selecione o arquivo <code>.apk</code> da sua aplicação interna (suporte a arquivos de até 250 MB).<br>
+      • <strong>Auditoria de Checksum:</strong> O sistema gera automaticamente o hash criptográfico SHA-256 para assegurar que nenhum APK corrompido seja instalado.<br>
+      • <strong>Disparo de Instalação Silenciosa:</strong> Selecione a frota inteira ou um tablet individual e clique em <em>"Instalar nos Tablets"</em>. O Android DPC baixará e concluirá a instalação sem perguntar nada ao usuário.
+    </div>
+  </div>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">4</span>
+    <div class="passo-titulo">Políticas & Restrições (<code>/politicas</code>)</div>
+    <div class="passo-conteudo">
+      • <strong>Controle de Apps Nativos:</strong> Clique no botão de alternância ao lado do YouTube, Play Store ou Galeria para alternar entre <em>"Bloqueado (Oculto)"</em> e <em>"Liberado"</em>.<br>
+      • <strong>Bloqueio de Pacote Customizado:</strong> Digite o identificador do app (ex: <code>com.instagram.android</code>) e clique em <em>"Bloquear"</em>.<br>
+      • <strong>Lista Branca de Navegação Chrome:</strong> Digite o domínio autorizado (ex: <code>portal.empresa.com.br</code> ou <code>*.empresa.com.br</code>) e clique em <em>"Liberar URL"</em>.<br>
+      • <strong>Aplicação:</strong> Escolha entre <em>"Toda a Frota Conectada"</em> ou um tablet específico e clique em <strong>"Salvar e Aplicar Políticas"</strong>. A ordem é propagada via MQTTS instantaneamente.
+    </div>
+  </div>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">5</span>
+    <div class="passo-titulo">Provisionamento QR Code (<code>/provisionamento</code>)</div>
+    <div class="passo-conteudo">
+      • Apresenta o QR Code oficial do Android Enterprise configurado com as credenciais da rede Wi-Fi corporativa e a URL segura para download do agente DPC.<br>
+      • Fornece o botão para copiar o payload JSON caso seja necessário auditar ou cadastrar em ferramentas de lote.
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 4. GUIA DE PROVISIONAMENTO DE TABLETS NOVOS             -->
+  <!-- ======================================================== -->
+  <div class="quebra-pagina"></div>
+  <h2>4. Procedimento Operacional: Provisionamento de Novos Tablets</h2>
+
+  <p>
+    Para transformar um tablet novo de fábrica (ou recém-formatado) em um dispositivo corporativo gerenciado, siga rigorosamente o procedimento dos <strong>6 Toques no Boot</strong>:
+  </p>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">Passo 1</span>
+    <div class="passo-titulo">Ligue o Tablet e Pare na Tela de Boas-Vindas</div>
+    <div class="passo-conteudo">
+      Ligue o tablet. Ao carregar a tela inicial com a mensagem <strong>"Olá"</strong> (onde solicita a seleção de idioma), <strong>NÃO CLIQUE EM INICIAR</strong>.
+    </div>
+  </div>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">Passo 2</span>
+    <div class="passo-titulo">Acione o Leitor Oculto de QR Code (6 Toques)</div>
+    <div class="passo-conteudo">
+      Toque <strong>6 vezes seguidas e rapidamente</strong> no mesmo ponto vazio do centro da tela (ao redor do texto "Olá").<br>
+      O sistema operacional emitirá um bipe sonoro ou exibirá a mensagem <em>"Configuração de dispositivo de trabalho"</em> e abrirá a câmera com a mira de leitura do QR Code.
+    </div>
+  </div>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">Passo 3</span>
+    <div class="passo-titulo">Aponte a Câmera para o QR Code do Painel</div>
+    <div class="passo-conteudo">
+      Aponte a câmera do tablet para a tela do computador aberta no menu <strong>Provisionamento QR (<code>/provisionamento</code>)</strong>.<br>
+      O tablet lerá as informações criptografadas e realizará os seguintes passos automaticamente:
+      <ol style="margin-top: 6px;">
+        <li>Conecta-se à rede Wi-Fi corporativa informada no QR Code.</li>
+        <li>Baixa o aplicativo DPC corporativo (<code>mdm-dpc.apk</code>) diretamente da sua VPS.</li>
+        <li>Valida o Checksum SHA-256 do arquivo baixado para garantir segurança absoluta.</li>
+        <li>Instala o agente e o promove a <strong>Device Owner</strong> (Dono do Dispositivo).</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="passo-caixa">
+    <span class="passo-numero">Passo 4</span>
+    <div class="passo-titulo">Aceite os Termos Corporativos e Conclua a Configuração</div>
+    <div class="passo-conteudo">
+      Na tela seguinte, clique em <strong>"Configurar"</strong> e <strong>"Aceitar e Continuar"</strong>.<br>
+      O tablet aplicará as diretrizes de bloqueio, ocultará o YouTube e a Play Store, restringirá o Chrome e iniciará o envio de telemetria ao painel. O aparelho passará a constar como <span class="badge badge-verde">Conectado</span> na aba <em>Dispositivos</em>.
+    </div>
+  </div>
+
+  <div class="alerta atencao">
+    <div class="alerta-titulo">⚠️ Requisitos Obrigatórios no Primeiro Boot</div>
+    • O tablet deve estar obrigatoriamente no estado original de fábrica (fora de uso ou recém formatado). Se já tiver sido configurado com uma conta Google pessoal anteriormente, será necessário realizar o reset de fábrica antes de escanear o QR Code.<br>
+    • O computador da VPS ou da rede local onde o backend está rodando deve estar acessível pelo tablet através da rede Wi-Fi indicada.
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 5. RESOLUÇÃO DE PROBLEMAS E TROUBLESHOOTING             -->
+  <!-- ======================================================== -->
+  <div class="quebra-pagina"></div>
+  <h2>5. Diagnóstico e Resolução de Problemas (Troubleshooting)</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Sintoma / Ocorrência</th>
+        <th>Causa Provável</th>
+        <th>Procedimento de Correção</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Tablet leu o QR Code mas retornou para a tela "Olá"</strong></td>
+        <td>O tablet conectou ao Wi-Fi mas não conseguiu baixar o APK ou o Checksum SHA-256 divergiu.</td>
+        <td>Verifique se a URL do APK está acessível no navegador do celular/tablet (<code>http://IP:3000/apk/mdm-dpc.apk</code>). No painel web, clique em <em>"Recalcular Checksum e Atualizar QR"</em> e leia novamente.</td>
+      </tr>
+      <tr>
+        <td><strong>Tablet aparece como "Desconectado" no painel</strong></td>
+        <td>Queda de sinal Wi-Fi, aparelho desligado ou porta MQTTS (8883/1883) bloqueada no firewall da rede.</td>
+        <td>Verifique a conexão Wi-Fi do tablet e garanta que o broker Mosquitto esteja rodando (<code>docker compose ps</code>). Assim que a rede restabelece, a reconexão é automática.</td>
+      </tr>
+      <tr>
+        <td><strong>Erro <code>EADDRINUSE</code> na porta 3000 ao iniciar backend</strong></td>
+        <td>Processo Node anterior foi finalizado incorretamente e manteve o socket TCP preso.</td>
+        <td>O backend agora possui o <em>MDM Port Guard</em> nativo que encerra processos órfãos na inicialização. Caso ocorra manualmente, execute: <code>taskkill /F /IM node.exe</code>.</td>
+      </tr>
+      <tr>
+        <td><strong>O Chrome abre sites fora da lista permitida</strong></td>
+        <td>A política de restrições gerenciadas ainda não foi recebida ou o Chrome não foi reiniciado.</td>
+        <td>No painel, acesse <em>Políticas</em>, confirme que os domínios estão listados e clique em <em>"Salvar e Aplicar Políticas"</em>. No tablet, feche e reabra o Chrome para recarregar as diretrizes.</td>
+      </tr>
+      <tr>
+        <td><strong>Apps nativos (YouTube/Play Store) ainda aparecem</strong></td>
+        <td>O aplicativo não possui privilégios de Device Owner ativos no tablet.</td>
+        <td>Vá em Configurações > Segurança > Apps do Administrador do Dispositivo e verifique se o "MDM DPC Corporativo" consta como administrador ativo e não desativável.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ======================================================== -->
+  <!-- 6. MATRIZ DE REDE E COMANDOS DE MANUTENÇÃO              -->
+  <!-- ======================================================== -->
+  <h2>6. Referência Técnica e Manutenção da Infraestrutura</h2>
+
+  <h3>Mapeamento de Portas e Protocolos de Rede</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Porta</th>
+        <th>Protocolo</th>
+        <th>Serviço</th>
+        <th>Finalidade Operacional</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>5173</code></td>
+        <td>HTTP</td>
+        <td>Painel Web Vite (Frontend)</td>
+        <td>Interface de gestão dos operadores de TI.</td>
+      </tr>
+      <tr>
+        <td><code>3000</code></td>
+        <td>HTTP / REST</td>
+        <td>API Fastify (Backend)</td>
+        <td>Comunicação do frontend, download de APKs e endpoints de comando.</td>
+      </tr>
+      <tr>
+        <td><code>1883</code></td>
+        <td>TCP / MQTT</td>
+        <td>Mosquitto (Rede Interna)</td>
+        <td>Comunicação interna entre backend e broker.</td>
+      </tr>
+      <tr>
+        <td><code>8883</code></td>
+        <td>TLS / MQTTS</td>
+        <td>Mosquitto Seguro (Tablets)</td>
+        <td>Canal criptografado por onde os 250 tablets recebem ordens e enviam telemetria.</td>
+      </tr>
+      <tr>
+        <td><code>5432</code></td>
+        <td>TCP</td>
+        <td>PostgreSQL 16</td>
+        <td>Banco de dados relacional e persistência de dados da frota.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Comandos Rápidos de Administração da VPS (Docker Compose)</h3>
+  <pre><code># 1. Iniciar toda a infraestrutura com banco, broker e backend:
+docker compose -f infraestrutura/docker-compose.yml up -d
+
+# 2. Visualizar logs em tempo real do broker de mensagens MQTT:
+docker compose -f infraestrutura/docker-compose.yml logs -f mosquitto
+
+# 3. Verificar status de todos os contêineres:
+docker compose -f infraestrutura/docker-compose.yml ps
+
+# 4. Reiniciar o serviço de backend da API:
+docker compose -f infraestrutura/docker-compose.yml restart backend</code></pre>
+
+  <div style="margin-top: 30px; text-align: center; font-size: 8.5pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+    Documento confidencial para uso exclusivo da equipe de TI e Operações • MDM Corporativo Privado © 2026
+  </div>
+
+</body>
+</html>
