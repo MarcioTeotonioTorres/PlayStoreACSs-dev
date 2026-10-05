@@ -32,7 +32,9 @@ export async function listar_catalogo_aplicativos(
     const listaApks: ItemCatalogoApk[] = [];
 
     const host = process.env.DOMINIO_DUCKDNS || 'localhost:3000';
-    const protocolo = host.includes('localhost') ? 'http' : 'https';
+    // Usa HTTP se: for localhost OU se a porta explícita não for 443 (sem SSL)
+    const usaHttps = !host.includes('localhost') && !host.includes(':') && process.env.HTTPS_PORT === '443';
+    const protocolo = usaHttps ? 'https' : 'http';
 
     for (const arquivo of arquivos) {
       if (arquivo.endsWith('.apk')) {
@@ -130,7 +132,9 @@ export async function disparar_instalacao_catalogo(
     }
 
     const host = process.env.DOMINIO_DUCKDNS || 'localhost:3000';
-    const protocolo = host.includes('localhost') ? 'http' : 'https';
+    // Usa HTTP se: for localhost OU se a porta explícita não for 443 (sem SSL)
+    const usaHttps = !host.includes('localhost') && !host.includes(':') && process.env.HTTPS_PORT === '443';
+    const protocolo = usaHttps ? 'https' : 'http';
     const urlDownload = `${protocolo}://${host}/apk/${nome_arquivo}`;
 
     const comandoId = crypto.randomUUID();

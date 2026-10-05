@@ -196,11 +196,11 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
 export function inicializar_pool_conexoes(): Pool {
   if (!pool) {
     pool = new Pool({
-      host: process.env.PG_HOST || 'localhost',
-      port: Number(process.env.PG_PORT) || 5432,
-      user: process.env.PG_USER || 'postgres',
-      password: process.env.PG_PASSWORD || 'mdm_postgres_pass_2026',
-      database: process.env.PG_DATABASE || 'mdm_corporativo',
+      host: process.env.PG_HOST || process.env.DB_HOST || 'localhost',
+      port: Number(process.env.PG_PORT || process.env.DB_PORT) || 5432,
+      user: process.env.PG_USER || process.env.DB_USER || 'postgres',
+      password: process.env.PG_PASSWORD || process.env.DB_PASSWORD || 'mdm_postgres_pass_2026',
+      database: process.env.PG_DATABASE || process.env.DB_DATABASE || 'mdm_corporativo',
       max: 30,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 3000, // Timeout rápido para fallback suave em dev

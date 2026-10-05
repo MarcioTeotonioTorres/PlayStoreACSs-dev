@@ -280,4 +280,17 @@ export async function disparar_instalacao_catalogo_api(
   return await resposta.json();
 }
 
-
+/**
+ * Remove permanentemente um tablet do inventário da frota.
+ */
+export async function remover_dispositivo_api(
+  dispositivoId: string
+): Promise<{ sucesso: boolean; mensagem: string; dispositivo_removido?: { id: string; numero_serie: string; modelo: string } }> {
+  const resposta = await fetch(`${URL_BASE}/dispositivos/${dispositivoId}`, {
+    method: 'DELETE',
+  });
+  if (!resposta.ok) {
+    throw new Error('Falha ao remover dispositivo');
+  }
+  return await resposta.json();
+}

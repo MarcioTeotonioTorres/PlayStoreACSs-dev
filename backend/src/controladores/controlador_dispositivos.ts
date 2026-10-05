@@ -202,3 +202,80 @@ export async function cadastrar_dispositivo_manual(
   }
 }
 
+/**
+ * Endpoint HTTP REST para recepção de telemetria periódica direta de tablets Android.
+ */
+export async function receber_telemetria_http(
+  requisicao: FastifyRequest<{
+    Body: {
+      numero_serie: string;
+      modelo?: string;
+      versao_so?: string;
+      nivel_bateria?: number;
+      esta_carregando?: boolean;
+      sinal_wifi_rssi?: number;
+      ssid_wifi?: string;
+      app_em_foco?: string;
+      armazenamento_livre_mb?: number;
+      memoria_ram_livre_mb?: number;
+    };
+  }>,
+  resposta: FastifyReply
+): Promise<void> {
+  try {
+    const dados = requisicao.body;
+    if (!dados || !dados.numero_serie) {
+      resposta.status(400).send({ sucesso: false, mensagem: 'Número de série é obrigatório.' });
+      return;
+    }
+    const { processar_mensagem_telemetria } = await import('../servicos/servico_mqtt');
+    await processar_mensagem_telemetria(dados.numero_serie, dados);
+    resposta.status(200).send({ sucesso: true, mensagem: 'Telemetria registrada com sucesso.' });
+  } catch (erro) {
+    console.error('Erro em receber_telemetria_http:', erro);
+    resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao processar telemetria HTTP.' });
+  }
+}
+
+/**
+ * Remove um tablet do inventário permanentemente (exclui telemetria e comandos associados).
+ */
+export async function remover_dispositivo(
+  requisicao: FastifyRequest<{ Params: { id: string } }>,
+  resposta: FastifyReply
+): Promise<void> {
+  try {
+    const { id } = requisicao.params;
+
+    // Verifica se o dispositivo existe
+    const sqlBusca = `SELECT id, numero_serie, modelo FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
+    const resDispositivo = await executar_consulta(sqlBusca, [id]);
+
+    if (resDispositivo.rows.length === 0) {
+      resposta.status(404).send({ sucesso: false, mensagem: 'Dispositivo não encontrado no inventário.' });
+      return;
+    }
+
+    const dispositivo = resDispositivo.rows[0];
+
+    // Remove registros dependentes (cascata manual para compatibilidade)
+    await executar_consulta(`DELETE FROM logs_telemetria WHERE dispositivo_id = $1;`, [dispositivo.id]);
+    await executar_consulta(`DELETE FROM comandos WHERE dispositivo_id = $1;`, [dispositivo.id]);
+
+    // Remove o dispositivo
+    await executar_consulta(`DELETE FROM dispositivos WHERE id = $1;`, [dispositivo.id]);
+
+    resposta.status(200).send({
+      sucesso: true,
+      mensagem: `Tablet ${dispositivo.modelo} (SN: ${dispositivo.numero_serie}) removido do inventário com sucesso.`,
+      dispositivo_removido: {
+        id: dispositivo.id,
+        numero_serie: dispositivo.numero_serie,
+        modelo: dispositivo.modelo,
+      },
+    });
+  } catch (erro) {
+    console.error('Erro em remover_dispositivo:', erro);
+    resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao remover dispositivo do inventário.' });
+  }
+}

@@ -42,7 +42,8 @@ class ClienteMqttSeguro(
      */
     fun inicializar_cliente_mqtt() {
         try {
-            val serverUri = "ssl://$brokerHost:$brokerPort"
+            val protocolo = if (brokerPort == 1883) "tcp" else "ssl"
+            val serverUri = "$protocolo://$brokerHost:$brokerPort"
             val clientId = "tablet_$numeroSerie"
             clienteMqtt = MqttClient(serverUri, clientId, MemoryPersistence())
 
@@ -97,15 +98,17 @@ class ClienteMqttSeguro(
                 }
                 setWill(topicoStatus, lwtJson.toString().toByteArray(), 1, true)
 
-                // Configuração SSL/TLS para certificado Let's Encrypt / DuckDNS
-                try {
-                    socketFactory = obter_fabrica_soquetes_tls()
-                } catch (sslEx: Exception) {
-                    Log.w(TAG, "Aviso ao carregar certificados customizados, usando SSL padrão: ${sslEx.message}")
+                // Configuração SSL/TLS para certificado Let's Encrypt / DuckDNS quando em porta segura
+                if (brokerPort != 1883) {
+                    try {
+                        socketFactory = obter_fabrica_soquetes_tls()
+                    } catch (sslEx: Exception) {
+                        Log.w(TAG, "Aviso ao carregar certificados customizados, usando SSL padrão: ${sslEx.message}")
+                    }
                 }
             }
 
-            Log.i(TAG, "Iniciando conexão TLS com $brokerHost:$brokerPort...")
+            Log.i(TAG, "Iniciando conexão MQTT com $brokerHost:$brokerPort...")
             clienteMqtt?.connect(opcoes)
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao conectar ao broker MQTT: ${e.message}", e)

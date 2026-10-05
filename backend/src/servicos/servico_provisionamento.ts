@@ -41,12 +41,30 @@ export function calcular_checksum_sha256_apk(caminhoArquivoApk: string): string 
 export function gerar_payload_provisionamento_qr(
   parametros: ParametrosProvisionamento = {}
 ): Record<string, any> {
-  const host = parametros.dominioDuckDns || process.env.DOMINIO_DUCKDNS || 'mdm-corporativo.duckdns.org';
-  const portaHttps = parametros.portaHttps || (process.env.HTTPS_PORT ? Number(process.env.HTTPS_PORT) : 443);
+  let hostEntrada = (parametros.dominioDuckDns || process.env.DOMINIO_DUCKDNS || 'mdm-corporativo.duckdns.org').trim();
   const portaMqtt = parametros.portaMqtt || (process.env.MQTT_PORT ? Number(process.env.MQTT_PORT) : 8883);
   const nomeApk = parametros.nomeArquivoApk || 'mdm-dpc.apk';
+  let urlBase = '';
 
-  const urlBase = portaHttps === 443 ? `https://${host}` : `https://${host}:${portaHttps}`;
+  if (hostEntrada.startsWith('http://') || hostEntrada.startsWith('https://')) {
+    urlBase = hostEntrada.replace(/\/+$/, '');
+  } else {
+    // Verifica se é formato de endereço IP (ex: 31.97.86.253 ou 31.97.86.253:8090)
+    const ehIp = /^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(hostEntrada);
+    if (ehIp) {
+      if (!hostEntrada.includes(':')) {
+        // Se for IP sem porta, usa a porta padrão do painel (8090)
+        urlBase = `http://${hostEntrada}:8090`;
+      } else {
+        urlBase = `http://${hostEntrada}`;
+      }
+    } else {
+      const porta = parametros.portaHttps || (process.env.HTTPS_PORT ? Number(process.env.HTTPS_PORT) : 443);
+      urlBase = porta === 443 ? `https://${hostEntrada}` : `https://${hostEntrada}:${porta}`;
+    }
+  }
+
+  const hostLimpo = urlBase.replace(/^https?:\/\//, '').replace(/:.*$/, '');
   const urlDownloadApk = `${urlBase}/apk/${nomeApk}`;
 
   // Caminho do APK no servidor
@@ -65,7 +83,7 @@ export function gerar_payload_provisionamento_qr(
     // Bundle customizado entregue diretamente ao DPC no boot
     'android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE': {
       servidor_api: `${urlBase}/api`,
-      broker_mqtt_host: host,
+      broker_mqtt_host: hostLimpo,
       broker_mqtt_porta: portaMqtt,
       frota_total_esperada: 250,
       ambiente: 'producao',

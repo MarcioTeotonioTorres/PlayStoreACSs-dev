@@ -96,11 +96,15 @@ class ServicoSegundoPlanoMdm : Service() {
     fun configurar_cliente_mqtt() {
         val numeroSerie = gestorTelemetria.obter_numero_serie()
 
+        val prefs = getSharedPreferences("config_mdm", Context.MODE_PRIVATE)
+        val brokerHost = prefs.getString("broker_mqtt_host", "31.97.86.253") ?: "31.97.86.253"
+        val brokerPort = prefs.getInt("broker_mqtt_porta", 1883)
+
         clienteMqtt = ClienteMqttSeguro(
             contexto = this,
             numeroSerie = numeroSerie,
-            brokerHost = "seu-dominio.duckdns.org", // Configurável dinamicamente via SharedPreferences
-            brokerPort = 8883
+            brokerHost = brokerHost,
+            brokerPort = brokerPort
         ) { payloadJson ->
             gestorComandos.processar_e_executar_comando(payloadJson)
         }
@@ -125,12 +129,47 @@ class ServicoSegundoPlanoMdm : Service() {
                 try {
                     val telemetria = gestorTelemetria.coletar_telemetria_dispositivo()
                     val telemetriaJson = gestorTelemetria.converter_telemetria_para_json(telemetria)
-                    clienteMqtt.publicar_telemetria(telemetriaJson)
+                    
+                    // 1. Envio via MQTT em tempo real
+                    try {
+                        clienteMqtt.publicar_telemetria(telemetriaJson)
+                    } catch (eMqtt: Exception) {
+                        Log.w(TAG, "Aviso ao publicar MQTT: ${eMqtt.message}")
+                    }
+
+                    // 2. Envio via HTTP REST API (garante telemetria mesmo sem broker MQTT/SSL)
+                    enviar_telemetria_http(telemetriaJson)
+
                 } catch (e: Exception) {
                     Log.e(TAG, "Erro no envio de telemetria periódica: ${e.message}")
                 }
                 delay(INTERVALO_TELEMETRIA_MS)
             }
+        }
+    }
+
+    /**
+     * Envia telemetria diretamente via HTTP REST para a VPS.
+     */
+    fun enviar_telemetria_http(telemetriaJson: String) {
+        try {
+            val prefs = getSharedPreferences("config_mdm", Context.MODE_PRIVATE)
+            val servidorApi = prefs.getString("servidor_api", "http://31.97.86.253:8090/api") ?: "http://31.97.86.253:8090/api"
+            val url = java.net.URL("$servidorApi/telemetria")
+            val conexao = url.openConnection() as java.net.HttpURLConnection
+            conexao.requestMethod = "POST"
+            conexao.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+            conexao.connectTimeout = 5000
+            conexao.readTimeout = 5000
+            conexao.doOutput = true
+            conexao.outputStream.use { os ->
+                os.write(telemetriaJson.toByteArray(Charsets.UTF_8))
+            }
+            val codigo = conexao.responseCode
+            Log.d(TAG, "Telemetria HTTP enviada com status: $codigo")
+            conexao.disconnect()
+        } catch (e: Exception) {
+            Log.w(TAG, "Aviso no envio de telemetria HTTP: ${e.message}")
         }
     }
 

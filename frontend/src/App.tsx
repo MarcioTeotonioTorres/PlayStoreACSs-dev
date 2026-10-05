@@ -13,6 +13,7 @@ import {
   obter_resumo_frota_api,
   listar_dispositivos_api,
   despachar_comando_api,
+  remover_dispositivo_api,
   MetricasFrotaResposta,
   DispositivoItem,
 } from './servicos/api_mdm';
@@ -111,6 +112,24 @@ export const App: React.FC = () => {
     carregar_dados_sistema(false);
   }
 
+  /**
+   * Remove um tablet do inventário após confirmação dupla de segurança.
+   */
+  async function ao_remover_dispositivo(disp: DispositivoItem) {
+    const confirmar = confirm(
+      `⚠️ ATENÇÃO: Remover permanentemente o tablet da frota?\n\nModelo: ${disp.modelo}\nSN: ${disp.numero_serie}\n\nEsta ação remove o dispositivo e todo seu histórico de telemetria e comandos. Não pode ser desfeita.`
+    );
+    if (!confirmar) return;
+
+    try {
+      const resp = await remover_dispositivo_api(disp.id || disp.numero_serie);
+      alert(`✓ ${resp.mensagem}`);
+      carregar_dados_sistema(false);
+    } catch (erro) {
+      alert('Erro ao remover dispositivo. Verifique a conexão com o servidor.');
+    }
+  }
+
   return (
     <BrowserRouter>
       <div className="layout-com-sidebar">
@@ -152,6 +171,7 @@ export const App: React.FC = () => {
                   aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
                   aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
                   aoAbrirComandosCompletos={ao_abrir_modal_comandos}
+                  aoRemoverDispositivo={ao_remover_dispositivo}
                 />
               }
             />

@@ -12,6 +12,7 @@ interface PropriedadesPaginaDispositivos {
   aoBloquearDispositivo: (disp: DispositivoItem) => void;
   aoReiniciarDispositivo: (disp: DispositivoItem) => void;
   aoAbrirComandosCompletos: (disp: DispositivoItem) => void;
+  aoRemoverDispositivo: (disp: DispositivoItem) => void;
 }
 
 export const PaginaDispositivos: React.FC<PropriedadesPaginaDispositivos> = ({
@@ -23,6 +24,7 @@ export const PaginaDispositivos: React.FC<PropriedadesPaginaDispositivos> = ({
   aoBloquearDispositivo,
   aoReiniciarDispositivo,
   aoAbrirComandosCompletos,
+  aoRemoverDispositivo,
 }) => {
   return (
     <div className="pagina-conteudo">
@@ -56,6 +58,7 @@ export const PaginaDispositivos: React.FC<PropriedadesPaginaDispositivos> = ({
         aoBloquearDispositivo={aoBloquearDispositivo}
         aoReiniciarDispositivo={aoReiniciarDispositivo}
         aoAbrirComandosCompletos={aoAbrirComandosCompletos}
+        aoRemoverDispositivo={aoRemoverDispositivo}
       />
     </div>
   );

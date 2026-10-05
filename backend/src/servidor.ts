@@ -11,6 +11,8 @@ import {
   listar_dispositivos,
   obter_detalhes_dispositivo,
   cadastrar_dispositivo_manual,
+  receber_telemetria_http,
+  remover_dispositivo,
 } from './controladores/controlador_dispositivos';
 import {
   despachar_comando_dispositivo,
@@ -115,6 +117,8 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.get('/api/dispositivos', listar_dispositivos);
   app.get('/api/dispositivos/:id', obter_detalhes_dispositivo);
   app.post('/api/dispositivos', cadastrar_dispositivo_manual);
+  app.delete('/api/dispositivos/:id', remover_dispositivo);
+  app.post('/api/telemetria', receber_telemetria_http);
 
   // 4. Despacho de comandos individuais e em lote
   app.post('/api/comandos/despachar', despachar_comando_dispositivo);
