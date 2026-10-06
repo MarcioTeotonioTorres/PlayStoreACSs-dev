@@ -67,8 +67,29 @@ export function gerar_payload_provisionamento_qr(
   const hostLimpo = urlBase.replace(/^https?:\/\//, '').replace(/:.*$/, '');
   const urlDownloadApk = `${urlBase}/apk/${nomeApk}`;
 
-  // Caminho do APK no servidor
-  const caminhoLocalApk = path.join(__dirname, '../../public/apk', nomeApk);
+  // Procurar o APK em múltiplos caminhos possíveis (mesma lógica do servidor)
+  const tentativas = [
+    path.resolve('/app/public/apk', nomeApk),
+    path.resolve('/app/apk', nomeApk),
+    path.resolve(process.cwd(), 'public/apk', nomeApk),
+    path.resolve(process.cwd(), 'apk', nomeApk),
+    path.resolve(__dirname, '../public/apk', nomeApk),
+    path.resolve(__dirname, '../../public/apk', nomeApk),
+    path.resolve(__dirname, '../../../apk', nomeApk),
+  ];
+
+  let caminhoLocalApk = '';
+  for (const caminho of tentativas) {
+    if (fs.existsSync(caminho) && fs.statSync(caminho).isFile()) {
+      caminhoLocalApk = caminho;
+      break;
+    }
+  }
+
+  if (!caminhoLocalApk) {
+    console.error(`[MDM APK Hash 404] Arquivo '${nomeApk}' não encontrado para cálculo de hash! Usando fallback.`);
+  }
+
   const checksumApk = calcular_checksum_sha256_apk(caminhoLocalApk);
 
   const payloadAndroidEnterprise: Record<string, any> = {
