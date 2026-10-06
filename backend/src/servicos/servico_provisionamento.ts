@@ -99,6 +99,7 @@ export function gerar_payload_provisionamento_qr(
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_NAME': 'com.mdm.corporativo',
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION': urlDownloadApk,
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM': checksumApk,
+    'android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM': 'VAixoms05JVGLIu982STlQ84fIJ3Y0UkV9ROZKkkmmQ',
     // Permite que câmeras, Wi-Fi e apps essenciais continuem ativos
     'android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED': true,
     'android.app.extra.PROVISIONING_SKIP_ENCRYPTION': false,
