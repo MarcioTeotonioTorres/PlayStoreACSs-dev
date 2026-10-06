@@ -28,14 +28,22 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
 
     override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
         super.onProfileProvisioningComplete(context, intent)
-        Log.i(TAG, "Provisionamento de Device Owner concluído com sucesso!")
-        ao_concluir_provisionamento(context, intent)
+        try {
+            Log.i(TAG, "Provisionamento de Device Owner concluído com sucesso!")
+            ao_concluir_provisionamento(context, intent)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Erro não-fatal ao concluir provisionamento: ${e.message}", e)
+        }
     }
 
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
-        Log.i(TAG, "Administrador de Dispositivo ativado com sucesso.")
-        ao_habilitar_administrador(context, intent)
+        try {
+            Log.i(TAG, "Administrador de Dispositivo ativado com sucesso.")
+            ao_habilitar_administrador(context, intent)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Erro ao habilitar administrador: ${e.message}", e)
+        }
     }
 
     override fun onDisabled(context: Context, intent: Intent) {
@@ -58,39 +66,62 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
      * Trata o evento de finalização do provisionamento QR Code no primeiro boot.
      */
     fun ao_concluir_provisionamento(contexto: Context, intent: Intent) {
-        // Extrai parâmetros do QR Code (servidor_api, broker_mqtt_host, broker_mqtt_porta)
-        val extrasBundle = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            intent.getParcelableExtra<android.os.PersistableBundle>(DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE)
-        } else null
+        try {
+            // Extrai parâmetros do QR Code (servidor_api, broker_mqtt_host, broker_mqtt_porta)
+            val extrasBundle = try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(
+                        DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE,
+                        android.os.PersistableBundle::class.java
+                    )
+                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE)
+                } else null
+            } catch (eBundle: Throwable) {
+                Log.w(TAG, "Aviso ao extrair extrasBundle: ${eBundle.message}")
+                null
+            }
 
-        val prefs = contexto.getSharedPreferences("config_mdm", Context.MODE_PRIVATE)
-        val editor = prefs.edit()
+            val prefs = contexto.getSharedPreferences("config_mdm", Context.MODE_PRIVATE)
+            val editor = prefs.edit()
 
-        if (extrasBundle != null) {
-            extrasBundle.getString("servidor_api")?.let { editor.putString("servidor_api", it) }
-            extrasBundle.getString("broker_mqtt_host")?.let { editor.putString("broker_mqtt_host", it) }
-            val porta = extrasBundle.getInt("broker_mqtt_porta", 8883)
-            editor.putInt("broker_mqtt_porta", porta)
-            Log.i(TAG, "Configurações do QR salvas: api=${extrasBundle.getString("servidor_api")}, broker=${extrasBundle.getString("broker_mqtt_host")}:$porta")
-        } else {
-            if (!prefs.contains("servidor_api")) {
-                editor.putString("servidor_api", "http://31.97.86.253:8090/api")
+            if (extrasBundle != null) {
+                extrasBundle.getString("servidor_api")?.let { editor.putString("servidor_api", it) }
+                extrasBundle.getString("broker_mqtt_host")?.let { editor.putString("broker_mqtt_host", it) }
+                val porta = extrasBundle.getInt("broker_mqtt_porta", 8883)
+                editor.putInt("broker_mqtt_porta", porta)
+                Log.i(TAG, "Configurações do QR salvas: api=${extrasBundle.getString("servidor_api")}, broker=${extrasBundle.getString("broker_mqtt_host")}:$porta")
+            } else {
+                if (!prefs.contains("servidor_api")) {
+                    editor.putString("servidor_api", "http://31.97.86.253:8090/api")
+                }
+                if (!prefs.contains("broker_mqtt_host")) {
+                    editor.putString("broker_mqtt_host", "31.97.86.253")
+                }
+                if (!prefs.contains("broker_mqtt_porta")) {
+                    editor.putInt("broker_mqtt_porta", 1883)
+                }
             }
-            if (!prefs.contains("broker_mqtt_host")) {
-                editor.putString("broker_mqtt_host", "31.97.86.253")
+            editor.apply()
+
+            // Inicializa o gestor e aplica políticas fundamentais imediatamente
+            try {
+                val gestorPoliticas = GestorPoliticasDispositivo(contexto)
+                gestorPoliticas.aplicar_politicas_sistema()
+            } catch (ePol: Throwable) {
+                Log.w(TAG, "Aviso ao aplicar políticas iniciais: ${ePol.message}")
             }
-            if (!prefs.contains("broker_mqtt_porta")) {
-                editor.putInt("broker_mqtt_porta", 1883)
+
+            // Inicia o serviço persistente de comunicação e telemetria MQTT
+            try {
+                ServicoSegundoPlanoMdm.iniciar_servico(contexto)
+            } catch (eServ: Throwable) {
+                Log.w(TAG, "Aviso ao iniciar serviço em background no receiver: ${eServ.message}")
             }
+        } catch (eGeral: Throwable) {
+            Log.e(TAG, "Erro em ao_concluir_provisionamento: ${eGeral.message}", eGeral)
         }
-        editor.apply()
-
-        // Inicializa o gestor e aplica políticas fundamentais imediatamente
-        val gestorPoliticas = GestorPoliticasDispositivo(contexto)
-        gestorPoliticas.aplicar_politicas_sistema()
-
-        // Inicia o serviço persistente de comunicação e telemetria MQTT
-        ServicoSegundoPlanoMdm.iniciar_servico(contexto)
     }
 
     /**
