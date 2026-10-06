@@ -1,8 +1,9 @@
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import fastifyMultipart from '@fastify/multipart';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { execSync } from 'child_process';
 
@@ -137,6 +138,43 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   // 7. Provisionamento QR Code Android Enterprise
   app.get('/api/provisionamento/qr', obter_dados_provisionamento_qr);
   app.post('/api/provisionamento/qr', obter_dados_provisionamento_qr);
+
+  // 8. Rota dedicada de entrega de pacotes APK com busca inteligente em múltiplos diretórios
+  app.get(
+    '/apk/:nomeArquivo',
+    async (
+      requisicao: FastifyRequest<{ Params: { nomeArquivo: string } }>,
+      resposta: FastifyReply
+    ) => {
+      const { nomeArquivo } = requisicao.params;
+      const tentativas = [
+        path.resolve('/app/public/apk', nomeArquivo),
+        path.resolve('/app/apk', nomeArquivo),
+        path.resolve(process.cwd(), 'public/apk', nomeArquivo),
+        path.resolve(process.cwd(), 'apk', nomeArquivo),
+        path.resolve(__dirname, '../public/apk', nomeArquivo),
+        path.resolve(__dirname, '../../public/apk', nomeArquivo),
+        path.resolve(__dirname, '../../../apk', nomeArquivo),
+      ];
+
+      for (const caminho of tentativas) {
+        if (fs.existsSync(caminho) && fs.statSync(caminho).isFile()) {
+          const stat = fs.statSync(caminho);
+          resposta.header('Content-Type', 'application/vnd.android.package-archive');
+          resposta.header('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+          resposta.header('Content-Length', stat.size);
+          return resposta.send(fs.createReadStream(caminho));
+        }
+      }
+
+      console.warn(`[MDM APK 404] Arquivo '${nomeArquivo}' não encontrado nos caminhos:`, tentativas);
+      resposta.status(404).send({
+        sucesso: false,
+        mensagem: `Arquivo APK '${nomeArquivo}' não encontrado no servidor.`,
+        locais_verificados: tentativas,
+      });
+    }
+  );
 }
 
 /**
