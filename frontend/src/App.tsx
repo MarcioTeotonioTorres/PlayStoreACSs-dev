@@ -155,6 +155,7 @@ export const App: React.FC = () => {
                   aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
                   aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
                   aoAbrirComandosCompletos={ao_abrir_modal_comandos}
+                  aoRemoverDispositivo={ao_remover_dispositivo}
                 />
               }
             />

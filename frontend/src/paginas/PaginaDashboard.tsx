@@ -15,6 +15,7 @@ interface PropriedadesDashboard {
   aoBloquearDispositivo: (disp: DispositivoItem) => void;
   aoReiniciarDispositivo: (disp: DispositivoItem) => void;
   aoAbrirComandosCompletos: (disp: DispositivoItem) => void;
+  aoRemoverDispositivo?: (disp: DispositivoItem) => void;
 }
 
 export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
@@ -27,6 +28,7 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
   aoBloquearDispositivo,
   aoReiniciarDispositivo,
   aoAbrirComandosCompletos,
+  aoRemoverDispositivo,
 }) => {
   const navegar = useNavigate();
 
@@ -123,6 +125,7 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
           aoBloquearDispositivo={aoBloquearDispositivo}
           aoReiniciarDispositivo={aoReiniciarDispositivo}
           aoAbrirComandosCompletos={aoAbrirComandosCompletos}
+          aoRemoverDispositivo={aoRemoverDispositivo}
         />
       </div>
     </div>

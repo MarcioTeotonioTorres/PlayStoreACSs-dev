@@ -8,7 +8,7 @@ interface PropriedadesTabela {
   aoBloquearDispositivo: (dispositivo: DispositivoItem) => void;
   aoReiniciarDispositivo: (dispositivo: DispositivoItem) => void;
   aoAbrirComandosCompletos: (dispositivo: DispositivoItem) => void;
-  aoRemoverDispositivo: (dispositivo: DispositivoItem) => void;
+  aoRemoverDispositivo?: (dispositivo: DispositivoItem) => void;
 }
 
 export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
@@ -231,29 +231,31 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                         >
                           <MoreVertical size={13} />
                         </button>
-                        <button
-                          className="btn btn-acao-rapida"
-                          title="Remover da Frota"
-                          onClick={() => aoRemoverDispositivo(disp)}
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.12)',
-                            border: '1px solid rgba(239, 68, 68, 0.35)',
-                            color: '#f87171',
-                            borderRadius: '8px',
-                            padding: '6px 8px',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            transition: 'all 0.15s',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {aoRemoverDispositivo && (
+                          <button
+                            className="btn btn-acao-rapida"
+                            title="Remover da Frota"
+                            onClick={() => aoRemoverDispositivo(disp)}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              color: '#f87171',
+                              borderRadius: '8px',
+                              padding: '6px 8px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

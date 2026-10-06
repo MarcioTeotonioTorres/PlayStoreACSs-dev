@@ -10,3 +10,4 @@ app/build/
 *.iml
 .idea/
 producao/
+local.properties
