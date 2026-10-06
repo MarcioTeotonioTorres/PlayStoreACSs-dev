@@ -93,13 +93,11 @@ export function gerar_payload_provisionamento_qr(
   const checksumApk = calcular_checksum_sha256_apk(caminhoLocalApk);
   console.log(`[MDM QR Code] Gerando payload com APK hash: ${checksumApk}`);
 
-  const urlDownloadApk = 'https://github.com/marcioteotoniotorres/PlayStoreACSs-prod/raw/main/apk/mdm-dpc.apk';
-
   const payloadAndroidEnterprise: Record<string, any> = {
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME':
       'com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo',
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_NAME': 'com.mdm.corporativo',
-    'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION': urlDownloadApk,
+    'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION': 'https://github.com/marcioteotoniotorres/PlayStoreACSs-prod/raw/main/apk/mdm-dpc.apk',
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM': checksumApk,
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM': 'VAixoms05JVGLIu982STlQ84fIJ3Y0UkV9ROZKkkmmQ',
     // Permite que câmeras, Wi-Fi e apps essenciais continuem ativos
