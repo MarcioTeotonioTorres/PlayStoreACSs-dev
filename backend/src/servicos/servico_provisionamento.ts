@@ -93,6 +93,8 @@ export function gerar_payload_provisionamento_qr(
   const checksumApk = calcular_checksum_sha256_apk(caminhoLocalApk);
   console.log(`[MDM QR Code] Gerando payload com APK hash: ${checksumApk}`);
 
+  const urlDownloadApk = 'https://github.com/marcioteotoniotorres/PlayStoreACSs-prod/raw/main/apk/mdm-dpc.apk';
+
   const payloadAndroidEnterprise: Record<string, any> = {
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME':
       'com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo',
