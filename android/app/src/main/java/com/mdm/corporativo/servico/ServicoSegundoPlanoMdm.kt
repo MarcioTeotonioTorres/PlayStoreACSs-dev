@@ -184,7 +184,7 @@ class ServicoSegundoPlanoMdm : Service() {
     fun enviar_telemetria_http(telemetriaJson: String) {
         try {
             val prefs = getSharedPreferences("config_mdm", Context.MODE_PRIVATE)
-            val servidorApi = prefs.getString("servidor_api", "http://31.97.86.253:8090/api") ?: "http://31.97.86.253:8090/api"
+            val servidorApi = prefs.getString("servidor_api", "https://mdmplaystoreacs.duckdns.org/api") ?: "https://mdmplaystoreacs.duckdns.org/api"
             val url = java.net.URL("$servidorApi/telemetria")
             val conexao = url.openConnection() as java.net.HttpURLConnection
             conexao.requestMethod = "POST"

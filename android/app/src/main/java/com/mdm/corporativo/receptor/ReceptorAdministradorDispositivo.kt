@@ -97,7 +97,7 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
                 Log.i(TAG, "Configurações do QR salvas: api=${extrasBundle.getString("servidor_api")}, broker=${extrasBundle.getString("broker_mqtt_host")}:$porta")
             } else {
                 if (!prefs.contains("servidor_api")) {
-                    editor.putString("servidor_api", "http://31.97.86.253:8090/api")
+                    editor.putString("servidor_api", "https://mdmplaystoreacs.duckdns.org/api")
                 }
                 if (!prefs.contains("broker_mqtt_host")) {
                     editor.putString("broker_mqtt_host", "31.97.86.253")
