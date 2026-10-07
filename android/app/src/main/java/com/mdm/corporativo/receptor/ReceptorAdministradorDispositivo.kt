@@ -104,21 +104,7 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
                 }
             }
             editor.apply()
-
-            // Inicializa o gestor e aplica políticas fundamentais imediatamente
-            try {
-                val gestorPoliticas = GestorPoliticasDispositivo(contexto)
-                gestorPoliticas.aplicar_politicas_sistema()
-            } catch (ePol: Throwable) {
-                Log.w(TAG, "Aviso ao aplicar políticas iniciais: ${ePol.message}")
-            }
-
-            // Inicia o serviço persistente de comunicação e telemetria MQTT
-            try {
-                ServicoSegundoPlanoMdm.iniciar_servico(contexto)
-            } catch (eServ: Throwable) {
-                Log.w(TAG, "Aviso ao iniciar serviço em background no receiver: ${eServ.message}")
-            }
+            Log.i(TAG, "Configurações de provisionamento gravadas com sucesso. Aguardando inicialização do sistema.")
         } catch (eGeral: Throwable) {
             Log.e(TAG, "Erro em ao_concluir_provisionamento: ${eGeral.message}", eGeral)
         }
