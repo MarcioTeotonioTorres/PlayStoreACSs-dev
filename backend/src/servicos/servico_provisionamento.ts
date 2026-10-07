@@ -97,7 +97,7 @@ export function gerar_payload_provisionamento_qr(
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME':
       'com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo',
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_NAME': 'com.mdm.corporativo',
-    'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION': 'https://github.com/marcioteotoniotorres/PlayStoreACSs-prod/raw/main/apk/mdm-dpc.apk',
+    'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION': urlDownloadApk,
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM': checksumApk,
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM': 'VAixoms05JVGLIu982STlQ84fIJ3Y0UkV9ROZKkkmmQ',
     // Permite que câmeras, Wi-Fi e apps essenciais continuem ativos
