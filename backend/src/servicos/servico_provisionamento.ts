@@ -102,7 +102,6 @@ export function gerar_payload_provisionamento_qr(
     // Permite que câmeras, Wi-Fi e apps essenciais continuem ativos
     'android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED': true,
     'android.app.extra.PROVISIONING_SKIP_ENCRYPTION': true,
-    'android.app.extra.PROVISIONING_MODE': 1,
     // Bundle customizado entregue diretamente ao DPC no boot
     'android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE': {
       servidor_api: `${urlBase}/api`,
