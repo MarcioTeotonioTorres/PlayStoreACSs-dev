@@ -65,6 +65,7 @@
             </intent-filter>
         </activity>
 
+
         <!-- Receptor Principal do Administrador do Dispositivo (Device Owner / Android Enterprise) -->
         <receiver
             android:name=".receptor.ReceptorAdministradorDispositivo"
@@ -78,6 +79,8 @@
             <intent-filter>
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
                 <action android:name="android.app.action.PROFILE_PROVISIONING_COMPLETE" />
+                <action android:name="android.app.action.DEVICE_OWNER_CHANGED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.app.action.DEVICE_ADMIN_DISABLED" />
                 <action android:name="android.app.action.LOCK_TASK_ENTERING" />
                 <action android:name="android.app.action.LOCK_TASK_EXITING" />

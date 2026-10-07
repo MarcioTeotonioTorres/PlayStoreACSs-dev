@@ -25,13 +25,24 @@ class AtividadeModoProvisionamento : Activity() {
         super.onCreate(savedInstanceState)
         Log.i(TAG, "GET_PROVISIONING_MODE recebido pelo Setup Wizard do Android Enterprise!")
 
-        val resultIntent = Intent().apply {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                putExtra(
-                    DevicePolicyManager.EXTRA_PROVISIONING_MODE,
+        val resultIntent = Intent()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val allowedModes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                intent.getIntegerArrayListExtra(DevicePolicyManager.EXTRA_PROVISIONING_ALLOWED_PROVISIONING_MODES)
+            } else null
+
+            val targetMode = if (allowedModes != null && allowedModes.isNotEmpty()) {
+                if (allowedModes.contains(DevicePolicyManager.PROVISIONING_MODE_FULLY_MANAGED_DEVICE)) {
                     DevicePolicyManager.PROVISIONING_MODE_FULLY_MANAGED_DEVICE
-                )
+                } else {
+                    allowedModes[0]
+                }
+            } else {
+                DevicePolicyManager.PROVISIONING_MODE_FULLY_MANAGED_DEVICE
             }
+
+            Log.i(TAG, "Modo de provisionamento selecionado: $targetMode (Permitidos: $allowedModes)")
+            resultIntent.putExtra(DevicePolicyManager.EXTRA_PROVISIONING_MODE, targetMode)
         }
 
         setResult(RESULT_OK, resultIntent)

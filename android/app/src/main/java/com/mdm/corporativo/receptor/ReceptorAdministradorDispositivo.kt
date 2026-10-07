@@ -128,7 +128,7 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
      * Callback invocado quando as permissões de administração são concedidas.
      */
     fun ao_habilitar_administrador(contexto: Context, intent: Intent) {
-        ServicoSegundoPlanoMdm.iniciar_servico(contexto)
+        Log.i(TAG, "Administrador de Dispositivo ativo. Aguardando conclusão do Setup Wizard.")
     }
 
     /**

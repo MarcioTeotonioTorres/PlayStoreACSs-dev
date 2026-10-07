@@ -43,11 +43,15 @@ class ServicoSegundoPlanoMdm : Service() {
          * Inicializa o serviço persistente de forma segura e compatível com todas as versões do Android.
          */
         fun iniciar_servico(contexto: Context) {
-            val intent = Intent(contexto, ServicoSegundoPlanoMdm::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                contexto.startForegroundService(intent)
-            } else {
-                contexto.startService(intent)
+            try {
+                val intent = Intent(contexto, ServicoSegundoPlanoMdm::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    contexto.startForegroundService(intent)
+                } else {
+                    contexto.startService(intent)
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "Não foi possível iniciar o serviço de background no momento: ${t.message}")
             }
         }
     }
