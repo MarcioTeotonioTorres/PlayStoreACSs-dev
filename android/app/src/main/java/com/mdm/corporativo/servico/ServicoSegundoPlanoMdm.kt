@@ -10,7 +10,9 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import com.mdm.corporativo.R
 import com.mdm.corporativo.gestores.GestorComandosMdm
 import com.mdm.corporativo.gestores.GestorInstaladorSilencioso
@@ -63,20 +65,44 @@ class ServicoSegundoPlanoMdm : Service() {
         super.onCreate()
         Log.i(TAG, "Inicializando Serviço MDM Persistente...")
 
-        criar_canal_notificacao()
-        startForeground(ID_NOTIFICACAO, construir_notificacao_persistente())
+        try {
+            criar_canal_notificacao()
+            val notificacao = construir_notificacao_persistente()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceCompat.startForeground(
+                    this,
+                    ID_NOTIFICACAO,
+                    notificacao,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(ID_NOTIFICACAO, notificacao)
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Aviso ao iniciar startForeground: ${t.message}", t)
+        }
 
-        gestorPoliticas = GestorPoliticasDispositivo(this)
-        instaladorSilencioso = GestorInstaladorSilencioso(this)
-        gestorTelemetria = GestorTelemetria(this)
+        try {
+            gestorPoliticas = GestorPoliticasDispositivo(this)
+            instaladorSilencioso = GestorInstaladorSilencioso(this)
+            gestorTelemetria = GestorTelemetria(this)
 
-        configurar_cliente_mqtt()
-        iniciar_ciclo_telemetria()
+            configurar_cliente_mqtt()
+            iniciar_ciclo_telemetria()
+        } catch (t: Throwable) {
+            Log.e(TAG, "Aviso ao inicializar componentes do serviço MDM: ${t.message}", t)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Assegura reconexão se o sistema reiniciar o processo
-        clienteMqtt.conectar_broker_mqtt()
+        try {
+            if (::clienteMqtt.isInitialized) {
+                clienteMqtt.conectar_broker_mqtt()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Aviso ao reconectar MQTT: ${t.message}")
+        }
         return START_STICKY
     }
 

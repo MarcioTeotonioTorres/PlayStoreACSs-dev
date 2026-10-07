@@ -25,18 +25,7 @@ class AtividadeConformidadePolitica : Activity() {
         super.onCreate(savedInstanceState)
         Log.i(TAG, "ADMIN_POLICY_COMPLIANCE recebido pelo Setup Wizard do Android Enterprise!")
 
-        try {
-            // Aplica políticas do sistema com segurança
-            val gestorPoliticas = GestorPoliticasDispositivo(this)
-            gestorPoliticas.aplicar_politicas_sistema()
-
-            // Inicia o serviço persistente de telemetria a partir de um contexto em primeiro plano
-            ServicoSegundoPlanoMdm.iniciar_servico(this)
-        } catch (e: Exception) {
-            Log.e(TAG, "Aviso ao processar conformidade no Setup Wizard: ${e.message}", e)
-        }
-
-        // Informa ao Setup Wizard que as políticas foram aplicadas com sucesso
+        // Informa ao Setup Wizard que as políticas foram aceitas e conclui a etapa
         setResult(RESULT_OK)
         finish()
     }
