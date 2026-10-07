@@ -1,10 +1,10 @@
 package com.mdm.corporativo.ui
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import com.mdm.corporativo.gestores.GestorPoliticasDispositivo
-import com.mdm.corporativo.servico.ServicoSegundoPlanoMdm
+import com.mdm.corporativo.util.DiagnosticoPing
 
 /**
  * Atividade mandatória no Android 10+ (Android Enterprise Device Owner).
@@ -24,9 +24,11 @@ class AtividadeConformidadePolitica : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i(TAG, "ADMIN_POLICY_COMPLIANCE recebido pelo Setup Wizard do Android Enterprise!")
+        DiagnosticoPing.disparar(this, "conformidade_recebida")
 
-        // Informa ao Setup Wizard que as políticas foram aceitas e conclui a etapa
-        setResult(RESULT_OK)
+        val resultIntent = Intent()
+        setResult(RESULT_OK, resultIntent)
+        DiagnosticoPing.disparar(this, "conformidade_respondida_ok")
         finish()
     }
 }

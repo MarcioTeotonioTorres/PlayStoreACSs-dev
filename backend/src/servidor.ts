@@ -139,6 +139,22 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.get('/api/provisionamento/qr', obter_dados_provisionamento_qr);
   app.post('/api/provisionamento/qr', obter_dados_provisionamento_qr);
 
+  // 7.1 Rota de telemetria diagnóstica do provisionamento do tablet
+  app.get(
+    '/api/debug/ping',
+    async (
+      req: FastifyRequest<{ Querystring: { etapa?: string; detalhe?: string } }>,
+      res: FastifyReply
+    ) => {
+      const etapa = req.query.etapa || 'sem_etapa';
+      const detalhe = req.query.detalhe || '';
+      console.log(`\n======================================================`);
+      console.log(`[MDM DPC PING DO TABLET] Etapa: ${etapa} | Detalhe: ${detalhe}`);
+      console.log(`======================================================\n`);
+      return res.send({ recebido: true, etapa, timestamp: new Date().toISOString() });
+    }
+  );
+
   // 8. Rota dedicada de entrega de pacotes APK com busca inteligente em múltiplos diretórios
   app.get(
     '/apk/:nomeArquivo',

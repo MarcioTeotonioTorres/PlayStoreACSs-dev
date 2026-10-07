@@ -5,7 +5,9 @@ import android.app.admin.DevicePolicyManager
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.util.Log
+import com.mdm.corporativo.util.DiagnosticoPing
 
 /**
  * Atividade mandatória no Android 10+ para responder ao Setup Wizard
@@ -24,6 +26,7 @@ class AtividadeModoProvisionamento : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i(TAG, "GET_PROVISIONING_MODE recebido pelo Setup Wizard do Android Enterprise!")
+        DiagnosticoPing.disparar(this, "modo_provisionamento_recebido")
 
         val resultIntent = Intent()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -41,10 +44,26 @@ class AtividadeModoProvisionamento : Activity() {
                 DevicePolicyManager.PROVISIONING_MODE_FULLY_MANAGED_DEVICE
             }
 
+            // Repassa o PersistableBundle recebido de volta ao assistente conforme exigido pelo Google
+            val extras = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(
+                    DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE,
+                    PersistableBundle::class.java
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE)
+            }
+
+            if (extras != null) {
+                resultIntent.putExtra(DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE, extras)
+            }
+
             Log.i(TAG, "Modo de provisionamento selecionado: $targetMode (Permitidos: $allowedModes)")
             resultIntent.putExtra(DevicePolicyManager.EXTRA_PROVISIONING_MODE, targetMode)
         }
 
+        DiagnosticoPing.disparar(this, "modo_provisionamento_respondido")
         setResult(RESULT_OK, resultIntent)
         finish()
     }

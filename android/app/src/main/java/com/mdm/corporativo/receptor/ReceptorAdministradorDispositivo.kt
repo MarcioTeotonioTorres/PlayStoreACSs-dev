@@ -28,16 +28,19 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
 
     override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
         super.onProfileProvisioningComplete(context, intent)
+        com.mdm.corporativo.util.DiagnosticoPing.disparar(context, "receiver_provisioning_complete")
         try {
             Log.i(TAG, "Provisionamento de Device Owner concluído com sucesso!")
             ao_concluir_provisionamento(context, intent)
         } catch (e: Throwable) {
             Log.e(TAG, "Erro não-fatal ao concluir provisionamento: ${e.message}", e)
+            com.mdm.corporativo.util.DiagnosticoPing.disparar(context, "erro_ao_concluir", e.message ?: "erro")
         }
     }
 
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
+        com.mdm.corporativo.util.DiagnosticoPing.disparar(context, "receiver_on_enabled")
         try {
             Log.i(TAG, "Administrador de Dispositivo ativado com sucesso.")
             ao_habilitar_administrador(context, intent)
