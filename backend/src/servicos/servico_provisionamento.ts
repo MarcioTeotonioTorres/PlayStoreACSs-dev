@@ -101,7 +101,8 @@ export function gerar_payload_provisionamento_qr(
     'android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM': checksumApk,
     // Permite que câmeras, Wi-Fi e apps essenciais continuem ativos
     'android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED': true,
-    'android.app.extra.PROVISIONING_SKIP_ENCRYPTION': false,
+    'android.app.extra.PROVISIONING_SKIP_ENCRYPTION': true,
+    'android.app.extra.PROVISIONING_MODE': 1,
     // Bundle customizado entregue diretamente ao DPC no boot
     'android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE': {
       servidor_api: `${urlBase}/api`,
