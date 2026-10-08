@@ -24,7 +24,7 @@ export const BarraLateral: React.FC<PropriedadesBarraLateral> = ({
     { caminho: '/dispositivos', rotulo: 'Dispositivos', icone: Tablet },
     { caminho: '/aplicativos', rotulo: 'Catálogo de Apps', icone: Package },
     { caminho: '/politicas', rotulo: 'Políticas & Restrições', icone: ShieldCheck },
-    { caminho: '/provisionamento', rotulo: 'Provisionamento QR', icone: QrCode },
+    { caminho: '/provisionamento', rotulo: 'Instalação via ADB', icone: QrCode },
   ];
 
   return (

@@ -25,6 +25,7 @@ data class DadosTelemetria(
     val sinal_wifi_rssi: Int,
     val ssid_wifi: String,
     val app_em_foco: String,
+    val tempo_ocioso_minutos: Long,
     val armazenamento_livre_mb: Long,
     val memoria_ram_livre_mb: Long,
     val timestamp: Long
@@ -48,6 +49,7 @@ class GestorTelemetria(private val contexto: Context) {
             sinal_wifi_rssi = obter_nivel_sinal_wifi(),
             ssid_wifi = obter_ssid_wifi(),
             app_em_foco = obter_aplicativo_em_foco(),
+            tempo_ocioso_minutos = obter_tempo_ocioso_minutos(),
             armazenamento_livre_mb = obter_armazenamento_livre_mb(),
             memoria_ram_livre_mb = obter_memoria_ram_livre_mb(),
             timestamp = System.currentTimeMillis()
@@ -67,6 +69,7 @@ class GestorTelemetria(private val contexto: Context) {
         json.put("sinal_wifi_rssi", dados.sinal_wifi_rssi)
         json.put("ssid_wifi", dados.ssid_wifi)
         json.put("app_em_foco", dados.app_em_foco)
+        json.put("tempo_ocioso_minutos", dados.tempo_ocioso_minutos)
         json.put("armazenamento_livre_mb", dados.armazenamento_livre_mb)
         json.put("memoria_ram_livre_mb", dados.memoria_ram_livre_mb)
         json.put("timestamp", dados.timestamp)
@@ -125,7 +128,7 @@ class GestorTelemetria(private val contexto: Context) {
         try {
             val usageStatsManager = contexto.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val tempoFim = System.currentTimeMillis()
-            val tempoInicio = tempoFim - 1000 * 15 // Últimos 15 segundos
+            val tempoInicio = tempoFim - 1000 * 60 * 60 * 24 // Últimas 24 horas
 
             val eventos = usageStatsManager.queryEvents(tempoInicio, tempoFim)
             val eventoAtual = UsageEvents.Event()
@@ -141,6 +144,35 @@ class GestorTelemetria(private val contexto: Context) {
             return if (pacoteEmFoco.isNotEmpty()) pacoteEmFoco else "Sistema / Área de Trabalho"
         } catch (e: Exception) {
             return "Desconhecido"
+        }
+    }
+
+    /**
+     * Retorna os minutos em que o tablet esteve ocioso (sem interação ou troca de app).
+     */
+    fun obter_tempo_ocioso_minutos(): Long {
+        try {
+            val usageStatsManager = contexto.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val tempoFim = System.currentTimeMillis()
+            val tempoInicio = tempoFim - 1000 * 60 * 60 * 24 // 24h
+
+            val eventos = usageStatsManager.queryEvents(tempoInicio, tempoFim)
+            val eventoAtual = UsageEvents.Event()
+            var ultimoTempoAtivo = tempoInicio
+
+            while (eventos.hasNextEvent()) {
+                eventos.getNextEvent(eventoAtual)
+                // USER_INTERACTION é API 28+, ACTIVITY_RESUMED funciona em antigas tbm
+                if (eventoAtual.eventType == UsageEvents.Event.ACTIVITY_RESUMED ||
+                    eventoAtual.eventType == 7 /* USER_INTERACTION */) {
+                    ultimoTempoAtivo = eventoAtual.timeStamp
+                }
+            }
+            
+            val tempoOciosoMs = System.currentTimeMillis() - ultimoTempoAtivo
+            return (tempoOciosoMs / (1000 * 60)).coerceAtLeast(0)
+        } catch (e: Exception) {
+            return 0L
         }
     }
 

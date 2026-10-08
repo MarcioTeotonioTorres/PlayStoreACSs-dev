@@ -111,7 +111,7 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
               <th>SO / Firmware</th>
               <th>Bateria</th>
               <th>Wi-Fi / Sinal</th>
-              <th>App em Primeiro Plano</th>
+              <th>App em Primeiro Plano / Uso</th>
               <th>Último Contato</th>
               <th style={{ textAlign: 'right' }}>Ações Rápidas</th>
             </tr>
@@ -193,10 +193,17 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                           background: 'rgba(255,255,255,0.04)',
                           padding: '2px 6px',
                           borderRadius: '4px',
+                          display: 'block',
+                          marginBottom: '4px'
                         }}
                       >
                         {disp.app_foco || 'Sistema'}
                       </span>
+                      {disp.tempo_ocioso_minutos !== undefined && (
+                         <div style={{ fontSize: '11px', color: disp.tempo_ocioso_minutos > 60 ? '#f59e0b' : 'var(--texto-fraco)' }}>
+                           Ocioso há: {disp.tempo_ocioso_minutos} min
+                         </div>
+                      )}
                     </td>
 
                     {/* Último Contato */}

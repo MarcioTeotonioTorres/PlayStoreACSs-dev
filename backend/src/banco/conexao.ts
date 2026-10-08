@@ -19,6 +19,7 @@ interface DispositivoSimulado {
   sinal_wifi_rssi: number;
   ssid_wifi: string;
   app_foco: string;
+  tempo_ocioso_minutos: number;
   memoria_ram_livre_mb: number;
   armazenamento_livre_mb: number;
   ultimo_contato: string;
@@ -73,6 +74,7 @@ function gerar_dados_simulados_frota(): DispositivoSimulado[] {
       sinal_wifi_rssi: rssi,
       ssid_wifi: i % 3 === 0 ? 'Corporativo-Galpao-01' : 'Corporativo-Matriz-5G',
       app_foco: apps[i % apps.length],
+      tempo_ocioso_minutos: Math.floor(Math.random() * 120),
       memoria_ram_livre_mb: Math.floor(Math.random() * 1500) + 1200,
       armazenamento_livre_mb: Math.floor(Math.random() * 25000) + 15000,
       ultimo_contato: new Date(Date.now() - (isOnline ? Math.floor(Math.random() * 15000) : 3600000)).toISOString(),
@@ -97,6 +99,7 @@ export function cadastrar_novo_dispositivo_memoria(dados: Partial<DispositivoSim
     sinal_wifi_rssi: dados.sinal_wifi_rssi ?? -50,
     ssid_wifi: dados.ssid_wifi || 'Corporativo-WiFi',
     app_foco: dados.app_foco || 'com.mdm.corporativo',
+    tempo_ocioso_minutos: dados.tempo_ocioso_minutos ?? 0,
     memoria_ram_livre_mb: dados.memoria_ram_livre_mb ?? 2048,
     armazenamento_livre_mb: dados.armazenamento_livre_mb ?? 32000,
     ultimo_contato: new Date().toISOString(),

@@ -135,6 +135,8 @@ class GestorComandosMdm(
                     "aplicar_politica" -> {
                         val pacotesJson = parametros.optJSONArray("pacotes_ocultos")
                         val urlsJson = parametros.optJSONArray("urls_permitidas")
+                        val permitirCamera = parametros.optBoolean("permitir_camera", true)
+                        val bloquearUsb = parametros.optBoolean("bloquear_usb", true)
 
                         val listaPacotes = mutableListOf<String>()
                         if (pacotesJson != null) {
@@ -150,11 +152,16 @@ class GestorComandosMdm(
                             }
                         }
 
-                        val sucesso = gestorPoliticas.aplicar_politicas_sistema_completas(listaPacotes, listaUrls)
+                        val sucesso = gestorPoliticas.aplicar_politicas_sistema_completas(
+                            listaPacotes, 
+                            listaUrls,
+                            permitirCamera,
+                            bloquearUsb
+                        )
                         clienteMqtt.enviar_resposta_comando(
                             comandoId,
                             if (sucesso) "executado" else "falha",
-                            "Políticas granulares aplicadas: ${listaPacotes.size} apps ocultos, ${listaUrls.size} URLs liberadas."
+                            "Políticas granulares aplicadas: ${listaPacotes.size} apps ocultos, câmera ${if (permitirCamera) "liberada" else "bloqueada"}."
                         )
                     }
 

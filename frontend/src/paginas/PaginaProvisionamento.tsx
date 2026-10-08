@@ -1,223 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { QrCode, RefreshCw, Copy, Check, ShieldCheck, Wifi, ExternalLink } from 'lucide-react';
-import { obter_dados_provisionamento_qr_api, RespostaProvisionamentoQr } from '../servicos/api_mdm';
+import React from 'react';
+import { Terminal, ShieldCheck, Download, CheckCircle, Usb } from 'lucide-react';
 
 export const PaginaProvisionamento: React.FC = () => {
-  const [dominio, setDominio] = useState<string>('mdm-corporativo.duckdns.org');
-  const [wifiSsid, setWifiSsid] = useState<string>('Corporativo-Tablets');
-  const [wifiSenha, setWifiSenha] = useState<string>('SenhaSegura2026!');
-  const [dadosQr, setDadosQr] = useState<RespostaProvisionamentoQr | null>(null);
-  const [carregando, setCarregando] = useState<boolean>(true);
-  const [copiado, setCopiado] = useState<boolean>(false);
-
-  useEffect(() => {
-    carregar_dados_qr_code();
-  }, []);
-
-  async function carregar_dados_qr_code() {
-    setCarregando(true);
-    try {
-      const resp = await obter_dados_provisionamento_qr_api({
-        dominioDuckDns: dominio,
-        wifiSsid,
-        wifiSenha,
-      });
-      setDadosQr(resp);
-    } catch (erro) {
-      console.error('Erro ao gerar dados de provisionamento QR:', erro);
-    } finally {
-      setCarregando(false);
-    }
-  }
-
-  function copiar_payload_json() {
-    if (dadosQr?.payload_android_enterprise) {
-      navigator.clipboard.writeText(JSON.stringify(dadosQr.payload_android_enterprise, null, 2));
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    }
-  }
-
   return (
     <div className="pagina-conteudo">
       <div className="pagina-cabecalho">
         <div>
-          <h2 className="pagina-titulo">Provisionamento de Dispositivos (QR Code)</h2>
+          <h2 className="pagina-titulo">Instalação e Provisionamento via ADB</h2>
           <p className="pagina-subtitulo">
-            Ativação autônoma de tablets Android novos no primeiro boot com prerrogativas de Device Owner (Android Enterprise)
+            Instruções detalhadas para registrar novos tablets como Device Owner na frota usando conexão via cabo USB.
           </p>
-        </div>
-
-        <div className="cabecalho-acoes">
-          <button className="btn btn-primario" onClick={carregar_dados_qr_code}>
-            <RefreshCw size={14} />
-            Recalcular Checksum e Atualizar QR
-          </button>
         </div>
       </div>
 
-      {/* Configurações do Payload de Provisionamento */}
-      <div className="card-metrica" style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px', color: '#fff' }}>
-          Configuração da Rede e Servidor para os Tablets Novos:
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--texto-secundario)', marginBottom: '6px' }}>
-              Domínio DuckDNS ou Host HTTPS:
-            </label>
-            <input
-              type="text"
-              value={dominio}
-              onChange={(e) => setDominio(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                background: 'var(--fundo-base)',
-                border: '1px solid var(--borda-suave)',
-                color: 'white',
-                fontSize: '13px',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--texto-secundario)', marginBottom: '6px' }}>
-              SSID Wi-Fi Corporativo (Rede da Empresa):
-            </label>
-            <input
-              type="text"
-              value={wifiSsid}
-              onChange={(e) => setWifiSsid(e.target.value)}
-              placeholder="Nome exato da sua rede Wi-Fi"
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                background: 'var(--fundo-base)',
-                border: '1px solid var(--borda-suave)',
-                color: 'white',
-                fontSize: '13px',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--texto-secundario)', marginBottom: '6px' }}>
-              Senha do Wi-Fi:
-            </label>
-            <input
-              type="password"
-              value={wifiSenha}
-              onChange={(e) => setWifiSenha(e.target.value)}
-              placeholder="Senha do seu roteador"
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                background: 'var(--fundo-base)',
-                border: '1px solid var(--borda-suave)',
-                color: 'white',
-                fontSize: '13px',
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Grid com o QR Code e o Passo a Passo */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '28px' }}>
-        {/* Card do QR Code Renderizado */}
-        <div className="card-tabela" style={{ padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '6px', color: '#fff' }}>
-            QR Code Oficial de Provisionamento
-          </div>
-          <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', marginBottom: '20px' }}>
-            Aponte a câmera do tablet novo para o código abaixo
-          </p>
-
-          <div className="qr-container" style={{ margin: '0 auto', background: '#fff', padding: '16px', borderRadius: '12px' }}>
-            {carregando ? (
-              <div style={{ width: '260px', height: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                Gerando QR Code...
-              </div>
-            ) : dadosQr?.qr_code_imagem_base64 ? (
-              <img
-                src={dadosQr.qr_code_imagem_base64}
-                alt="QR Code Android Enterprise"
-                style={{ width: '260px', height: '260px', display: 'block' }}
-              />
-            ) : (
-              <div style={{ color: '#ef4444' }}>Falha ao renderizar QR Code</div>
-            )}
-          </div>
-
-          <div style={{ marginTop: '18px', fontSize: '12px', color: 'var(--texto-fraco)' }}>
-            Contém credenciais Wi-Fi + Link do APK + Checksum SHA-256
-          </div>
-        </div>
-
-        {/* Guia de 6 Toques Passo a Passo */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+        
+        {/* Seção 1: Requisitos */}
         <div className="card-tabela" style={{ padding: '28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <ShieldCheck size={22} color="var(--primaria)" />
-            <h3 style={{ fontSize: '17px', fontWeight: 700 }}>Procedimento de Ativação do Tablet</h3>
+            <Usb size={22} color="var(--primaria)" />
+            <h3 style={{ fontSize: '17px', fontWeight: 700 }}>1. Requisitos Iniciais</h3>
           </div>
+          <div className="instrucoes-box" style={{ fontSize: '13px', lineHeight: '1.6' }}>
+            <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <li><strong>Tablet Formatado:</strong> O tablet deve ter sido restaurado para os padrões de fábrica recentemente e não possuir contas Google logadas.</li>
+              <li><strong>Depuração USB:</strong> O tablet deve estar com as "Opções de Desenvolvedor" ativadas e a <strong>Depuração USB</strong> ligada.</li>
+              <li><strong>Cabo de Dados:</strong> Conecte o tablet ao computador via cabo USB.</li>
+              <li><strong>Plataforma Android:</strong> O computador precisa ter o ADB (Android Debug Bridge) instalado e reconhecido no terminal.</li>
+            </ul>
+          </div>
+        </div>
 
-          <div className="instrucoes-box" style={{ lineHeight: '1.7', fontSize: '13px' }}>
-            <ol style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* Seção 2: Passos para Instalação */}
+        <div className="card-tabela" style={{ padding: '28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+            <Terminal size={22} color="#10b981" />
+            <h3 style={{ fontSize: '17px', fontWeight: 700 }}>2. Instalação e Ativação</h3>
+          </div>
+          <div className="instrucoes-box" style={{ fontSize: '13px', lineHeight: '1.6' }}>
+            <ol style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <li>
-                <strong>Tire o tablet da caixa e ligue-o:</strong> Ele iniciará na tela de boas-vindas (*"Olá"* ou *"Iniciar"*).
+                <strong>Verifique a conexão:</strong>
+                <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '8px', borderRadius: '6px', marginTop: '4px', border: '1px solid var(--borda-suave)', color: '#93c5fd' }}>
+                  adb devices
+                </pre>
+                <em>Certifique-se de que o dispositivo aparece na lista e está "Autorizado".</em>
               </li>
               <li>
-                <strong>Gesto de 6 toques:</strong> Toque <strong>6 vezes seguidas</strong> no mesmo ponto vazio da tela inicial (onde não há botões).
+                <strong>Instale o Aplicativo (APK):</strong>
+                <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '8px', borderRadius: '6px', marginTop: '4px', border: '1px solid var(--borda-suave)', color: '#93c5fd' }}>
+                  adb install mdmapk.apk
+                </pre>
               </li>
               <li>
-                <strong>Abertura da Câmera:</strong> O leitor de QR Code nativo do Android Enterprise abrirá automaticamente na tela do tablet.
-              </li>
-              <li>
-                <strong>Escanear:</strong> Aponte o tablet para o QR Code ao lado.
-              </li>
-              <li>
-                <strong>Ativação Automática:</strong> O tablet se conectará ao seu Wi-Fi sozinho, baixará o APK e assumirá o papel de <strong>Device Owner</strong> sem nenhuma intervenção manual!
+                <strong>Defina como Device Owner:</strong>
+                <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '8px', borderRadius: '6px', marginTop: '4px', border: '1px solid var(--borda-suave)', color: '#93c5fd', whiteSpace: 'pre-wrap' }}>
+                  adb shell dpm set-device-owner com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo
+                </pre>
+                <em>Se retornar "Success", o dispositivo já é de uso corporativo.</em>
               </li>
             </ol>
           </div>
-
-          {/* Payload JSON de Depuração */}
-          <div style={{ marginTop: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--texto-secundario)' }}>
-                Payload JSON Gerado:
-              </span>
-              <button
-                className="btn btn-secundario"
-                style={{ fontSize: '11px', padding: '4px 10px' }}
-                onClick={copiar_payload_json}
-              >
-                {copiado ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                {copiado ? 'Copiado!' : 'Copiar JSON'}
-              </button>
-            </div>
-            <pre
-              className="texto-mono"
-              style={{
-                background: 'var(--fundo-base)',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid var(--borda-suave)',
-                fontSize: '11px',
-                maxHeight: '140px',
-                overflowY: 'auto',
-                color: '#93c5fd',
-              }}
-            >
-              {JSON.stringify(dadosQr?.payload_android_enterprise, null, 2)}
-            </pre>
-          </div>
         </div>
+
       </div>
+
+      {/* Seção de Validação */}
+      <div className="card-metrica" style={{ marginTop: '24px', border: '1px solid rgba(52, 211, 153, 0.3)', background: 'rgba(16, 185, 129, 0.05)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+          <CheckCircle size={24} color="#10b981" />
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#34d399' }}>Pronto!</h3>
+        </div>
+        <p style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: '1.5' }}>
+          Assim que a mensagem de sucesso for exibida no terminal, o tablet se conectará automaticamente ao servidor MQTTS. Em poucos segundos, ele aparecerá no <strong>Dashboard</strong> e na aba <strong>Dispositivos</strong> deste painel, pronto para receber telemetria e comandos remotos em lote.
+        </p>
+      </div>
+
     </div>
   );
 };

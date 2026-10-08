@@ -200,8 +200,16 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
     fun ocultar_aplicativo_sistema(nomePacote: String): Boolean {
         return try {
             if (verificar_se_e_device_owner()) {
-                gestorPoliticas.setApplicationHidden(adminComponente, nomePacote, true)
-                Log.i(TAG, "ocultar_aplicativo_sistema: Pacote $nomePacote ocultado com sucesso.")
+                // Tenta ocultar completamente da gaveta
+                val oculto = gestorPoliticas.setApplicationHidden(adminComponente, nomePacote, true)
+                
+                // Como reforço (especialmente para a Play Store que às vezes resiste a ser ocultada),
+                // aplicamos a suspensão do pacote (API 24+) que bloqueia a execução e deixa o ícone cinza.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    gestorPoliticas.setPackagesSuspended(adminComponente, arrayOf(nomePacote), true)
+                }
+                
+                Log.i(TAG, "ocultar_aplicativo_sistema: Pacote $nomePacote bloqueado (Oculto: $oculto).")
                 true
             } else {
                 Log.w(TAG, "Permissão negada: Aplicativo não é Device Owner.")
@@ -220,6 +228,11 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
         return try {
             if (verificar_se_e_device_owner()) {
                 gestorPoliticas.setApplicationHidden(adminComponente, nomePacote, false)
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    gestorPoliticas.setPackagesSuspended(adminComponente, arrayOf(nomePacote), false)
+                }
+                
                 Log.i(TAG, "restaurar_aplicativo_sistema: Pacote $nomePacote restaurado com sucesso.")
                 true
             } else {
@@ -264,13 +277,39 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
     /**
      * Aplica o conjunto completo de diretrizes de segurança, aplicativos ocultos e restrições de navegação.
      */
-    fun aplicar_politicas_sistema_completas(pacotesOcultos: List<String>, dominiosAutorizados: List<String>): Boolean {
+    fun aplicar_politicas_sistema_completas(
+        pacotesOcultos: List<String>, 
+        dominiosAutorizados: List<String>,
+        permitirCamera: Boolean,
+        bloquearUsb: Boolean
+    ): Boolean {
         return try {
             aplicar_politicas_sistema()
 
+            // Lista de aplicativos comuns do MDM que devem ser restaurados se não estiverem na lista de ocultos
+            val aplicativosComuns = listOf(
+                "com.google.android.youtube",
+                "com.android.vending",
+                "com.google.android.apps.photos",
+                "com.android.settings",
+                "com.android.camera2"
+            )
+
+            // Restaura apps comuns que NÃO estão na lista de ocultos
+            for (app in aplicativosComuns) {
+                if (!pacotesOcultos.contains(app)) {
+                    restaurar_aplicativo_sistema(app)
+                }
+            }
+
+            // Oculta todos os pacotes da lista
             for (pacote in pacotesOcultos) {
                 ocultar_aplicativo_sistema(pacote)
             }
+
+            // Aplicar politicas de hardware passadas
+            definir_bloqueio_camera(!permitirCamera)
+            definir_bloqueio_usb(bloquearUsb)
 
             if (dominiosAutorizados.isNotEmpty()) {
                 configurar_restricoes_navegacao_chrome(dominiosAutorizados)
