@@ -3,16 +3,16 @@
 Este documento detalha o processo de configuração dos 250 tablets Android usando conexão cabeada USB via **ADB (Android Debug Bridge)** para registrar o aplicativo corporativo como **Device Owner**.
 
 ## 1. Onde está o APK de Controle (MDM Android)?
-O APK do agente MDM corporativo (`app-release.apk` ou `mdmapk.apk`) pode ser gerado no seu computador de desenvolvimento e deve ser colocado na máquina onde os tablets serão conectados fisicamente pelo cabo USB.
+O APK do agente MDM corporativo é o arquivo principal que controla o tablet. Ele já deve estar na sua máquina na pasta de produção:
+`C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\producao\apk\mdm-dpc.apk`
 
-**Para compilar localmente (na máquina do admin):**
+**Sempre que você fizer uma alteração no código do Android e quiser gerar uma versão nova:**
 Abra o terminal na pasta `android` do projeto e execute:
 ```bash
 ./gradlew assembleRelease
 ```
-O arquivo final estará em: `android/app/build/outputs/apk/release/app-release.apk`
-
-Você deve copiá-lo para uma pasta de fácil acesso (ex: `C:\Tablets\mdmapk.apk`).
+O arquivo final gerado será: `android\app\build\outputs\apk\release\app-release.apk`.
+**Sim, eles são o mesmo arquivo!** O `mdm-dpc.apk` é simplesmente o `app-release.apk` renomeado e guardado na pasta de produção. Sempre que compilar uma versão nova, copie o `app-release.apk` e substitua o `mdm-dpc.apk`.
 
 ## 2. Preparação do Tablet Novo
 O tablet deve preencher **obrigatoriamente** dois requisitos para ser promovido a Device Owner:
@@ -36,7 +36,7 @@ adb devices
 ### Passo B: Instale o Aplicativo de Controle (APK)
 Envie o APK para o tablet executando:
 ```bash
-adb install "C:\Tablets\mdmapk.apk"
+adb install "C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\producao\apk\mdm-dpc.apk"
 ```
 > Aguarde a mensagem `Success`.
 
