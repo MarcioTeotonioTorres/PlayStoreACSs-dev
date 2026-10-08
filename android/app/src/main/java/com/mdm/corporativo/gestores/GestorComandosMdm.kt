@@ -134,6 +134,7 @@ class GestorComandosMdm(
 
                     "aplicar_politica" -> {
                         val pacotesJson = parametros.optJSONArray("pacotes_ocultos")
+                        val liberadosJson = parametros.optJSONArray("pacotes_liberados")
                         val urlsJson = parametros.optJSONArray("urls_permitidas")
                         val permitirCamera = parametros.optBoolean("permitir_camera", true)
                         val bloquearUsb = parametros.optBoolean("bloquear_usb", true)
@@ -142,6 +143,13 @@ class GestorComandosMdm(
                         if (pacotesJson != null) {
                             for (i in 0 until pacotesJson.length()) {
                                 listaPacotes.add(pacotesJson.getString(i))
+                            }
+                        }
+
+                        val listaLiberados = mutableListOf<String>()
+                        if (liberadosJson != null) {
+                            for (i in 0 until liberadosJson.length()) {
+                                listaLiberados.add(liberadosJson.getString(i))
                             }
                         }
 
@@ -154,6 +162,7 @@ class GestorComandosMdm(
 
                         val sucesso = gestorPoliticas.aplicar_politicas_sistema_completas(
                             listaPacotes, 
+                            listaLiberados,
                             listaUrls,
                             permitirCamera,
                             bloquearUsb

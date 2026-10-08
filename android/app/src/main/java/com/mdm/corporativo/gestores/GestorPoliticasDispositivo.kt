@@ -229,6 +229,12 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             if (verificar_se_e_device_owner()) {
                 gestorPoliticas.setApplicationHidden(adminComponente, nomePacote, false)
                 
+                try {
+                    gestorPoliticas.enableSystemApp(adminComponente, nomePacote)
+                } catch (e: Exception) {
+                    Log.d(TAG, "enableSystemApp não aplicável (talvez não seja um app do sistema): $nomePacote")
+                }
+                
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     gestorPoliticas.setPackagesSuspended(adminComponente, arrayOf(nomePacote), false)
                 }
@@ -279,6 +285,7 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
      */
     fun aplicar_politicas_sistema_completas(
         pacotesOcultos: List<String>, 
+        pacotesLiberados: List<String>,
         dominiosAutorizados: List<String>,
         permitirCamera: Boolean,
         bloquearUsb: Boolean
@@ -300,6 +307,11 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
                 if (!pacotesOcultos.contains(app)) {
                     restaurar_aplicativo_sistema(app)
                 }
+            }
+
+            // Restaura todos os apps que o backend enviou explicitamente na lista de liberados (para apps customizados)
+            for (pacoteLiberado in pacotesLiberados) {
+                restaurar_aplicativo_sistema(pacoteLiberado)
             }
 
             // Oculta todos os pacotes da lista

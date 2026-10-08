@@ -342,6 +342,46 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
                 Bloquear
               </button>
             </div>
+            
+            {/* Lista de pacotes customizados bloqueados */}
+            {politica.pacotes_ocultos.filter(p => !aplicativosComuns.map(a => a.pacote).includes(p)).length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--texto-secundario)', marginBottom: '8px' }}>
+                  Outros Aplicativos Bloqueados:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {politica.pacotes_ocultos
+                    .filter(p => !aplicativosComuns.map(a => a.pacote).includes(p))
+                    .map(pacote => (
+                      <div
+                        key={pacote}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Lock size={14} color="#f87171" />
+                          <span className="texto-mono" style={{ fontSize: '13px', color: '#fff' }}>{pacote}</span>
+                        </div>
+                        <button
+                          onClick={() => ao_remover_pacote(pacote)}
+                          style={{ background: 'transparent', border: 'none', color: '#34d399', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+                          title="Liberar aplicativo"
+                        >
+                          <Unlock size={14} />
+                          Liberar
+                        </button>
+                      </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

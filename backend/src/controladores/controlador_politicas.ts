@@ -76,11 +76,16 @@ export async function atualizar_politicas_globais_frota(
   try {
     const dto = requisicao.body;
 
+    // Calcula quais pacotes foram removidos da lista de ocultos para enviar explicitamente como liberados
+    const pacotesAntigos = politicasMemoria.pacotes_ocultos || [];
+    const pacotesNovos = dto.pacotes_ocultos ?? pacotesAntigos;
+    const pacotesLiberados = pacotesAntigos.filter(p => !pacotesNovos.includes(p));
+
     // Atualiza cópia em memória
     politicasMemoria = {
       ...politicasMemoria,
       ...dto,
-      pacotes_ocultos: dto.pacotes_ocultos ?? politicasMemoria.pacotes_ocultos,
+      pacotes_ocultos: pacotesNovos,
       urls_permitidas: dto.urls_permitidas ?? politicasMemoria.urls_permitidas,
     };
 
@@ -118,6 +123,7 @@ export async function atualizar_politicas_globais_frota(
             bloquear_usb: politicasMemoria.bloquear_usb,
             permitir_reset_fabrica: politicasMemoria.permitir_reset_fabrica,
             pacotes_ocultos: politicasMemoria.pacotes_ocultos,
+            pacotes_liberados: pacotesLiberados,
             urls_permitidas: politicasMemoria.urls_permitidas,
           },
         };
