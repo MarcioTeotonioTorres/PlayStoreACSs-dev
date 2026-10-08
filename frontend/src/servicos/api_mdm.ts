@@ -26,6 +26,7 @@ export interface DispositivoItem {
   memoria_ram_livre_mb: number;
   armazenamento_livre_mb: number;
   ultimo_contato: string;
+  tempo_ocioso_minutos?: number;
 }
 
 export interface RespostaListagemDispositivos {
