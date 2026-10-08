@@ -73,6 +73,7 @@ export async function processar_mensagem_telemetria(
     sinal_wifi_rssi?: number;
     ssid_wifi?: string;
     app_em_foco?: string;
+    tempo_ocioso_minutos?: number;
     armazenamento_livre_mb?: number;
     memoria_ram_livre_mb?: number;
   }
@@ -81,10 +82,10 @@ export async function processar_mensagem_telemetria(
   const sqlUpsert = `
     INSERT INTO dispositivos (
       numero_serie, modelo, versao_so, status_conexao, bateria, esta_carregando,
-      sinal_wifi_rssi, ssid_wifi, app_foco, armazenamento_livre_mb, memoria_ram_livre_mb,
+      sinal_wifi_rssi, ssid_wifi, app_foco, tempo_ocioso_minutos, armazenamento_livre_mb, memoria_ram_livre_mb,
       ultimo_contato, atualizado_em
     ) VALUES (
-      $1, $2, $3, 'conectado', $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
+      $1, $2, $3, 'conectado', $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
     )
     ON CONFLICT (numero_serie) DO UPDATE SET
       modelo = COALESCE(EXCLUDED.modelo, dispositivos.modelo),
@@ -95,6 +96,7 @@ export async function processar_mensagem_telemetria(
       sinal_wifi_rssi = EXCLUDED.sinal_wifi_rssi,
       ssid_wifi = EXCLUDED.ssid_wifi,
       app_foco = EXCLUDED.app_foco,
+      tempo_ocioso_minutos = EXCLUDED.tempo_ocioso_minutos,
       armazenamento_livre_mb = EXCLUDED.armazenamento_livre_mb,
       memoria_ram_livre_mb = EXCLUDED.memoria_ram_livre_mb,
       ultimo_contato = NOW(),
@@ -111,6 +113,7 @@ export async function processar_mensagem_telemetria(
     telemetria.sinal_wifi_rssi ?? -50,
     telemetria.ssid_wifi || 'Corporativo-WiFi',
     telemetria.app_em_foco || 'Sistema',
+    telemetria.tempo_ocioso_minutos ?? 0,
     telemetria.armazenamento_livre_mb ?? 0,
     telemetria.memoria_ram_livre_mb ?? 0,
   ]);

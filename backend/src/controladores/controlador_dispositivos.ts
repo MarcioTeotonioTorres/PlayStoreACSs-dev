@@ -80,7 +80,7 @@ export async function listar_dispositivos(
       SELECT
         id, numero_serie, modelo, versao_so, status_conexao,
         bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
-        app_foco, memoria_ram_livre_mb, armazenamento_livre_mb,
+        app_foco, tempo_ocioso_minutos, memoria_ram_livre_mb, armazenamento_livre_mb,
         ultimo_contato, criado_em
       FROM dispositivos
       ${whereSql}

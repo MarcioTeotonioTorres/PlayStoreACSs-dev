@@ -105,9 +105,9 @@ export async function atualizar_politicas_globais_frota(
       console.warn('Fallback: Banco de dados não disponível para salvar políticas. Mantendo em memória.', dbErr);
     }
 
-    // Despacho MQTT para todos os dispositivos conectados da frota individualmente (já que o app não assina broadcast)
+    // Despacho MQTT para todos os dispositivos cadastrados na frota individualmente
     try {
-      const resDisp = await executar_consulta("SELECT numero_serie FROM dispositivos WHERE status_conexao = 'conectado';");
+      const resDisp = await executar_consulta("SELECT numero_serie FROM dispositivos;");
       for (const disp of resDisp.rows) {
         const comandoId = crypto.randomUUID();
         const payloadComando = {
