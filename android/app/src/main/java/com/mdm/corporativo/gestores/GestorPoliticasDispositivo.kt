@@ -262,8 +262,13 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             if (verificar_se_e_device_owner()) {
                 val pacoteChrome = "com.android.chrome"
                 val restricoes = Bundle().apply {
+                    // Chrome Moderno (v86+)
                     putStringArray("URLBlocklist", arrayOf("*"))
                     putStringArray("URLAllowlist", dominiosAutorizados.toTypedArray())
+                    // Chrome Legado (pre-v86)
+                    putStringArray("URLBlacklist", arrayOf("*"))
+                    putStringArray("URLWhitelist", dominiosAutorizados.toTypedArray())
+                    
                     putInt("IncognitoModeAvailability", 1)
                 }
 
