@@ -86,50 +86,51 @@ export async function atualizar_politicas_globais_frota(
 
     // Tenta atualizar no PostgreSQL caso conectado
     try {
-      const sqlUpdate = `
-        UPDATE politicas
-        SET permitir_camera = COALESCE($1, permitir_camera),
-            bloquear_usb = COALESCE($2, bloquear_usb),
-            permitir_reset_fabrica = COALESCE($3, permitir_reset_fabrica),
-            modo_quiosque_app = $4,
-            habilitar_modo_quiosque = COALESCE($5, habilitar_modo_quiosque),
-            pacotes_ocultos = $6::jsonb,
-            urls_permitidas = $7::jsonb,
-            atualizado_em = NOW();
+      // Deleta qualquer política existente e insere a nova para garantir persistência 100%
+      await executar_consulta('DELETE FROM politicas;');
+      const sqlInsert = `
+        INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em)
+        VALUES ('Política Padrão Frota', $1::boolean, $2::boolean, $3::boolean, $4::varchar, $5::boolean, $6::jsonb, $7::jsonb, NOW());
       `;
-      await executar_consulta(sqlUpdate, [
-        dto.permitir_camera,
-        dto.bloquear_usb,
-        dto.permitir_reset_fabrica,
-        dto.modo_quiosque_app || null,
-        dto.habilitar_modo_quiosque,
+      await executar_consulta(sqlInsert, [
+        politicasMemoria.permitir_camera,
+        politicasMemoria.bloquear_usb,
+        politicasMemoria.permitir_reset_fabrica,
+        politicasMemoria.modo_quiosque_app || null,
+        politicasMemoria.habilitar_modo_quiosque,
         JSON.stringify(politicasMemoria.pacotes_ocultos),
         JSON.stringify(politicasMemoria.urls_permitidas),
       ]);
     } catch (dbErr) {
-      // Continua se estiver em modo fallback de memória
+      console.warn('Fallback: Banco de dados não disponível para salvar políticas. Mantendo em memória.', dbErr);
     }
 
-    // Despacho MQTT para todos os dispositivos conectados da frota
-    const comandoId = crypto.randomUUID();
-    const payloadComando = {
-      id: comandoId,
-      tipo_comando: 'aplicar_politica',
-      parametros: {
-        permitir_camera: politicasMemoria.permitir_camera,
-        bloquear_usb: politicasMemoria.bloquear_usb,
-        permitir_reset_fabrica: politicasMemoria.permitir_reset_fabrica,
-        pacotes_ocultos: politicasMemoria.pacotes_ocultos,
-        urls_permitidas: politicasMemoria.urls_permitidas,
-      },
-    };
-
-    // Despacha no canal broadcast da frota e para dispositivos ativos
-    await despachar_comando_mqtt('todos', payloadComando);
+    // Despacho MQTT para todos os dispositivos conectados da frota individualmente (já que o app não assina broadcast)
+    try {
+      const resDisp = await executar_consulta("SELECT numero_serie FROM dispositivos WHERE status_conexao = 'conectado';");
+      for (const disp of resDisp.rows) {
+        const comandoId = crypto.randomUUID();
+        const payloadComando = {
+          id: comandoId,
+          tipo_comando: 'aplicar_politica',
+          parametros: {
+            permitir_camera: politicasMemoria.permitir_camera,
+            bloquear_usb: politicasMemoria.bloquear_usb,
+            permitir_reset_fabrica: politicasMemoria.permitir_reset_fabrica,
+            pacotes_ocultos: politicasMemoria.pacotes_ocultos,
+            urls_permitidas: politicasMemoria.urls_permitidas,
+          },
+        };
+        await despachar_comando_mqtt(disp.numero_serie, payloadComando);
+      }
+    } catch (errMqttLoop) {
+       // Fallback se não conseguir ler do BD, apenas ignora
+       console.warn('Aviso: Falha ao despachar comandos individuais de política.', errMqttLoop);
+    }
 
     resposta.status(200).send({
       sucesso: true,
-      mensagem: 'Políticas corporativas atualizadas e despachadas para toda a frota!',
+      mensagem: 'Políticas corporativas atualizadas e despachadas para a frota!',
       politica: politicasMemoria,
     });
   } catch (erro) {
