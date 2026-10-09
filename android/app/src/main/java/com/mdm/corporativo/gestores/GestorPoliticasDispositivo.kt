@@ -178,6 +178,14 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // Proibir desinstalação de aplicativos do sistema ou do próprio DPC
             gestorPoliticas.setUninstallBlocked(adminComponente, contexto.packageName, true)
 
+            // Auto-conceder permissão para ler o número de série verdadeiro impresso no tablet
+            gestorPoliticas.setPermissionGrantState(
+                adminComponente,
+                contexto.packageName,
+                android.Manifest.permission.READ_PHONE_STATE,
+                DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+            )
+
             // Restrição de reset de fábrica por padrão
             definir_bloqueio_reset_fabrica(true)
 

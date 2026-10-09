@@ -178,23 +178,37 @@ export async function cadastrar_dispositivo_manual(
       return;
     }
 
-    const { cadastrar_novo_dispositivo_memoria } = await import('../banco/conexao');
+    // Validação de duplicidade no banco
+    const checkSql = 'SELECT id FROM dispositivos WHERE numero_serie = $1';
+    const checkRes = await executar_consulta(checkSql, [numero_serie.trim().toUpperCase()]);
+    if (checkRes.rows.length > 0) {
+      resposta.status(409).send({ sucesso: false, mensagem: 'Este número de série já está cadastrado na frota.' });
+      return;
+    }
 
-    const dispositivoCriado = cadastrar_novo_dispositivo_memoria({
-      numero_serie: numero_serie.trim().toUpperCase(),
-      modelo: modelo?.trim() || 'Samsung Galaxy Tab A9+',
-      versao_so: versao_so?.trim() || 'Android 14 (API 34)',
-      bateria: bateria ?? 100,
-      sinal_wifi_rssi: sinal_wifi_rssi ?? -50,
-      ssid_wifi: ssid_wifi?.trim() || 'Corporativo-WiFi',
-      app_foco: app_foco?.trim() || 'com.mdm.corporativo',
-      status_conexao: 'conectado',
-    });
+    const sqlInsert = `
+      INSERT INTO dispositivos (
+        numero_serie, modelo, versao_so, status_conexao, bateria, esta_carregando,
+        sinal_wifi_rssi, ssid_wifi, app_foco, ultimo_contato, atualizado_em
+      ) VALUES (
+        $1, $2, $3, 'desconectado', $4, false, $5, $6, $7, NOW(), NOW()
+      ) RETURNING *;
+    `;
+
+    const res = await executar_consulta(sqlInsert, [
+      numero_serie.trim().toUpperCase(),
+      modelo?.trim() || 'Samsung Galaxy Tab A9+',
+      versao_so?.trim() || 'Android 14 (API 34)',
+      bateria ?? 100,
+      sinal_wifi_rssi ?? -50,
+      ssid_wifi?.trim() || 'Corporativo-WiFi',
+      app_foco?.trim() || 'com.mdm.corporativo',
+    ]);
 
     resposta.status(201).send({
       sucesso: true,
-      mensagem: `Dispositivo ${dispositivoCriado.numero_serie} cadastrado com sucesso na frota!`,
-      dispositivo: dispositivoCriado,
+      mensagem: `Dispositivo ${res.rows[0].numero_serie} cadastrado com sucesso na frota!`,
+      dispositivo: res.rows[0],
     });
   } catch (erro) {
     console.error('Erro em cadastrar_dispositivo_manual:', erro);
