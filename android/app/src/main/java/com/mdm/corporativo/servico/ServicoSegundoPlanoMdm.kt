@@ -127,7 +127,7 @@ class ServicoSegundoPlanoMdm : Service() {
         val numeroSerie = gestorTelemetria.obter_numero_serie()
 
         val prefs = getSharedPreferences("config_mdm", Context.MODE_PRIVATE)
-        val brokerHost = prefs.getString("broker_mqtt_host", "31.97.86.253") ?: "31.97.86.253"
+        val brokerHost = prefs.getString("broker_mqtt_host", "mdmplaystoreacs.duckdns.org") ?: "mdmplaystoreacs.duckdns.org"
         val brokerPort = prefs.getInt("broker_mqtt_porta", 1883)
 
         clienteMqtt = ClienteMqttSeguro(

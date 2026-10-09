@@ -100,7 +100,7 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
                     editor.putString("servidor_api", "https://mdmplaystoreacs.duckdns.org/api")
                 }
                 if (!prefs.contains("broker_mqtt_host")) {
-                    editor.putString("broker_mqtt_host", "31.97.86.253")
+                    editor.putString("broker_mqtt_host", "mdmplaystoreacs.duckdns.org")
                 }
                 if (!prefs.contains("broker_mqtt_porta")) {
                     editor.putInt("broker_mqtt_porta", 1883)
