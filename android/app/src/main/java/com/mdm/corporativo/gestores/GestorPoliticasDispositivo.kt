@@ -303,8 +303,7 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
                 "com.google.android.youtube",
                 "com.android.vending",
                 "com.google.android.apps.photos",
-                "com.android.settings",
-                "com.android.camera2"
+                "com.android.settings"
             )
 
             // Restaura apps comuns que NÃO estão na lista de ocultos

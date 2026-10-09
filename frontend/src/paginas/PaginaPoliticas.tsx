@@ -78,13 +78,7 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
       pacote: 'com.android.settings',
       descricao: 'Ajustes avançados do sistema operacional',
       icone: '⚙️',
-    },
-    {
-      nome: 'Câmera Nativa',
-      pacote: 'com.android.camera2',
-      descricao: 'Aplicativo de captura de fotos e vídeos',
-      icone: '📷',
-    },
+    }
   ];
 
   useEffect(() => {
