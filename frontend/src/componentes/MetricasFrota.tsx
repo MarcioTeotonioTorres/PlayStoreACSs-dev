@@ -84,6 +84,20 @@ export const MetricasFrota: React.FC<PropriedadesMetricas> = ({
           RSSI &lt; -75 dBm (possível instabilidade)
         </div>
       </div>
+
+      {/* Ociosidade Crítica (> 24h) - Alerta de Possível Reset Bootloader */}
+      <div className="card-metrica" style={{ border: (metricas.ociosos_criticos ?? 0) > 0 ? '1px solid rgba(239, 68, 68, 0.4)' : undefined }}>
+        <div className="card-metrica-header">
+          <span>Ociosidade Crítica (&gt; 24h)</span>
+          <AlertTriangle size={18} color="#ef4444" />
+        </div>
+        <div className="card-metrica-valor" style={{ color: (metricas.ociosos_criticos ?? 0) > 0 ? '#f87171' : '#ffffff' }}>
+          {metricas.ociosos_criticos ?? 0}
+        </div>
+        <div className="card-metrica-sub">
+          Possível reset via bootloader ou aparelho sem contato
+        </div>
+      </div>
     </div>
   );
 };

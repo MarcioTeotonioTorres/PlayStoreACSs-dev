@@ -55,6 +55,12 @@ Alguns tablets mais agressivos na bateria exigem que o app seja colocado na list
 adb shell dumpsys deviceidle whitelist +com.mdm.corporativo
 ```
 
+### Passo E: Permissão de Estatísticas de Uso e Leitura de App Ocioso (Recomendado)
+Garante a leitura de aplicativo em primeiro plano e tempo ocioso/ativo no Dashboard em tempo real:
+```bash
+adb shell appops set com.mdm.corporativo GET_USAGE_STATS allow
+```
+
 ---
 
 ## 4. Como funciona o "Catálogo de Apps" Silencioso?

@@ -29,6 +29,7 @@ export const PaginaProvisionamento: React.FC = () => {
   const comandoInstalar = 'adb install -r "C:\\Users\\Marcinho do TI\\Documents\\Projetos Mobile\\PlayServiceACSs\\producao\\apk\\mdm-dpc.apk"';
   const comandoPromover = 'adb shell dpm set-device-owner com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo';
   const comandoBateria = 'adb shell dumpsys deviceidle whitelist +com.mdm.corporativo';
+  const comandoUso = 'adb shell appops set com.mdm.corporativo GET_USAGE_STATS allow';
   const comandoCompilar = 'cd android && .\\gradlew assembleRelease';
 
   return (
@@ -321,6 +322,39 @@ export const PaginaProvisionamento: React.FC = () => {
             </pre>
             <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', marginTop: '6px' }}>
               Garante que o Android nunca encerre o serviço de telemetria MQTT em segundo plano quando o tablet estiver com tela apagada por muito tempo.
+            </p>
+          </div>
+
+          {/* Passo E */}
+          <div style={{ background: 'var(--fundo-elevado)', padding: '16px 20px', borderRadius: '10px', border: '1px solid var(--borda-suave)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ background: 'var(--primaria)', color: '#fff', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
+                  E
+                </span>
+                <strong style={{ fontSize: '14px', color: '#fff' }}>Permissão de Estatísticas de Uso & Leitura de App Ocioso (Recomendado)</strong>
+              </div>
+              <button
+                className="btn btn-secundario"
+                style={{ fontSize: '11px', padding: '4px 10px' }}
+                onClick={() => copiarParaTransferencia(comandoUso, 'passoE')}
+              >
+                {copiadoId === 'passoE' ? (
+                  <>
+                    <Check size={12} color="#34d399" /> Copiado!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} /> Copiar
+                  </>
+                )}
+              </button>
+            </div>
+            <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '10px 14px', borderRadius: '6px', color: '#93c5fd', fontSize: '13px' }}>
+              {comandoUso}
+            </pre>
+            <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', marginTop: '6px' }}>
+              Garante que o painel identifique exatamente qual aplicativo está em foco e calcule com máxima fidelidade os tempos de ociosidade e uso ativo do tablet.
             </p>
           </div>
 

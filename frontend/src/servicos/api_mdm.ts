@@ -8,6 +8,7 @@ export interface MetricasFrotaResposta {
     bateria_critica: number;
     sinal_wifi_fraco: number;
     em_uso_ativo: number;
+    ociosos_criticos?: number;
   };
   atualizado_em: string;
 }

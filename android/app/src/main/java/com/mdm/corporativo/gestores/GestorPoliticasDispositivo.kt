@@ -186,6 +186,17 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
                 DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
             )
 
+            // Auto-conceder permissão de telemetria de uso e detecção de app ocioso
+            try {
+                gestorPoliticas.setPermissionGrantState(
+                    adminComponente,
+                    contexto.packageName,
+                    "android.permission.PACKAGE_USAGE_STATS",
+                    DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+                )
+            } catch (_: Throwable) {
+            }
+
             // Restrição de reset de fábrica por padrão
             definir_bloqueio_reset_fabrica(true)
 

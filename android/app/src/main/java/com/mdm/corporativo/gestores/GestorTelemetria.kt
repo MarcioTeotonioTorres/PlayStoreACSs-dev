@@ -3,6 +3,7 @@ package com.mdm.corporativo.gestores
 import android.app.ActivityManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -10,6 +11,7 @@ import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
+import android.os.PowerManager
 import android.app.admin.DevicePolicyManager
 import android.os.StatFs
 import com.mdm.corporativo.receptor.ReceptorAdministradorDispositivo
@@ -123,59 +125,115 @@ class GestorTelemetria(private val contexto: Context) {
         return ssid.replace("\"", "")
     }
 
+    companion object {
+        @Volatile
+        private var ultimoMomentoAtivoMs: Long = System.currentTimeMillis()
+        @Volatile
+        private var receptorTelaRegistrado: Boolean = false
+
+        /**
+         * Registra dinamicamente um ouvinte para estados de tela e desbloqueio do tablet.
+         */
+        fun registrar_monitor_tela(contexto: Context) {
+            if (receptorTelaRegistrado) return
+            try {
+                val filtro = IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_ON)
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_USER_PRESENT)
+                }
+                contexto.applicationContext.registerReceiver(object : BroadcastReceiver() {
+                    override fun onReceive(c: Context?, intent: Intent?) {
+                        when (intent?.action) {
+                            Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                                ultimoMomentoAtivoMs = System.currentTimeMillis()
+                            }
+                            Intent.ACTION_SCREEN_OFF -> {
+                                ultimoMomentoAtivoMs = System.currentTimeMillis()
+                            }
+                        }
+                    }
+                }, filtro)
+                receptorTelaRegistrado = true
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
     /**
      * Identifica o aplicativo atualmente visível na tela em primeiro plano.
      */
     fun obter_aplicativo_em_foco(): String {
+        registrar_monitor_tela(contexto)
+        val powerManager = contexto.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val estaInterativo = powerManager?.isInteractive ?: true
+
+        // Se a tela estiver apagada/bloqueada, reporta estado de repouso
+        if (!estaInterativo) {
+            return "Tela Bloqueada / Repouso"
+        }
+
         try {
-            val usageStatsManager = contexto.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            val tempoFim = System.currentTimeMillis()
-            val tempoInicio = tempoFim - 1000 * 60 * 60 * 24 // Últimas 24 horas
+            val usageStatsManager = contexto.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            if (usageStatsManager != null) {
+                val tempoFim = System.currentTimeMillis()
+                val tempoInicio = tempoFim - 1000 * 60 * 15 // Últimos 15 minutos
 
-            val eventos = usageStatsManager.queryEvents(tempoInicio, tempoFim)
-            val eventoAtual = UsageEvents.Event()
-            var pacoteEmFoco = ""
+                val estatisticas = usageStatsManager.queryUsageStats(
+                    UsageStatsManager.INTERVAL_BEST,
+                    tempoInicio,
+                    tempoFim
+                )
 
-            while (eventos.hasNextEvent()) {
-                eventos.getNextEvent(eventoAtual)
-                if (eventoAtual.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                    pacoteEmFoco = eventoAtual.packageName
+                if (!estatisticas.isNullOrEmpty()) {
+                    val appMaisRecente = estatisticas
+                        .filter { it.lastTimeUsed > 0 && it.packageName != contexto.packageName }
+                        .maxByOrNull { it.lastTimeUsed }
+
+                    if (appMaisRecente != null && (tempoFim - appMaisRecente.lastTimeUsed) < 1000 * 60 * 5) {
+                        return appMaisRecente.packageName
+                    }
+                }
+
+                // Fallback para leitura de eventos de transição recentes
+                val eventos = usageStatsManager.queryEvents(tempoFim - 1000 * 60 * 10, tempoFim)
+                val eventoAtual = UsageEvents.Event()
+                var pacoteEmFoco = ""
+
+                while (eventos.hasNextEvent()) {
+                    eventos.getNextEvent(eventoAtual)
+                    if (eventoAtual.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                        pacoteEmFoco = eventoAtual.packageName
+                    }
+                }
+
+                if (pacoteEmFoco.isNotEmpty() && pacoteEmFoco != contexto.packageName) {
+                    return pacoteEmFoco
                 }
             }
-
-            return if (pacoteEmFoco.isNotEmpty()) pacoteEmFoco else "Sistema / Área de Trabalho"
-        } catch (e: Exception) {
-            return "Desconhecido"
+        } catch (_: Throwable) {
         }
+
+        return "Sistema / Área de Trabalho"
     }
 
     /**
      * Retorna os minutos em que o tablet esteve ocioso (sem interação ou troca de app).
      */
     fun obter_tempo_ocioso_minutos(): Long {
-        try {
-            val usageStatsManager = contexto.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            val tempoFim = System.currentTimeMillis()
-            val tempoInicio = tempoFim - 1000 * 60 * 60 * 24 // 24h
+        registrar_monitor_tela(contexto)
+        val powerManager = contexto.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val estaInterativo = powerManager?.isInteractive ?: true
 
-            val eventos = usageStatsManager.queryEvents(tempoInicio, tempoFim)
-            val eventoAtual = UsageEvents.Event()
-            var ultimoTempoAtivo = tempoInicio
-
-            while (eventos.hasNextEvent()) {
-                eventos.getNextEvent(eventoAtual)
-                // USER_INTERACTION é API 28+, ACTIVITY_RESUMED funciona em antigas tbm
-                if (eventoAtual.eventType == UsageEvents.Event.ACTIVITY_RESUMED ||
-                    eventoAtual.eventType == 7 /* USER_INTERACTION */) {
-                    ultimoTempoAtivo = eventoAtual.timeStamp
-                }
-            }
-            
-            val tempoOciosoMs = System.currentTimeMillis() - ultimoTempoAtivo
-            return (tempoOciosoMs / (1000 * 60)).coerceAtLeast(0)
-        } catch (e: Exception) {
+        // Se o usuário está com o tablet com a tela ligada e ativa:
+        if (estaInterativo) {
+            ultimoMomentoAtivoMs = System.currentTimeMillis()
             return 0L
         }
+
+        // Se a tela estiver apagada, calcula os minutos desde que foi apagada ou última interação
+        val decorridoMs = System.currentTimeMillis() - ultimoMomentoAtivoMs
+        return (decorridoMs / (1000 * 60)).coerceAtLeast(0)
     }
 
     /**

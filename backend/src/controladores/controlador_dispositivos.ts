@@ -12,11 +12,19 @@ export async function obter_resumo_frota(
     const sqlMetricas = `
       SELECT
         COUNT(*)::int AS total_dispositivos,
-        COUNT(*) FILTER (WHERE status_conexao = 'conectado')::int AS conectados,
-        COUNT(*) FILTER (WHERE status_conexao = 'desconectado')::int AS desconectados,
+        COUNT(*) FILTER (WHERE ultimo_contato >= NOW() - INTERVAL '3 minutes')::int AS conectados,
+        COUNT(*) FILTER (WHERE ultimo_contato < NOW() - INTERVAL '3 minutes' OR ultimo_contato IS NULL)::int AS desconectados,
         COUNT(*) FILTER (WHERE bateria <= 20)::int AS bateria_critica,
         COUNT(*) FILTER (WHERE sinal_wifi_rssi < -75)::int AS sinal_wifi_fraco,
-        COUNT(*) FILTER (WHERE app_foco IS NOT NULL AND app_foco != 'Sistema / Área de Trabalho')::int AS em_uso_ativo
+        COUNT(*) FILTER (
+          WHERE ultimo_contato >= NOW() - INTERVAL '3 minutes'
+            AND app_foco IS NOT NULL
+            AND app_foco NOT IN ('Sistema / Área de Trabalho', 'Tela Bloqueada / Repouso')
+        )::int AS em_uso_ativo,
+        COUNT(*) FILTER (
+          WHERE (ultimo_contato < NOW() - INTERVAL '24 hours' OR ultimo_contato IS NULL)
+             OR (tempo_ocioso_minutos >= 1440)
+        )::int AS ociosos_criticos
       FROM dispositivos;
     `;
 
@@ -28,6 +36,7 @@ export async function obter_resumo_frota(
       bateria_critica: 0,
       sinal_wifi_fraco: 0,
       em_uso_ativo: 0,
+      ociosos_criticos: 0,
     };
 
     resposta.status(200).send({
@@ -64,8 +73,16 @@ export async function listar_dispositivos(
     let contador = 1;
 
     if (status && status !== 'todos') {
-      clausulasWhere.push(`status_conexao = $${contador++}`);
-      parametros.push(status);
+      if (status === 'conectado') {
+        clausulasWhere.push(`ultimo_contato >= NOW() - INTERVAL '3 minutes'`);
+      } else if (status === 'desconectado') {
+        clausulasWhere.push(`(ultimo_contato < NOW() - INTERVAL '3 minutes' OR ultimo_contato IS NULL)`);
+      } else if (status === 'bateria_baixa') {
+        clausulasWhere.push(`bateria <= 20`);
+      } else {
+        clausulasWhere.push(`status_conexao = $${contador++}`);
+        parametros.push(status);
+      }
     }
 
     if (busca && busca.trim().length > 0) {
@@ -78,13 +95,24 @@ export async function listar_dispositivos(
 
     const sqlLista = `
       SELECT
-        id, numero_serie, modelo, versao_so, status_conexao,
+        id, numero_serie, modelo, versao_so,
+        CASE
+          WHEN ultimo_contato >= NOW() - INTERVAL '3 minutes' THEN 'conectado'
+          ELSE 'desconectado'
+        END AS status_conexao,
         bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
-        app_foco, tempo_ocioso_minutos, memoria_ram_livre_mb, armazenamento_livre_mb,
+        app_foco,
+        CASE
+          WHEN ultimo_contato < NOW() - INTERVAL '3 minutes' THEN
+            COALESCE(tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - ultimo_contato)) / 60))::int
+          ELSE
+            COALESCE(tempo_ocioso_minutos, 0)
+        END AS tempo_ocioso_minutos,
+        memoria_ram_livre_mb, armazenamento_livre_mb,
         ultimo_contato, criado_em
       FROM dispositivos
       ${whereSql}
-      ORDER BY status_conexao ASC, ultimo_contato DESC
+      ORDER BY (CASE WHEN ultimo_contato >= NOW() - INTERVAL '3 minutes' THEN 0 ELSE 1 END) ASC, ultimo_contato DESC
       LIMIT $${contador++} OFFSET $${contador++};
     `;
 
@@ -230,6 +258,7 @@ export async function receber_telemetria_http(
       sinal_wifi_rssi?: number;
       ssid_wifi?: string;
       app_em_foco?: string;
+      tempo_ocioso_minutos?: number;
       armazenamento_livre_mb?: number;
       memoria_ram_livre_mb?: number;
     };

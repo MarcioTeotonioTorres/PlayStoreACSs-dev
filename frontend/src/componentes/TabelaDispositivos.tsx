@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Lock, RotateCcw, MoreVertical, Wifi, Battery, Zap, Trash2 } from 'lucide-react';
+import { Search, Lock, RotateCcw, MoreVertical, Wifi, Battery, Zap, Trash2, AlertTriangle, Clock } from 'lucide-react';
 import { DispositivoItem } from '../servicos/api_mdm';
 
 interface PropriedadesTabela {
@@ -47,11 +47,87 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
     });
   }
 
+  /**
+   * Formata a ociosidade do tablet arredondando para horas e a partir de 24hs exibindo dias e horas.
+   * Identifica tablets com ociosidade fora do comum (ex: resetados via bootloader ou abandonados).
+   */
+  function formatar_tempo_ocioso(minutos?: number, ultimoContato?: string): {
+    texto: string;
+    alertaNivel: 'normal' | 'atencao' | 'critico';
+    tempoTotalMinutos: number;
+    ehSuspeitoReset: boolean;
+  } {
+    let minutosEfetivos = minutos ?? 0;
+    if (ultimoContato) {
+      const msSemContato = Date.now() - new Date(ultimoContato).getTime();
+      const minutosSemContato = Math.max(0, Math.floor(msSemContato / 60000));
+      // Se o tablet não reporta há mais de 3 minutos, computa o tempo sem contato
+      if (minutosSemContato > 3) {
+        minutosEfetivos = Math.max(minutosEfetivos, minutosSemContato);
+      }
+    }
+
+    const ehSuspeitoReset = minutosEfetivos >= 1440; // >= 24h sem comunicação
+
+    if (minutosEfetivos <= 1) {
+      return { texto: 'Em uso agora', alertaNivel: 'normal', tempoTotalMinutos: minutosEfetivos, ehSuspeitoReset: false };
+    }
+
+    if (minutosEfetivos < 60) {
+      return {
+        texto: `${minutosEfetivos} min`,
+        alertaNivel: 'normal',
+        tempoTotalMinutos: minutosEfetivos,
+        ehSuspeitoReset: false,
+      };
+    }
+
+    if (minutosEfetivos < 1440) {
+      // Arredondar o valor para horas
+      const horas = Math.round(minutosEfetivos / 60);
+      return {
+        texto: `${horas} ${horas === 1 ? 'hora' : 'horas'}`,
+        alertaNivel: 'atencao',
+        tempoTotalMinutos: minutosEfetivos,
+        ehSuspeitoReset: false,
+      };
+    }
+
+    // A partir de 24 horas: dias e horas de ociosidade
+    const dias = Math.floor(minutosEfetivos / 1440);
+    const horasRestantes = Math.round((minutosEfetivos % 1440) / 60);
+
+    let textoFormatado = '';
+    if (horasRestantes === 0) {
+      textoFormatado = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+    } else {
+      textoFormatado = `${dias} ${dias === 1 ? 'dia' : 'dias'} e ${horasRestantes} ${horasRestantes === 1 ? 'hora' : 'horas'}`;
+    }
+
+    return {
+      texto: textoFormatado,
+      alertaNivel: 'critico',
+      tempoTotalMinutos: minutosEfetivos,
+      ehSuspeitoReset: true,
+    };
+  }
+
   function formatar_data_hora(isoString: string): string {
     if (!isoString) return 'Nunca';
     try {
       const data = new Date(isoString);
-      return data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const hoje = new Date();
+      const ehHoje =
+        data.getDate() === hoje.getDate() &&
+        data.getMonth() === hoje.getMonth() &&
+        data.getFullYear() === hoje.getFullYear();
+
+      const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      if (ehHoje) {
+        return `Hoje às ${horaFormatada}`;
+      }
+      return `${data.toLocaleDateString('pt-BR')} às ${horaFormatada}`;
     } catch {
       return isoString;
     }
@@ -184,7 +260,7 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                       </div>
                     </td>
 
-                    {/* App em Foco */}
+                    {/* App em Foco / Tempo Ocioso */}
                     <td>
                       <span
                         className="texto-mono"
@@ -194,16 +270,73 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                           padding: '2px 6px',
                           borderRadius: '4px',
                           display: 'block',
-                          marginBottom: '4px'
+                          marginBottom: '4px',
+                          maxWidth: '220px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
                         }}
+                        title={disp.app_foco || 'Sistema'}
                       >
                         {disp.app_foco || 'Sistema'}
                       </span>
-                      {disp.tempo_ocioso_minutos !== undefined && (
-                         <div style={{ fontSize: '11px', color: disp.tempo_ocioso_minutos > 60 ? '#f59e0b' : 'var(--texto-fraco)' }}>
-                           Ocioso há: {disp.tempo_ocioso_minutos} min
-                         </div>
-                      )}
+                      {(() => {
+                        const ocioso = formatar_tempo_ocioso(disp.tempo_ocioso_minutos, disp.ultimo_contato);
+                        const cor =
+                          ocioso.alertaNivel === 'critico'
+                            ? '#ef4444'
+                            : ocioso.alertaNivel === 'atencao'
+                            ? '#f59e0b'
+                            : ocioso.tempoTotalMinutos <= 1
+                            ? '#10b981'
+                            : 'var(--texto-fraco)';
+
+                        return (
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              color: cor,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontWeight: ocioso.alertaNivel === 'critico' ? 600 : 400
+                            }}
+                            title={
+                              ocioso.ehSuspeitoReset
+                                ? 'Atenção: Tablet com tempo de ociosidade fora do comum! Possível reinício forçado pelo bootloader, formatação ou abandono.'
+                                : undefined
+                            }
+                          >
+                            {ocioso.alertaNivel === 'critico' ? (
+                              <AlertTriangle size={12} color="#ef4444" style={{ flexShrink: 0 }} />
+                            ) : (
+                              <Clock size={11} color={cor} style={{ flexShrink: 0 }} />
+                            )}
+                            <span>
+                              {ocioso.tempoTotalMinutos <= 1 ? (
+                                <span style={{ color: '#34d399', fontWeight: 600 }}>Em uso ativo</span>
+                              ) : (
+                                <>Ocioso há: {ocioso.texto}</>
+                              )}
+                            </span>
+                            {ocioso.ehSuspeitoReset && (
+                              <span
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.2)',
+                                  color: '#f87171',
+                                  fontSize: '9px',
+                                  padding: '1px 4px',
+                                  borderRadius: '3px',
+                                  fontWeight: 700,
+                                  marginLeft: '4px'
+                                }}
+                              >
+                                FORA DO COMUM
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Último Contato */}
