@@ -37,9 +37,14 @@ export const PaginaDispositivos: React.FC<PropriedadesPaginaDispositivos> = ({
         </div>
 
         <div className="cabecalho-acoes">
-          <button className="btn btn-secundario" onClick={aoAtualizar} title="Recarregar">
-            <RefreshCw size={14} />
-            Sincronizar
+          <button
+            className="btn btn-secundario"
+            onClick={aoAtualizar}
+            disabled={carregando}
+            title="Recarregar inventário agora"
+          >
+            <RefreshCw size={14} className={carregando ? 'icone-girando' : ''} />
+            {carregando ? 'Sincronizando...' : 'Sincronizar'}
           </button>
           <button className="btn btn-secundario" onClick={aoAbrirComandosLote}>
             <Layers size={14} />

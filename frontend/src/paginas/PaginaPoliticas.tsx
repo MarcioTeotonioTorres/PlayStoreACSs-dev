@@ -15,6 +15,8 @@ import {
   Usb,
   Camera,
   RotateCcw,
+  Bluetooth,
+  Package,
 } from 'lucide-react';
 import {
   obter_politicas_api,
@@ -33,6 +35,8 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
     permitir_camera: true,
     bloquear_usb: true,
     permitir_reset_fabrica: false,
+    bloquear_instalacao_apps: true,
+    bloquear_bluetooth: false,
     habilitar_modo_quiosque: false,
     pacotes_ocultos: [
       'com.google.android.youtube',
@@ -92,6 +96,8 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
       if (resp.politica) {
         setPolitica({
           ...resp.politica,
+          bloquear_instalacao_apps: resp.politica.bloquear_instalacao_apps ?? true,
+          bloquear_bluetooth: resp.politica.bloquear_bluetooth ?? false,
           pacotes_ocultos: resp.politica.pacotes_ocultos || [],
           urls_permitidas: resp.politica.urls_permitidas || [],
         });
@@ -554,6 +560,66 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
               onClick={() => setPolitica({ ...politica, permitir_camera: !politica.permitir_camera })}
             >
               {politica.permitir_camera ? 'Liberadas' : 'Bloqueadas'}
+            </button>
+          </div>
+
+          {/* Bloqueio de Instaladores APK e Fontes Desconhecidas */}
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '10px',
+              background: 'var(--fundo-elevado)',
+              border: '1px solid var(--borda-suave)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Package size={16} color="var(--primaria)" />
+                Bloquear Instaladores APK (Fontes Desconhecidas)
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--texto-fraco)' }}>
+                Impede instalação de APKs locais, navegadores e lojas não autorizadas
+              </div>
+            </div>
+            <button
+              className={`btn ${politica.bloquear_instalacao_apps ? 'btn-primario' : 'btn-secundario'}`}
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+              onClick={() => setPolitica({ ...politica, bloquear_instalacao_apps: !politica.bloquear_instalacao_apps })}
+            >
+              {politica.bloquear_instalacao_apps ? 'Bloqueado (Ativado)' : 'Liberado'}
+            </button>
+          </div>
+
+          {/* Bloqueio de Bluetooth e Compartilhamento de Arquivos */}
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '10px',
+              background: 'var(--fundo-elevado)',
+              border: '1px solid var(--borda-suave)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Bluetooth size={16} color="#60a5fa" />
+                Bloquear Bluetooth e Envio de Arquivos
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--texto-fraco)' }}>
+                Desativa rádio Bluetooth e impede transferência de arquivos APK por proximidade
+              </div>
+            </div>
+            <button
+              className={`btn ${politica.bloquear_bluetooth ? 'btn-primario' : 'btn-secundario'}`}
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+              onClick={() => setPolitica({ ...politica, bloquear_bluetooth: !politica.bloquear_bluetooth })}
+            >
+              {politica.bloquear_bluetooth ? 'Bloqueado (Ativado)' : 'Liberado'}
             </button>
           </div>
         </div>

@@ -118,11 +118,13 @@ class AtividadeProvisionamentoPrincipal : Activity() {
     }
 
     /**
-     * Dispara manualmente a coleta e transmissão da telemetria.
+     * Dispara manualmente a coleta e transmissão imediata da telemetria para o servidor.
      */
     fun disparar_teste_telemetria() {
         ServicoSegundoPlanoMdm.iniciar_servico(this)
+        ServicoSegundoPlanoMdm.forcar_sincronizacao_imediata(this)
         atualizar_status_diagnostico()
+        android.widget.Toast.makeText(this, "Telemetria enviada imediatamente ao servidor!", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     /**

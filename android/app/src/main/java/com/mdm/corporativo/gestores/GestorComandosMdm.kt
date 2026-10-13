@@ -160,17 +160,22 @@ class GestorComandosMdm(
                             }
                         }
 
+                        val bloquearInstalacaoApps = parametros.optBoolean("bloquear_instalacao_apps", true)
+                        val bloquearBluetooth = parametros.optBoolean("bloquear_bluetooth", false)
+
                         val sucesso = gestorPoliticas.aplicar_politicas_sistema_completas(
                             listaPacotes, 
                             listaLiberados,
                             listaUrls,
                             permitirCamera,
-                            bloquearUsb
+                            bloquearUsb,
+                            bloquearInstalacaoApps,
+                            bloquearBluetooth
                         )
                         clienteMqtt.enviar_resposta_comando(
                             comandoId,
                             if (sucesso) "executado" else "falha",
-                            "Políticas granulares aplicadas: ${listaPacotes.size} apps ocultos, câmera ${if (permitirCamera) "liberada" else "bloqueada"}."
+                            "Políticas granulares aplicadas: ${listaPacotes.size} apps ocultos, APKs externos ${if (bloquearInstalacaoApps) "bloqueados" else "liberados"}, Bluetooth ${if (bloquearBluetooth) "bloqueado" else "liberado"}."
                         )
                     }
 
@@ -207,6 +212,26 @@ class GestorComandosMdm(
                             comandoId,
                             if (sucesso) "executado" else "falha",
                             "Restrições do Chrome configuradas: ${listaUrls.size} URLs na lista branca."
+                        )
+                    }
+
+                    "bloquear_instalacao_apps" -> {
+                        val bloquear = parametros.optBoolean("bloquear", true)
+                        val sucesso = gestorPoliticas.definir_bloqueio_instalacao_aplicativos(bloquear)
+                        clienteMqtt.enviar_resposta_comando(
+                            comandoId,
+                            if (sucesso) "executado" else "falha",
+                            "Instalação de aplicativos ${if (bloquear) "bloqueada" else "liberada"} com sucesso."
+                        )
+                    }
+
+                    "bloquear_bluetooth" -> {
+                        val bloquear = parametros.optBoolean("bloquear", true)
+                        val sucesso = gestorPoliticas.definir_bloqueio_bluetooth(bloquear)
+                        clienteMqtt.enviar_resposta_comando(
+                            comandoId,
+                            if (sucesso) "executado" else "falha",
+                            "Bluetooth ${if (bloquear) "bloqueado" else "liberado"} com sucesso."
                         )
                     }
 

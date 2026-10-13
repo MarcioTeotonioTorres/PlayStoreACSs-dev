@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS politicas (
     permitir_camera BOOLEAN NOT NULL DEFAULT TRUE,
     bloquear_usb BOOLEAN NOT NULL DEFAULT FALSE,
     permitir_reset_fabrica BOOLEAN NOT NULL DEFAULT FALSE,
+    bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE,
+    bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE,
     modo_quiosque_app VARCHAR(255) DEFAULT NULL,
     habilitar_modo_quiosque BOOLEAN NOT NULL DEFAULT FALSE,
     pacotes_ocultos JSONB NOT NULL DEFAULT '["com.google.android.youtube", "com.android.vending", "com.google.android.apps.photos"]'::jsonb,
@@ -22,11 +24,17 @@ CREATE TABLE IF NOT EXISTS politicas (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Migrações seguras idempotentes caso a tabela já exista
+ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- Inserção de política inicial
-INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas)
+INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, bloquear_instalacao_apps, bloquear_bluetooth, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas)
 VALUES (
     'Política Padrão Tablets',
     TRUE,
+    TRUE,
+    FALSE,
     TRUE,
     FALSE,
     FALSE,

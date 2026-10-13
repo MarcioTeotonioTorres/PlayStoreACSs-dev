@@ -10,7 +10,9 @@ import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
+import android.app.admin.DevicePolicyManager
 import android.os.StatFs
+import com.mdm.corporativo.receptor.ReceptorAdministradorDispositivo
 import org.json.JSONObject
 
 /**
@@ -208,18 +210,42 @@ class GestorTelemetria(private val contexto: Context) {
      * Obtém o número de série único do tablet (Device Owner tem acesso total ao Build.getSerial()).
      */
     fun obter_numero_serie(): String {
+        try {
+            val dpm = contexto.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+            val admin = ReceptorAdministradorDispositivo.obter_componente_administrador(contexto)
+            if (dpm != null && dpm.isDeviceOwnerApp(contexto.packageName)) {
+                if (contexto.checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    dpm.setPermissionGrantState(
+                        admin,
+                        contexto.packageName,
+                        android.Manifest.permission.READ_PHONE_STATE,
+                        DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+                    )
+                }
+            }
+        } catch (_: Throwable) {
+        }
+
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Build.getSerial()
+                val serial = Build.getSerial()
+                if (serial.isNotEmpty() && serial != Build.UNKNOWN) serial else obter_fallback_id()
             } else {
-                Build.SERIAL
+                val serial = Build.SERIAL
+                if (serial.isNotEmpty() && serial != Build.UNKNOWN) serial else obter_fallback_id()
             }
         } catch (e: SecurityException) {
-            // Fallback para ANDROID_ID se permissão de leitura não concedida no momento
-            android.provider.Settings.Secure.getString(
-                contexto.contentResolver,
-                android.provider.Settings.Secure.ANDROID_ID
-            ) ?: "TABLET-DESCONHECIDO"
+            obter_fallback_id()
+        } catch (e: Exception) {
+            obter_fallback_id()
         }
+    }
+
+    private fun obter_fallback_id(): String {
+        val androidId = android.provider.Settings.Secure.getString(
+            contexto.contentResolver,
+            android.provider.Settings.Secure.ANDROID_ID
+        )
+        return if (!androidId.isNullOrEmpty()) androidId.uppercase() else "TABLET-${Build.MODEL.replace(" ", "")}"
     }
 }

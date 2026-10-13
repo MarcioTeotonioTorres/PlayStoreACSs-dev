@@ -189,6 +189,9 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // Restrição de reset de fábrica por padrão
             definir_bloqueio_reset_fabrica(true)
 
+            // Proibir instalação de apps por fontes desconhecidas ou lojas alternativas (sideloading)
+            definir_bloqueio_instalacao_aplicativos(true)
+
             // Proibir adição de novos usuários secundários no tablet
             gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_ADD_USER)
 
@@ -294,6 +297,66 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
     }
 
     /**
+     * Bloqueia ou libera a instalação de aplicativos pelo usuário ou fontes externas (APKs, sideload, lojas não autorizadas).
+     * O instalador silencioso do próprio MDM (Device Owner) continua funcionando normalmente via PackageInstaller.
+     */
+    fun definir_bloqueio_instalacao_aplicativos(bloquear: Boolean): Boolean {
+        return try {
+            if (!verificar_se_e_device_owner()) return false
+            if (bloquear) {
+                // Proíbe instalação a partir de fontes desconhecidas (arquivos APK locais, navegadores, bluetooth)
+                gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES)
+                // Proíbe instalação de aplicativos pelo usuário (lojas alternativas, sideload, etc.)
+                gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_APPS)
+            } else {
+                gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES)
+                gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_APPS)
+            }
+            Log.i(TAG, "definir_bloqueio_instalacao_aplicativos: bloquear=$bloquear")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao definir bloqueio de instaladores de apps: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Bloqueia ou libera o uso e configuração do Bluetooth, bem como o compartilhamento de arquivos via Bluetooth (OBEX).
+     */
+    fun definir_bloqueio_bluetooth(bloquear: Boolean): Boolean {
+        return try {
+            if (!verificar_se_e_device_owner()) return false
+            if (bloquear) {
+                // Bloqueia compartilhamento/transferência de arquivos por Bluetooth
+                gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_BLUETOOTH_SHARING)
+                // Proíbe o uso geral do rádio Bluetooth
+                gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_BLUETOOTH)
+                // Proíbe alteração nas configurações do Bluetooth
+                gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_CONFIG_BLUETOOTH)
+
+                try {
+                    val btAdapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                    @Suppress("DEPRECATION")
+                    if (btAdapter?.isEnabled == true) {
+                        btAdapter.disable()
+                    }
+                } catch (t: Throwable) {
+                    Log.w(TAG, "Aviso ao desativar adaptador Bluetooth: ${t.message}")
+                }
+            } else {
+                gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_BLUETOOTH_SHARING)
+                gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_BLUETOOTH)
+                gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_CONFIG_BLUETOOTH)
+            }
+            Log.i(TAG, "definir_bloqueio_bluetooth: bloquear=$bloquear")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao definir bloqueio de Bluetooth: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
      * Aplica o conjunto completo de diretrizes de segurança, aplicativos ocultos e restrições de navegação.
      */
     fun aplicar_politicas_sistema_completas(
@@ -301,7 +364,9 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
         pacotesLiberados: List<String>,
         dominiosAutorizados: List<String>,
         permitirCamera: Boolean,
-        bloquearUsb: Boolean
+        bloquearUsb: Boolean,
+        bloquearInstalacaoApps: Boolean = true,
+        bloquearBluetooth: Boolean = false
     ): Boolean {
         return try {
             aplicar_politicas_sistema()
@@ -334,6 +399,8 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // Aplicar politicas de hardware passadas
             definir_bloqueio_camera(!permitirCamera)
             definir_bloqueio_usb(bloquearUsb)
+            definir_bloqueio_instalacao_aplicativos(bloquearInstalacaoApps)
+            definir_bloqueio_bluetooth(bloquearBluetooth)
 
             if (dominiosAutorizados.isNotEmpty()) {
                 configurar_restricoes_navegacao_chrome(dominiosAutorizados)

@@ -44,9 +44,14 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
         </div>
 
         <div className="cabecalho-acoes">
-          <button className="btn btn-secundario" onClick={aoAtualizar} title="Recarregar dados">
-            <RefreshCw size={14} />
-            Sincronizar
+          <button
+            className="btn btn-secundario"
+            onClick={aoAtualizar}
+            disabled={carregando}
+            title="Recarregar dados da frota agora"
+          >
+            <RefreshCw size={14} className={carregando ? 'icone-girando' : ''} />
+            {carregando ? 'Sincronizando...' : 'Sincronizar'}
           </button>
           <button className="btn btn-secundario" onClick={aoAbrirAdicionar}>
             <Plus size={14} />

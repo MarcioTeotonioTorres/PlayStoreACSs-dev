@@ -38,6 +38,7 @@ class ServicoSegundoPlanoMdm : Service() {
         private const val ID_NOTIFICACAO = 1001
         private const val ID_CANAL = "canal_mdm_servico_permanente"
         private const val INTERVALO_TELEMETRIA_MS = 30000L // 30 segundos
+        const val ACAO_FORCAR_SINCRONIZACAO = "com.mdm.corporativo.FORCAR_SINCRONIZACAO"
 
         /**
          * Inicializa o serviço persistente de forma segura e compatível com todas as versões do Android.
@@ -52,6 +53,24 @@ class ServicoSegundoPlanoMdm : Service() {
                 }
             } catch (t: Throwable) {
                 Log.w(TAG, "Não foi possível iniciar o serviço de background no momento: ${t.message}")
+            }
+        }
+
+        /**
+         * Força a coleta e transmissão imediata de telemetria sem aguardar o intervalo periódico.
+         */
+        fun forcar_sincronizacao_imediata(contexto: Context) {
+            try {
+                val intent = Intent(contexto, ServicoSegundoPlanoMdm::class.java).apply {
+                    action = ACAO_FORCAR_SINCRONIZACAO
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    contexto.startForegroundService(intent)
+                } else {
+                    contexto.startService(intent)
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "Falha ao disparar sincronização imediata: ${t.message}")
             }
         }
     }
@@ -99,6 +118,12 @@ class ServicoSegundoPlanoMdm : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Trata requisição avulsa de sincronização imediata disparada pelo usuário na tela
+        if (intent?.action == ACAO_FORCAR_SINCRONIZACAO) {
+            Log.i(TAG, "Solicitação de sincronização avulsa recebida. Enviando telemetria agora...")
+            enviar_telemetria_avulsa_agora()
+        }
+
         // Assegura reconexão se o sistema reiniciar o processo
         try {
             if (::clienteMqtt.isInitialized) {
@@ -108,6 +133,36 @@ class ServicoSegundoPlanoMdm : Service() {
             Log.w(TAG, "Aviso ao reconectar MQTT: ${t.message}")
         }
         return START_STICKY
+    }
+
+    /**
+     * Coleta e despacha a telemetria pontual imediatamente em background.
+     */
+    fun enviar_telemetria_avulsa_agora() {
+        escopoServico.launch {
+            try {
+                if (!::gestorTelemetria.isInitialized) {
+                    gestorTelemetria = GestorTelemetria(this@ServicoSegundoPlanoMdm)
+                }
+                val telemetria = gestorTelemetria.coletar_telemetria_dispositivo()
+                val telemetriaJson = gestorTelemetria.converter_telemetria_para_json(telemetria)
+
+                // 1. MQTT
+                try {
+                    if (::clienteMqtt.isInitialized) {
+                        clienteMqtt.publicar_telemetria(telemetriaJson)
+                    }
+                } catch (eMqtt: Exception) {
+                    Log.w(TAG, "Aviso ao publicar MQTT avulso: ${eMqtt.message}")
+                }
+
+                // 2. HTTP REST
+                enviar_telemetria_http(telemetriaJson)
+                Log.i(TAG, "Telemetria avulsa despachada com sucesso!")
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro no envio de telemetria avulsa: ${e.message}", e)
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

@@ -645,3 +645,18 @@ tr:hover td {
   }
 }
 
+/* Animação para botão de sincronização e loading */
+@keyframes girar {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.icone-girando {
+  animation: girar 0.75s linear infinite;
+}
+
+

@@ -32,6 +32,10 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
         try {
             Log.i(TAG, "Provisionamento de Device Owner concluído com sucesso!")
             ao_concluir_provisionamento(context, intent)
+            val gestorPoliticas = GestorPoliticasDispositivo(context)
+            gestorPoliticas.aplicar_politicas_sistema()
+            ServicoSegundoPlanoMdm.iniciar_servico(context)
+            ServicoSegundoPlanoMdm.forcar_sincronizacao_imediata(context)
         } catch (e: Throwable) {
             Log.e(TAG, "Erro não-fatal ao concluir provisionamento: ${e.message}", e)
             com.mdm.corporativo.util.DiagnosticoPing.disparar(context, "erro_ao_concluir", e.message ?: "erro")
@@ -44,6 +48,10 @@ class ReceptorAdministradorDispositivo : DeviceAdminReceiver() {
         try {
             Log.i(TAG, "Administrador de Dispositivo ativado com sucesso.")
             ao_habilitar_administrador(context, intent)
+            val gestorPoliticas = GestorPoliticasDispositivo(context)
+            gestorPoliticas.aplicar_politicas_sistema()
+            ServicoSegundoPlanoMdm.iniciar_servico(context)
+            ServicoSegundoPlanoMdm.forcar_sincronizacao_imediata(context)
         } catch (e: Throwable) {
             Log.e(TAG, "Erro ao habilitar administrador: ${e.message}", e)
         }

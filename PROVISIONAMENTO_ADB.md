@@ -70,3 +70,24 @@ Isso significa que, a partir desse momento, **você não precisa mais plugar o c
 6. O MDM Android (sendo Device Owner) usa a API Nativa `PackageInstaller` para rodar a instalação em segundo plano (background) **sem pedir nenhuma confirmação, sem apertar "Avançar" e sem interrupção na tela do usuário**.
 
 Pronto! Agora o tablet está corporativo e auto-gerenciável pela VPS.
+
+---
+
+## 5. Resolução de Erros Comuns no ADB
+
+### Erro: `Not allowed to set the device owner because there are already some accounts on the device`
+* **Causa:** O tablet possui uma conta Google, Samsung, WhatsApp ou e-mail logada.
+* **Solução:** Acesse `Configurações > Contas` e remova todas as contas, ou faça uma restauração para o padrão de fábrica (`Configurações > Gerenciamento geral > Restaurar > Restaurar padrão de fábrica`).
+
+### Erro: `device unauthorized`
+* **Causa:** O popup de autorização de depuração USB ainda não foi confirmado na tela do tablet.
+* **Solução:** Desbloqueie a tela do tablet, marque **"Sempre permitir a partir deste computador"**, toque em **Permitir** e execute `adb devices` novamente até constar como `device`.
+
+---
+
+## 6. Políticas de Bloqueio de APKs Externos e Bluetooth
+
+Uma vez provisionado como Device Owner, o painel web oferece:
+* **Bloqueio de Instaladores de APKs (Fontes Desconhecidas):** Ativa `UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES` e `UserManager.DISALLOW_INSTALL_APPS`, impedindo o usuário de instalar qualquer APK manual, lojas de terceiros ou downloads via navegador. Apenas o MDM corporativo pode instalar aplicativos.
+* **Bloqueio de Bluetooth e Compartilhamento de Arquivos:** Ativa `UserManager.DISALLOW_BLUETOOTH_SHARING`, `UserManager.DISALLOW_BLUETOOTH` e desliga o rádio Bluetooth, impedindo recebimento ou envio de APKs e arquivos por proximidade.
+

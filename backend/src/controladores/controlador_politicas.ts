@@ -8,6 +8,8 @@ export interface PoliticaDTO {
   permitir_camera?: boolean;
   bloquear_usb?: boolean;
   permitir_reset_fabrica?: boolean;
+  bloquear_instalacao_apps?: boolean;
+  bloquear_bluetooth?: boolean;
   modo_quiosque_app?: string;
   habilitar_modo_quiosque?: boolean;
   pacotes_ocultos?: string[];
@@ -20,6 +22,8 @@ let politicasMemoria: PoliticaDTO = {
   permitir_camera: true,
   bloquear_usb: true,
   permitir_reset_fabrica: false,
+  bloquear_instalacao_apps: true,
+  bloquear_bluetooth: false,
   modo_quiosque_app: '',
   habilitar_modo_quiosque: false,
   pacotes_ocultos: [
@@ -44,6 +48,7 @@ export async function obter_politicas_frota(
   try {
     const sql = `
       SELECT id, nome, permitir_camera, bloquear_usb, permitir_reset_fabrica,
+             bloquear_instalacao_apps, bloquear_bluetooth,
              modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em
       FROM politicas
       ORDER BY atualizado_em DESC
@@ -94,13 +99,15 @@ export async function atualizar_politicas_globais_frota(
       // Deleta qualquer política existente e insere a nova para garantir persistência 100%
       await executar_consulta('DELETE FROM politicas;');
       const sqlInsert = `
-        INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em)
-        VALUES ('Política Padrão Frota', $1::boolean, $2::boolean, $3::boolean, $4::varchar, $5::boolean, $6::jsonb, $7::jsonb, NOW());
+        INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em)
+        VALUES ('Política Padrão Frota', $1::boolean, $2::boolean, $3::boolean, $4::boolean, $5::boolean, $6::varchar, $7::boolean, $8::jsonb, $9::jsonb, NOW());
       `;
       await executar_consulta(sqlInsert, [
         politicasMemoria.permitir_camera,
         politicasMemoria.bloquear_usb,
         politicasMemoria.permitir_reset_fabrica,
+        politicasMemoria.bloquear_instalacao_apps,
+        politicasMemoria.bloquear_bluetooth,
         politicasMemoria.modo_quiosque_app || null,
         politicasMemoria.habilitar_modo_quiosque,
         JSON.stringify(politicasMemoria.pacotes_ocultos),
@@ -122,6 +129,8 @@ export async function atualizar_politicas_globais_frota(
             permitir_camera: politicasMemoria.permitir_camera,
             bloquear_usb: politicasMemoria.bloquear_usb,
             permitir_reset_fabrica: politicasMemoria.permitir_reset_fabrica,
+            bloquear_instalacao_apps: politicasMemoria.bloquear_instalacao_apps,
+            bloquear_bluetooth: politicasMemoria.bloquear_bluetooth,
             pacotes_ocultos: politicasMemoria.pacotes_ocultos,
             pacotes_liberados: pacotesLiberados,
             urls_permitidas: politicasMemoria.urls_permitidas,
@@ -169,6 +178,8 @@ export async function atualizar_politicas_dispositivo(
         permitir_camera: dto.permitir_camera ?? true,
         bloquear_usb: dto.bloquear_usb ?? true,
         permitir_reset_fabrica: dto.permitir_reset_fabrica ?? false,
+        bloquear_instalacao_apps: dto.bloquear_instalacao_apps ?? true,
+        bloquear_bluetooth: dto.bloquear_bluetooth ?? false,
         pacotes_ocultos: dto.pacotes_ocultos || [],
         urls_permitidas: dto.urls_permitidas || [],
       },
