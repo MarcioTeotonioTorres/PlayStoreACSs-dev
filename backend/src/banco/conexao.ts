@@ -214,7 +214,9 @@ export function inicializar_pool_conexoes(): Pool {
     });
 
     // Migração automática para garantir colunas novas sem precisar de script manual
-    pool.query(`ALTER TABLE dispositivos ADD COLUMN tempo_ocioso_minutos INT DEFAULT 0;`).catch(() => {});
+    pool.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS tempo_ocioso_minutos INT DEFAULT 0;`).catch(() => {});
+    pool.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;`).catch(() => {});
+    pool.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;`).catch(() => {});
   }
   return pool;
 }
