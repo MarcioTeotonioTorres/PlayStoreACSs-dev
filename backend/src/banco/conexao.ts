@@ -85,12 +85,25 @@ function gerar_dados_simulados_frota(): DispositivoSimulado[] {
 }
 
 /**
- * Adiciona um novo dispositivo na lista em memória (colocando no topo).
+ * Adiciona um novo dispositivo na lista em memória evitando números de série aleatórios ou duplicados.
  */
 export function cadastrar_novo_dispositivo_memoria(dados: Partial<DispositivoSimulado>): DispositivoSimulado {
+  const snLimpo = dados.numero_serie?.trim().toUpperCase() || 'TB-MANUAL-001';
+
+  // Verifica se o serial já existe na lista em memória para evitar registros duplicados
+  const existente = dispositivosMemoria.find((d) => d.numero_serie.toUpperCase() === snLimpo);
+  if (existente) {
+    Object.assign(existente, {
+      ...dados,
+      numero_serie: snLimpo,
+      ultimo_contato: new Date().toISOString(),
+    });
+    return existente;
+  }
+
   const novo: DispositivoSimulado = {
     id: crypto.randomUUID(),
-    numero_serie: dados.numero_serie || `TB-MANUAL-${Math.floor(Math.random() * 9000) + 1000}`,
+    numero_serie: snLimpo,
     modelo: dados.modelo || 'Samsung Galaxy Tab A9+',
     versao_so: dados.versao_so || 'Android 14 (API 34)',
     status_conexao: (dados.status_conexao as any) || 'conectado',
@@ -118,13 +131,29 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
 ): QueryResult<T> {
   const sqlLimpo = textoSql.trim().toUpperCase();
 
-  // 1. Resumo da Frota
+  // 1. Resumo da Frota com Métricas Detalhadas de Ociosidade
   if (sqlLimpo.includes('COUNT(*)::INT AS TOTAL_DISPOSITIVOS')) {
     const agora = Date.now();
     const conectados = dispositivosMemoria.filter((d) => (agora - new Date(d.ultimo_contato).getTime()) <= 180000).length;
     const bateriaCritica = dispositivosMemoria.filter((d) => d.bateria <= 20).length;
     const sinalFraco = dispositivosMemoria.filter((d) => d.sinal_wifi_rssi < -75).length;
-    const ociososCriticos = dispositivosMemoria.filter((d) => (agora - new Date(d.ultimo_contato).getTime()) >= 86400000 || (d.tempo_ocioso_minutos || 0) >= 1440).length;
+    const emUsoAtivo = dispositivosMemoria.filter((d) => {
+      const ms = agora - new Date(d.ultimo_contato).getTime();
+      return ms <= 180000 && d.app_foco && !d.app_foco.includes('Repouso') && (d.tempo_ocioso_minutos || 0) < 5;
+    }).length;
+
+    const ociososModerados = dispositivosMemoria.filter((d) => {
+      const ociosoMin = d.tempo_ocioso_minutos || 0;
+      return ociosoMin >= 120 && ociosoMin < 1440;
+    }).length;
+
+    const ociososCriticos = dispositivosMemoria.filter((d) => {
+      const ms = agora - new Date(d.ultimo_contato).getTime();
+      return ms >= 86400000 || (d.tempo_ocioso_minutos || 0) >= 1440;
+    }).length;
+
+    const somaOciosidade = dispositivosMemoria.reduce((acc, curr) => acc + (curr.tempo_ocioso_minutos || 0), 0);
+    const mediaOciosidade = dispositivosMemoria.length > 0 ? Math.round(somaOciosidade / dispositivosMemoria.length) : 0;
 
     const row = {
       total_dispositivos: 250,
@@ -132,8 +161,10 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
       desconectados: 250 - conectados * 10,
       bateria_critica: bateriaCritica * 3,
       sinal_wifi_fraco: sinalFraco * 2,
-      em_uso_ativo: 210,
-      ociosos_criticos: ociososCriticos * 3,
+      em_uso_ativo: emUsoAtivo * 10 || 185,
+      ociosos_moderados: ociososModerados * 5 || 28,
+      ociosos_criticos: ociososCriticos * 3 || 6,
+      tempo_ocioso_medio_minutos: mediaOciosidade || 45,
     };
 
     return {
@@ -145,7 +176,58 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     };
   }
 
-  // 2. Listagem de Dispositivos
+  // 2. Verificação estrita de duplicidade de serial único
+  if (sqlLimpo.includes('FROM DISPOSITIVOS WHERE') && (sqlLimpo.includes('NUMERO_SERIE') || sqlLimpo.includes('UPPER(TRIM(NUMERO_SERIE))'))) {
+    const snParam = (parametros[0] || '').toString().trim().toUpperCase();
+    const encontrado = dispositivosMemoria.find((d) => d.numero_serie.toUpperCase() === snParam);
+    if (encontrado) {
+      return {
+        rows: [{ id: encontrado.id, numero_serie: encontrado.numero_serie }] as unknown as T[],
+        command: 'SELECT',
+        rowCount: 1,
+        oid: 0,
+        fields: [],
+      };
+    }
+    return {
+      rows: [] as T[],
+      command: 'SELECT',
+      rowCount: 0,
+      oid: 0,
+      fields: [],
+    };
+  }
+
+  // 3. Inserção de Novo Tablet com Prevenção de Duplicidade (INSERT INTO dispositivos)
+  if (sqlLimpo.startsWith('INSERT INTO DISPOSITIVOS')) {
+    const snParam = (parametros[0] || '').toString().trim().toUpperCase();
+    const modeloParam = parametros[1] || 'Samsung Galaxy Tab A9+';
+    const versaoParam = parametros[2] || 'Android 14 (API 34)';
+    const bateriaParam = parametros[3] ?? 100;
+    const rssiParam = parametros[5] ?? -50;
+    const ssidParam = parametros[6] || 'Corporativo-WiFi';
+    const appParam = parametros[7] || 'com.mdm.corporativo';
+
+    const disp = cadastrar_novo_dispositivo_memoria({
+      numero_serie: snParam,
+      modelo: modeloParam,
+      versao_so: versaoParam,
+      bateria: bateriaParam,
+      sinal_wifi_rssi: rssiParam,
+      ssid_wifi: ssidParam,
+      app_foco: appParam,
+    });
+
+    return {
+      rows: [disp as unknown as T],
+      command: 'INSERT',
+      rowCount: 1,
+      oid: 0,
+      fields: [],
+    };
+  }
+
+  // 4. Listagem de Dispositivos (com filtros de ociosidade)
   if (sqlLimpo.startsWith('SELECT') && sqlLimpo.includes('FROM DISPOSITIVOS')) {
     const agora = Date.now();
     let filtrados = dispositivosMemoria.map((d) => {
@@ -160,7 +242,7 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     });
 
     if (parametros.length > 0) {
-      const statusParam = parametros.find((p) => p === 'conectado' || p === 'desconectado');
+      const statusParam = parametros.find((p) => typeof p === 'string' && (p === 'conectado' || p === 'desconectado'));
       if (statusParam) {
         filtrados = filtrados.filter((d) => d.status_conexao === statusParam);
       }
@@ -175,7 +257,7 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     };
   }
 
-  // 3. Inserção de Comandos
+  // 5. Inserção de Comandos
   if (sqlLimpo.startsWith('INSERT INTO COMANDOS')) {
     const id = crypto.randomUUID();
     comandosMemoria.push({
@@ -196,7 +278,7 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     };
   }
 
-  // 4. Fallback padrão
+  // 6. Fallback padrão
   return {
     rows: [] as T[],
     command: 'SELECT',

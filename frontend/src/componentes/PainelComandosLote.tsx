@@ -37,6 +37,14 @@ export const PainelComandosLote: React.FC<PropriedadesLote> = ({
       parametros = { bloquear: true };
     } else if (tipoComando === 'liberar_camera') {
       parametros = { bloquear: false };
+    } else if (tipoComando === 'bloquear_bluetooth') {
+      parametros = { bloquear: true };
+    } else if (tipoComando === 'liberar_bluetooth') {
+      parametros = { bloquear: false };
+    } else if (tipoComando === 'bloquear_instalacao_apps') {
+      parametros = { bloquear: true };
+    } else if (tipoComando === 'liberar_instalacao_apps') {
+      parametros = { bloquear: false };
     }
 
     try {
@@ -45,6 +53,10 @@ export const PainelComandosLote: React.FC<PropriedadesLote> = ({
           ? 'modo_quiosque'
           : tipoComando === 'liberar_camera'
           ? 'definir_bloqueio_camera'
+          : tipoComando === 'liberar_bluetooth'
+          ? 'bloquear_bluetooth'
+          : tipoComando === 'liberar_instalacao_apps'
+          ? 'bloquear_instalacao_apps'
           : tipoComando;
 
       const resp = await despachar_comando_lote_api(comandoFinal, parametros, apenasConectados);
@@ -131,6 +143,10 @@ export const PainelComandosLote: React.FC<PropriedadesLote> = ({
           >
             <option value="bloquear_tela_imediata">🔒 Bloquear Tela de Todos os Tablets</option>
             <option value="reiniciar_aparelho">🔄 Reiniciar Toda a Frota Conectada</option>
+            <option value="bloquear_bluetooth">📡 Bloquear Bluetooth na Frota (Impede Envio/Recebimento)</option>
+            <option value="liberar_bluetooth">📡 Liberar Rádio Bluetooth na Frota</option>
+            <option value="bloquear_instalacao_apps">🛑 Bloquear Instalação de APKs e Lojas Alternativas</option>
+            <option value="liberar_instalacao_apps">📦 Liberar Instalação Manual de APKs</option>
             <option value="modo_quiosque">🛡️ Ativar Modo Quiosque em Lote (App Fixo)</option>
             <option value="desativar_quiosque">🔓 Desativar Modo Quiosque em Lote</option>
             <option value="definir_bloqueio_camera">📷 Bloquear Câmeras na Frota</option>

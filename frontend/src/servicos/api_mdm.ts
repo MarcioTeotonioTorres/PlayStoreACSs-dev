@@ -8,7 +8,10 @@ export interface MetricasFrotaResposta {
     bateria_critica: number;
     sinal_wifi_fraco: number;
     em_uso_ativo: number;
+    ociosos_moderados?: number;
     ociosos_criticos?: number;
+    tempo_ocioso_medio_minutos?: number;
+    taxa_utilizacao_percentual?: number;
   };
   atualizado_em: string;
 }
@@ -63,10 +66,12 @@ export async function obter_resumo_frota_api(): Promise<MetricasFrotaResposta> {
 export async function listar_dispositivos_api(filtros?: {
   status?: string;
   busca?: string;
+  ordem?: string;
 }): Promise<RespostaListagemDispositivos> {
   const params = new URLSearchParams();
   if (filtros?.status) params.append('status', filtros.status);
   if (filtros?.busca) params.append('busca', filtros.busca);
+  if (filtros?.ordem) params.append('ordem', filtros.ordem);
 
   const resposta = await fetch(`${URL_BASE}/dispositivos?${params.toString()}`);
   if (!resposta.ok) {
@@ -154,7 +159,8 @@ export async function cadastrar_dispositivo_api(dados: {
     body: JSON.stringify(dados),
   });
   if (!resposta.ok) {
-    throw new Error('Falha ao cadastrar dispositivo');
+    const erroJson = await resposta.json().catch(() => ({}));
+    throw new Error(erroJson.mensagem || 'Falha ao cadastrar dispositivo');
   }
   return await resposta.json();
 }

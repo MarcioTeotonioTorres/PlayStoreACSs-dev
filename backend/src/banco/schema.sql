@@ -15,10 +15,10 @@ CREATE TABLE IF NOT EXISTS politicas (
     bloquear_usb BOOLEAN NOT NULL DEFAULT FALSE,
     permitir_reset_fabrica BOOLEAN NOT NULL DEFAULT FALSE,
     bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE,
-    bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE,
+    bloquear_bluetooth BOOLEAN NOT NULL DEFAULT TRUE,
     modo_quiosque_app VARCHAR(255) DEFAULT NULL,
     habilitar_modo_quiosque BOOLEAN NOT NULL DEFAULT FALSE,
-    pacotes_ocultos JSONB NOT NULL DEFAULT '["com.google.android.youtube", "com.android.vending", "com.google.android.apps.photos"]'::jsonb,
+    pacotes_ocultos JSONB NOT NULL DEFAULT '["com.google.android.youtube", "com.android.vending", "com.sec.android.app.samsungapps", "com.google.android.apps.photos"]'::jsonb,
     urls_permitidas JSONB NOT NULL DEFAULT '["portal.empresa.com.br", "*.empresa.com.br", "sistema.empresa.com.br"]'::jsonb,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS politicas (
 
 -- Migrações seguras idempotentes caso a tabela já exista
 ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- Inserção de política inicial
 INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, bloquear_instalacao_apps, bloquear_bluetooth, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas)
@@ -36,9 +36,9 @@ VALUES (
     TRUE,
     FALSE,
     TRUE,
+    TRUE,
     FALSE,
-    FALSE,
-    '["com.google.android.youtube", "com.android.vending", "com.google.android.apps.photos"]'::jsonb,
+    '["com.google.android.youtube", "com.android.vending", "com.sec.android.app.samsungapps", "com.google.android.apps.photos"]'::jsonb,
     '["portal.empresa.com.br", "*.empresa.com.br", "sistema.empresa.com.br"]'::jsonb
 )
 ON CONFLICT DO NOTHING;
@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS dispositivos (
     sinal_wifi_rssi INT DEFAULT -50,
     ssid_wifi VARCHAR(100) DEFAULT NULL,
     app_foco VARCHAR(255) DEFAULT NULL,
+    tempo_ocioso_minutos INT DEFAULT 0,
     memoria_ram_livre_mb BIGINT DEFAULT 0,
     armazenamento_livre_mb BIGINT DEFAULT 0,
     politica_id UUID REFERENCES politicas(id) ON DELETE SET NULL,

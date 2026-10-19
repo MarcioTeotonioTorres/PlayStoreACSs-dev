@@ -36,7 +36,7 @@ export function inicializar_servico_mqtt(): MqttClient {
     try {
       const conteudoStr = payloadBuffer.toString();
       const partesTopico = topico.split('/');
-      const numeroSerie = partesTopico[2];
+      const numeroSerie = partesTopico[2]?.trim().toUpperCase();
       const tipoMensagem = partesTopico[3];
 
       const dados = JSON.parse(conteudoStr);
@@ -78,7 +78,10 @@ export async function processar_mensagem_telemetria(
     memoria_ram_livre_mb?: number;
   }
 ): Promise<void> {
-  // Upsert do dispositivo no banco de dados
+  const snNormalizado = numeroSerie?.trim().toUpperCase();
+  if (!snNormalizado) return;
+
+  // Upsert do dispositivo no banco de dados garantindo integridade de unicidade
   const sqlUpsert = `
     INSERT INTO dispositivos (
       numero_serie, modelo, versao_so, status_conexao, bateria, esta_carregando,
@@ -105,7 +108,7 @@ export async function processar_mensagem_telemetria(
   `;
 
   const res = await executar_consulta(sqlUpsert, [
-    numeroSerie,
+    snNormalizado,
     telemetria.modelo || 'Tablet Android',
     telemetria.versao_so || 'Android',
     telemetria.nivel_bateria ?? 100,

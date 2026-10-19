@@ -124,13 +124,15 @@ class ServicoSegundoPlanoMdm : Service() {
             enviar_telemetria_avulsa_agora()
         }
 
-        // Assegura reconexão se o sistema reiniciar o processo
-        try {
-            if (::clienteMqtt.isInitialized) {
-                clienteMqtt.conectar_broker_mqtt()
+        // Assegura reconexão se o sistema reiniciar o processo (em background IO)
+        escopoServico.launch(Dispatchers.IO) {
+            try {
+                if (::clienteMqtt.isInitialized) {
+                    clienteMqtt.conectar_broker_mqtt()
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "Aviso ao reconectar MQTT: ${t.message}")
             }
-        } catch (t: Throwable) {
-            Log.w(TAG, "Aviso ao reconectar MQTT: ${t.message}")
         }
         return START_STICKY
     }
@@ -169,10 +171,15 @@ class ServicoSegundoPlanoMdm : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        parar_ciclo_telemetria()
-        clienteMqtt.desconectar_broker_mqtt()
-        Log.w(TAG, "Serviço MDM finalizado. Tentando restaurar...")
-        iniciar_servico(this)
+        try {
+            parar_ciclo_telemetria()
+            if (::clienteMqtt.isInitialized) {
+                clienteMqtt.desconectar_broker_mqtt()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Aviso ao finalizar serviço: ${t.message}")
+        }
+        Log.w(TAG, "Serviço MDM finalizado.")
     }
 
     /**
@@ -201,7 +208,14 @@ class ServicoSegundoPlanoMdm : Service() {
             clienteMqtt = clienteMqtt
         )
 
-        clienteMqtt.conectar_broker_mqtt()
+        // Conecta ao broker em segundo plano para nunca bloquear a thread principal (evita ANR e NetworkOnMainThreadException)
+        escopoServico.launch(Dispatchers.IO) {
+            try {
+                clienteMqtt.conectar_broker_mqtt()
+            } catch (t: Throwable) {
+                Log.w(TAG, "Aviso ao conectar MQTT inicial: ${t.message}")
+            }
+        }
     }
 
     /**
@@ -299,7 +313,7 @@ class ServicoSegundoPlanoMdm : Service() {
         return NotificationCompat.Builder(this, ID_CANAL)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.servico_ativo_texto))
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(R.drawable.ic_mdm_notificacao)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)

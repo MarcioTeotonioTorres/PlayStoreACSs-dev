@@ -26,19 +26,27 @@ class AtividadeProvisionamentoPrincipal : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        gestorPoliticas = GestorPoliticasDispositivo(this)
-        gestorTelemetria = GestorTelemetria(this)
+        try {
+            gestorPoliticas = GestorPoliticasDispositivo(this)
+            gestorTelemetria = GestorTelemetria(this)
 
-        inicializar_componentes_tela()
-        atualizar_status_diagnostico()
+            inicializar_componentes_tela()
+            atualizar_status_diagnostico()
 
-        // Garante que o serviço MDM esteja em execução
-        ServicoSegundoPlanoMdm.iniciar_servico(this)
+            // Garante que o serviço MDM esteja em execução
+            ServicoSegundoPlanoMdm.iniciar_servico(this)
+        } catch (t: Throwable) {
+            android.util.Log.e("MDM_Atividade", "Erro na inicialização da atividade: ${t.message}", t)
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        atualizar_status_diagnostico()
+        try {
+            atualizar_status_diagnostico()
+        } catch (t: Throwable) {
+            android.util.Log.e("MDM_Atividade", "Erro no onResume: ${t.message}", t)
+        }
     }
 
     /**
@@ -95,26 +103,30 @@ class AtividadeProvisionamentoPrincipal : Activity() {
      * Atualiza os textos informativos com o estado atual do tablet.
      */
     fun atualizar_status_diagnostico() {
-        val eDeviceOwner = gestorPoliticas.verificar_se_e_device_owner()
-        val statusTexto = if (eDeviceOwner) {
-            "Status: ATIVO como Device Owner (Gerenciado pela Empresa)"
-        } else {
-            "Status: NÃO PROVISIONADO (Requer ativação via QR Code no primeiro boot)"
+        try {
+            val eDeviceOwner = gestorPoliticas.verificar_se_e_device_owner()
+            val statusTexto = if (eDeviceOwner) {
+                "Status: ATIVO como Device Owner (Gerenciado pela Empresa)"
+            } else {
+                "Status: NÃO PROVISIONADO (Requer ativação via QR Code no primeiro boot)"
+            }
+            textoStatusAdmin.text = statusTexto
+
+            val serial = gestorTelemetria.obter_numero_serie()
+            textoSerial.text = "Número de Série: $serial"
+
+            val dados = gestorTelemetria.coletar_telemetria_dispositivo()
+            val telemetriaResumo = """
+                Bateria: ${dados.nivel_bateria}% (Carregando: ${dados.esta_carregando})
+                Rede Wi-Fi: ${dados.ssid_wifi} (Sinal: ${dados.sinal_wifi_rssi} dBm)
+                RAM Livre: ${dados.memoria_ram_livre_mb} MB
+                Armazenamento Livre: ${dados.armazenamento_livre_mb} MB
+                App em Primeiro Plano: ${dados.app_em_foco}
+            """.trimIndent()
+            textoTelemetria.text = telemetriaResumo
+        } catch (t: Throwable) {
+            android.util.Log.e("MDM_Atividade", "Erro ao coletar diagnóstico para tela: ${t.message}", t)
         }
-        textoStatusAdmin.text = statusTexto
-
-        val serial = gestorTelemetria.obter_numero_serie()
-        textoSerial.text = "Número de Série: $serial"
-
-        val dados = gestorTelemetria.coletar_telemetria_dispositivo()
-        val telemetriaResumo = """
-            Bateria: ${dados.nivel_bateria}% (Carregando: ${dados.esta_carregando})
-            Rede Wi-Fi: ${dados.ssid_wifi} (Sinal: ${dados.sinal_wifi_rssi} dBm)
-            RAM Livre: ${dados.memoria_ram_livre_mb} MB
-            Armazenamento Livre: ${dados.armazenamento_livre_mb} MB
-            App em Primeiro Plano: ${dados.app_em_foco}
-        """.trimIndent()
-        textoTelemetria.text = telemetriaResumo
     }
 
     /**

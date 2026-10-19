@@ -44,12 +44,28 @@ export const ModalComandos: React.FC<PropriedadesModal> = ({
       parametros = { bloquear: true };
     } else if (tipoComando === 'definir_bloqueio_usb') {
       parametros = { bloquear: true };
+    } else if (tipoComando === 'bloquear_bluetooth') {
+      parametros = { bloquear: true };
+    } else if (tipoComando === 'liberar_bluetooth') {
+      parametros = { bloquear: false };
+    } else if (tipoComando === 'bloquear_instalacao_apps') {
+      parametros = { bloquear: true };
+    } else if (tipoComando === 'liberar_instalacao_apps') {
+      parametros = { bloquear: false };
     } else if (tipoComando === 'limpar_dados_dispositivo') {
       parametros = { incluir_sd: true };
     }
 
     try {
-      const comandoFinal = tipoComando === 'desativar_quiosque' ? 'modo_quiosque' : tipoComando;
+      const comandoFinal =
+        tipoComando === 'desativar_quiosque'
+          ? 'modo_quiosque'
+          : tipoComando === 'liberar_bluetooth'
+          ? 'bloquear_bluetooth'
+          : tipoComando === 'liberar_instalacao_apps'
+          ? 'bloquear_instalacao_apps'
+          : tipoComando;
+
       await aoEnviarComando(dispositivo.id, comandoFinal, parametros);
       setMensagemSucesso('Comando despachado com sucesso via MQTT!');
       setTimeout(() => {
@@ -120,6 +136,10 @@ export const ModalComandos: React.FC<PropriedadesModal> = ({
           >
             <option value="bloquear_tela_imediata">🔒 Bloquear Tela Imediatamente</option>
             <option value="reiniciar_aparelho">🔄 Reiniciar Tablet</option>
+            <option value="bloquear_bluetooth">📡 Desativar e Bloquear Bluetooth (Impede Envio/Recebimento)</option>
+            <option value="liberar_bluetooth">📡 Liberar Rádio Bluetooth</option>
+            <option value="bloquear_instalacao_apps">🛑 Bloquear Lojas Alternativas e APKs Externos</option>
+            <option value="liberar_instalacao_apps">📦 Liberar Instalação Manual de APKs</option>
             <option value="modo_quiosque">🛡️ Ativar Modo Quiosque (Travar em Aplicativo)</option>
             <option value="desativar_quiosque">🔓 Liberar Modo Quiosque</option>
             <option value="definir_bloqueio_reset_fabrica">🚫 Proibir Restauração de Fábrica (FRP)</option>

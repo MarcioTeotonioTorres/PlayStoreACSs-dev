@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Lock, RotateCcw, MoreVertical, Wifi, Battery, Zap, Trash2, AlertTriangle, Clock } from 'lucide-react';
+import { Search, Lock, RotateCcw, MoreVertical, Wifi, Battery, Zap, Trash2, AlertTriangle, Clock, PlayCircle, ArrowUpDown } from 'lucide-react';
 import { DispositivoItem } from '../servicos/api_mdm';
+
+type FiltroStatus = 'todos' | 'em_uso_ativo' | 'ocioso_moderado' | 'ocioso_critico' | 'conectado' | 'desconectado' | 'bateria_baixa';
+type OrdemOciosidade = 'padrao' | 'maior_ociosidade';
 
 interface PropriedadesTabela {
   dispositivos: DispositivoItem[];
@@ -20,18 +23,19 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
   aoRemoverDispositivo,
 }) => {
   const [termoBusca, setTermoBusca] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'conectado' | 'desconectado' | 'bateria_baixa'>('todos');
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todos');
+  const [ordemOciosidade, setOrdemOciosidade] = useState<OrdemOciosidade>('padrao');
 
   function ao_digitar_busca(evento: React.ChangeEvent<HTMLInputElement>) {
     setTermoBusca(evento.target.value);
   }
 
-  function ao_selecionar_filtro(filtro: 'todos' | 'conectado' | 'desconectado' | 'bateria_baixa') {
+  function ao_selecionar_filtro(filtro: FiltroStatus) {
     setFiltroStatus(filtro);
   }
 
   function filtrar_dispositivos(): DispositivoItem[] {
-    return dispositivos.filter((d) => {
+    const lista = dispositivos.filter((d) => {
       const correspondeBusca =
         d.numero_serie.toLowerCase().includes(termoBusca.toLowerCase()) ||
         d.modelo.toLowerCase().includes(termoBusca.toLowerCase()) ||
@@ -39,12 +43,33 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
 
       if (!correspondeBusca) return false;
 
+      const ocioso = formatar_tempo_ocioso(d.tempo_ocioso_minutos, d.ultimo_contato);
+
+      if (filtroStatus === 'em_uso_ativo') {
+        return d.status_conexao === 'conectado' && ocioso.tempoTotalMinutos <= 1;
+      }
+      if (filtroStatus === 'ocioso_moderado') {
+        return ocioso.tempoTotalMinutos >= 120 && ocioso.tempoTotalMinutos < 1440;
+      }
+      if (filtroStatus === 'ocioso_critico') {
+        return ocioso.ehSuspeitoReset || ocioso.tempoTotalMinutos >= 1440;
+      }
       if (filtroStatus === 'conectado') return d.status_conexao === 'conectado';
       if (filtroStatus === 'desconectado') return d.status_conexao === 'desconectado';
       if (filtroStatus === 'bateria_baixa') return d.bateria <= 20;
 
       return true;
     });
+
+    if (ordemOciosidade === 'maior_ociosidade') {
+      lista.sort((a, b) => {
+        const ociosoA = formatar_tempo_ocioso(a.tempo_ocioso_minutos, a.ultimo_contato).tempoTotalMinutos;
+        const ociosoB = formatar_tempo_ocioso(b.tempo_ocioso_minutos, b.ultimo_contato).tempoTotalMinutos;
+        return ociosoB - ociosoA;
+      });
+    }
+
+    return lista;
   }
 
   /**
@@ -135,11 +160,24 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
 
   const listaFiltrada = filtrar_dispositivos();
 
+  const contagemEmUso = dispositivos.filter(
+    (d) => d.status_conexao === 'conectado' && formatar_tempo_ocioso(d.tempo_ocioso_minutos, d.ultimo_contato).tempoTotalMinutos <= 1
+  ).length;
+
+  const contagemModerado = dispositivos.filter((d) => {
+    const min = formatar_tempo_ocioso(d.tempo_ocioso_minutos, d.ultimo_contato).tempoTotalMinutos;
+    return min >= 120 && min < 1440;
+  }).length;
+
+  const contagemCritico = dispositivos.filter(
+    (d) => formatar_tempo_ocioso(d.tempo_ocioso_minutos, d.ultimo_contato).tempoTotalMinutos >= 1440
+  ).length;
+
   return (
     <div className="card-tabela">
       {/* Barra de Filtros e Busca */}
-      <div className="tabela-barra-topo">
-        <div className="tabela-barra-busca">
+      <div className="tabela-barra-topo" style={{ flexWrap: 'wrap', gap: '12px' }}>
+        <div className="tabela-barra-busca" style={{ minWidth: '260px' }}>
           <Search size={16} color="var(--texto-secundario)" />
           <input
             type="text"
@@ -149,7 +187,7 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
           />
         </div>
 
-        <div className="tabela-filtros">
+        <div className="tabela-filtros" style={{ flexWrap: 'wrap', gap: '6px' }}>
           <button
             className={`filtro-chip ${filtroStatus === 'todos' ? 'ativo' : ''}`}
             onClick={() => ao_selecionar_filtro('todos')}
@@ -157,22 +195,53 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
             Todos ({dispositivos.length})
           </button>
           <button
+            className={`filtro-chip ${filtroStatus === 'em_uso_ativo' ? 'ativo' : ''}`}
+            onClick={() => ao_selecionar_filtro('em_uso_ativo')}
+            style={filtroStatus === 'em_uso_ativo' ? { borderColor: '#10b981', color: '#34d399' } : {}}
+          >
+            🟢 Em Uso Ativo ({contagemEmUso})
+          </button>
+          <button
+            className={`filtro-chip ${filtroStatus === 'ocioso_moderado' ? 'ativo' : ''}`}
+            onClick={() => ao_selecionar_filtro('ocioso_moderado')}
+            style={filtroStatus === 'ocioso_moderado' ? { borderColor: '#f59e0b', color: '#fbbf24' } : {}}
+          >
+            ⏳ Ociosos &gt; 2h ({contagemModerado})
+          </button>
+          <button
+            className={`filtro-chip ${filtroStatus === 'ocioso_critico' ? 'ativo' : ''}`}
+            onClick={() => ao_selecionar_filtro('ocioso_critico')}
+            style={filtroStatus === 'ocioso_critico' ? { borderColor: '#ef4444', color: '#f87171' } : {}}
+          >
+            🚨 Críticos &ge; 24h ({contagemCritico})
+          </button>
+          <button
             className={`filtro-chip ${filtroStatus === 'conectado' ? 'ativo' : ''}`}
             onClick={() => ao_selecionar_filtro('conectado')}
           >
-            Conectados ({dispositivos.filter((d) => d.status_conexao === 'conectado').length})
+            Online ({dispositivos.filter((d) => d.status_conexao === 'conectado').length})
           </button>
           <button
             className={`filtro-chip ${filtroStatus === 'desconectado' ? 'ativo' : ''}`}
             onClick={() => ao_selecionar_filtro('desconectado')}
           >
-            Desconectados ({dispositivos.filter((d) => d.status_conexao === 'desconectado').length})
+            Offline ({dispositivos.filter((d) => d.status_conexao === 'desconectado').length})
           </button>
           <button
             className={`filtro-chip ${filtroStatus === 'bateria_baixa' ? 'ativo' : ''}`}
             onClick={() => ao_selecionar_filtro('bateria_baixa')}
           >
             Bateria Baixa ({dispositivos.filter((d) => d.bateria <= 20).length})
+          </button>
+
+          <button
+            className={`btn ${ordemOciosidade === 'maior_ociosidade' ? 'btn-primario' : 'btn-secundario'}`}
+            style={{ fontSize: '12px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '5px', borderRadius: '20px' }}
+            onClick={() => setOrdemOciosidade(ordemOciosidade === 'padrao' ? 'maior_ociosidade' : 'padrao')}
+            title="Alternar ordenação por maior tempo de ociosidade"
+          >
+            <ArrowUpDown size={12} />
+            {ordemOciosidade === 'maior_ociosidade' ? 'Mais Ociosos Primeiro' : 'Ordenar p/ Ociosidade'}
           </button>
         </div>
       </div>

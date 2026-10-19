@@ -203,6 +203,12 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // Proibir instalação de apps por fontes desconhecidas ou lojas alternativas (sideloading)
             definir_bloqueio_instalacao_aplicativos(true)
 
+            // Bloquear rádio Bluetooth e compartilhamento de arquivos (impede envio/recebimento de APKs por proximidade)
+            definir_bloqueio_bluetooth(true)
+
+            // Proibir transferência de arquivos USB (MTP) para impedir injeção manual de APKs
+            gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_USB_FILE_TRANSFER)
+
             // Proibir adição de novos usuários secundários no tablet
             gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_ADD_USER)
 

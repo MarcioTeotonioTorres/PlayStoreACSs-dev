@@ -15,7 +15,7 @@ export const ModalAdicionarDispositivo: React.FC<PropriedadesModalAdicionar> = (
 }) => {
   if (!visivel) return null;
 
-  const [numeroSerie, setNumeroSerie] = useState<string>('TAB-REAL-001');
+  const [numeroSerie, setNumeroSerie] = useState<string>('');
   const [modelo, setModelo] = useState<string>('Samsung Galaxy Tab A9+ (SM-X210)');
   const [versaoSo, setVersaoSo] = useState<string>('Android 14 (API 34)');
   const [bateria, setBateria] = useState<number>(95);
@@ -23,19 +23,22 @@ export const ModalAdicionarDispositivo: React.FC<PropriedadesModalAdicionar> = (
   const [appFoco, setAppFoco] = useState<string>('com.mdm.corporativo');
   const [salvando, setSalvando] = useState<boolean>(false);
   const [sucesso, setSucesso] = useState<string>('');
+  const [erroValidacao, setErroValidacao] = useState<string>('');
 
   async function salvar_novo_dispositivo() {
-    if (!numeroSerie.trim()) {
-      alert('Informe o número de série do tablet.');
+    const snLimpo = numeroSerie.trim().toUpperCase();
+    if (!snLimpo) {
+      setErroValidacao('Informe o número de série gravado no hardware do tablet.');
       return;
     }
 
     setSalvando(true);
     setSucesso('');
+    setErroValidacao('');
 
     try {
       const resp = await cadastrar_dispositivo_api({
-        numero_serie: numeroSerie,
+        numero_serie: snLimpo,
         modelo,
         versao_so: versaoSo,
         bateria: Number(bateria),
@@ -48,8 +51,8 @@ export const ModalAdicionarDispositivo: React.FC<PropriedadesModalAdicionar> = (
         aoSucesso();
         aoFechar();
       }, 1400);
-    } catch (erro) {
-      alert('Erro ao cadastrar dispositivo.');
+    } catch (erro: any) {
+      setErroValidacao(erro.message || 'Erro ao cadastrar dispositivo.');
     } finally {
       setSalvando(false);
     }
@@ -64,7 +67,7 @@ export const ModalAdicionarDispositivo: React.FC<PropriedadesModalAdicionar> = (
             <div>
               <h3>Adicionar Tablet à Frota</h3>
               <div style={{ fontSize: '13px', color: 'var(--texto-secundario)' }}>
-                Cadastro manual imediato no ambiente local
+                Cadastro antecipado para associação imediata na detecção
               </div>
             </div>
           </div>
@@ -94,26 +97,50 @@ export const ModalAdicionarDispositivo: React.FC<PropriedadesModalAdicionar> = (
             </div>
           )}
 
+          {erroValidacao && (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#f87171',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                padding: '12px',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              ⚠️ {erroValidacao}
+            </div>
+          )}
+
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--texto-secundario)', marginBottom: '4px' }}>
-              Número de Série / Identificador Único *:
+              Número de Série Real do Tablet (SN) *:
             </label>
             <input
               type="text"
               value={numeroSerie}
-              onChange={(e) => setNumeroSerie(e.target.value)}
-              placeholder="ex: R52N10XXXXX ou TAB-001"
+              onChange={(e) => {
+                setNumeroSerie(e.target.value.toUpperCase());
+                setErroValidacao('');
+              }}
+              placeholder="ex: R52N10XXXXX (conforme impresso no tablet)"
+              autoFocus
               style={{
                 width: '100%',
                 padding: '10px 14px',
                 borderRadius: '8px',
                 background: 'var(--fundo-base)',
-                border: '1px solid var(--borda-suave)',
+                border: erroValidacao ? '1px solid #ef4444' : '1px solid var(--borda-suave)',
                 color: 'white',
                 fontSize: '14px',
                 fontFamily: 'var(--fonte-mono)',
               }}
             />
+            <div style={{ fontSize: '11px', color: 'var(--texto-fraco)', marginTop: '4px' }}>
+              💡 Insira o serial físico da carcaça do tablet para que a telemetria vincule este mesmo cadastro sem gerar duplicidades.
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>

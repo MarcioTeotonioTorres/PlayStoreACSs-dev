@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { executar_consulta } from '../banco/conexao';
 
 /**
- * Retorna as métricas consolidadas da frota de 250 tablets.
+ * Retorna as métricas consolidadas da frota de 250 tablets com foco especial em controle de ociosidade.
  */
 export async function obter_resumo_frota(
   requisicao: FastifyRequest,
@@ -20,11 +20,24 @@ export async function obter_resumo_frota(
           WHERE ultimo_contato >= NOW() - INTERVAL '3 minutes'
             AND app_foco IS NOT NULL
             AND app_foco NOT IN ('Sistema / Área de Trabalho', 'Tela Bloqueada / Repouso')
+            AND COALESCE(tempo_ocioso_minutos, 0) < 5
         )::int AS em_uso_ativo,
+        COUNT(*) FILTER (
+          WHERE (COALESCE(tempo_ocioso_minutos, 0) >= 120 AND COALESCE(tempo_ocioso_minutos, 0) < 1440)
+             OR (ultimo_contato < NOW() - INTERVAL '2 hours' AND ultimo_contato >= NOW() - INTERVAL '24 hours')
+        )::int AS ociosos_moderados,
         COUNT(*) FILTER (
           WHERE (ultimo_contato < NOW() - INTERVAL '24 hours' OR ultimo_contato IS NULL)
              OR (tempo_ocioso_minutos >= 1440)
-        )::int AS ociosos_criticos
+        )::int AS ociosos_criticos,
+        ROUND(AVG(
+          CASE
+            WHEN ultimo_contato < NOW() - INTERVAL '3 minutes' THEN
+              COALESCE(tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - ultimo_contato)) / 60))::int
+            ELSE
+              COALESCE(tempo_ocioso_minutos, 0)
+          END
+        ))::int AS tempo_ocioso_medio_minutos
       FROM dispositivos;
     `;
 
@@ -36,13 +49,21 @@ export async function obter_resumo_frota(
       bateria_critica: 0,
       sinal_wifi_fraco: 0,
       em_uso_ativo: 0,
+      ociosos_moderados: 0,
       ociosos_criticos: 0,
+      tempo_ocioso_medio_minutos: 0,
     };
+
+    const total = metricas.total_dispositivos || 0;
+    const taxaUtilizacao = total > 0 ? Math.round(((metricas.em_uso_ativo || 0) / total) * 100) : 0;
 
     resposta.status(200).send({
       sucesso: true,
       capacidade_frota: 250,
-      metricas,
+      metricas: {
+        ...metricas,
+        taxa_utilizacao_percentual: taxaUtilizacao,
+      },
       atualizado_em: new Date().toISOString(),
     });
   } catch (erro) {
@@ -52,13 +73,14 @@ export async function obter_resumo_frota(
 }
 
 /**
- * Lista todos os tablets gerenciados com suporte a busca e filtros.
+ * Lista todos os tablets gerenciados com suporte a busca, filtros e ordenação por ociosidade.
  */
 export async function listar_dispositivos(
   requisicao: FastifyRequest<{
     Querystring: {
       status?: string;
       busca?: string;
+      ordem?: string;
       limite?: string;
       offset?: string;
     };
@@ -66,7 +88,7 @@ export async function listar_dispositivos(
   resposta: FastifyReply
 ): Promise<void> {
   try {
-    const { status, busca, limite = '50', offset = '0' } = requisicao.query;
+    const { status, busca, ordem, limite = '50', offset = '0' } = requisicao.query;
 
     let clausulasWhere: string[] = [];
     let parametros: any[] = [];
@@ -79,6 +101,12 @@ export async function listar_dispositivos(
         clausulasWhere.push(`(ultimo_contato < NOW() - INTERVAL '3 minutes' OR ultimo_contato IS NULL)`);
       } else if (status === 'bateria_baixa') {
         clausulasWhere.push(`bateria <= 20`);
+      } else if (status === 'em_uso_ativo') {
+        clausulasWhere.push(`ultimo_contato >= NOW() - INTERVAL '3 minutes' AND app_foco IS NOT NULL AND app_foco NOT IN ('Sistema / Área de Trabalho', 'Tela Bloqueada / Repouso') AND COALESCE(tempo_ocioso_minutos, 0) < 5`);
+      } else if (status === 'ociosos_moderados') {
+        clausulasWhere.push(`((COALESCE(tempo_ocioso_minutos, 0) >= 120 AND COALESCE(tempo_ocioso_minutos, 0) < 1440) OR (ultimo_contato < NOW() - INTERVAL '2 hours' AND ultimo_contato >= NOW() - INTERVAL '24 hours'))`);
+      } else if (status === 'ociosos_criticos') {
+        clausulasWhere.push(`((ultimo_contato < NOW() - INTERVAL '24 hours' OR ultimo_contato IS NULL) OR (tempo_ocioso_minutos >= 1440))`);
       } else {
         clausulasWhere.push(`status_conexao = $${contador++}`);
         parametros.push(status);
@@ -93,26 +121,42 @@ export async function listar_dispositivos(
 
     const whereSql = clausulasWhere.length > 0 ? `WHERE ${clausulasWhere.join(' AND ')}` : '';
 
+    let ordenacaoSql = `ORDER BY (CASE WHEN ultimo_contato >= NOW() - INTERVAL '3 minutes' THEN 0 ELSE 1 END) ASC, ultimo_contato DESC`;
+    if (ordem === 'maior_ociosidade') {
+      ordenacaoSql = `ORDER BY tempo_ocioso_calculado DESC, ultimo_contato ASC`;
+    } else if (ordem === 'menor_ociosidade') {
+      ordenacaoSql = `ORDER BY tempo_ocioso_calculado ASC, ultimo_contato DESC`;
+    }
+
     const sqlLista = `
+      WITH cte_dispositivos AS (
+        SELECT
+          id, numero_serie, modelo, versao_so,
+          CASE
+            WHEN ultimo_contato >= NOW() - INTERVAL '3 minutes' THEN 'conectado'
+            ELSE 'desconectado'
+          END AS status_conexao,
+          bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
+          app_foco,
+          CASE
+            WHEN ultimo_contato < NOW() - INTERVAL '3 minutes' THEN
+              COALESCE(tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - ultimo_contato)) / 60))::int
+            ELSE
+              COALESCE(tempo_ocioso_minutos, 0)
+          END AS tempo_ocioso_calculado,
+          memoria_ram_livre_mb, armazenamento_livre_mb,
+          ultimo_contato, criado_em
+        FROM dispositivos
+      )
       SELECT
         id, numero_serie, modelo, versao_so,
-        CASE
-          WHEN ultimo_contato >= NOW() - INTERVAL '3 minutes' THEN 'conectado'
-          ELSE 'desconectado'
-        END AS status_conexao,
-        bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
-        app_foco,
-        CASE
-          WHEN ultimo_contato < NOW() - INTERVAL '3 minutes' THEN
-            COALESCE(tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - ultimo_contato)) / 60))::int
-          ELSE
-            COALESCE(tempo_ocioso_minutos, 0)
-        END AS tempo_ocioso_minutos,
+        status_conexao, bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
+        app_foco, tempo_ocioso_calculado AS tempo_ocioso_minutos,
         memoria_ram_livre_mb, armazenamento_livre_mb,
         ultimo_contato, criado_em
-      FROM dispositivos
+      FROM cte_dispositivos
       ${whereSql}
-      ORDER BY (CASE WHEN ultimo_contato >= NOW() - INTERVAL '3 minutes' THEN 0 ELSE 1 END) ASC, ultimo_contato DESC
+      ${ordenacaoSql}
       LIMIT $${contador++} OFFSET $${contador++};
     `;
 
@@ -206,11 +250,16 @@ export async function cadastrar_dispositivo_manual(
       return;
     }
 
-    // Validação de duplicidade no banco
-    const checkSql = 'SELECT id FROM dispositivos WHERE numero_serie = $1';
-    const checkRes = await executar_consulta(checkSql, [numero_serie.trim().toUpperCase()]);
+    const snLimpo = numero_serie.trim().toUpperCase();
+
+    // Validação estrita de duplicidade no banco ignorando case e espaços
+    const checkSql = 'SELECT id, numero_serie FROM dispositivos WHERE UPPER(TRIM(numero_serie)) = $1';
+    const checkRes = await executar_consulta(checkSql, [snLimpo]);
     if (checkRes.rows.length > 0) {
-      resposta.status(409).send({ sucesso: false, mensagem: 'Este número de série já está cadastrado na frota.' });
+      resposta.status(409).send({
+        sucesso: false,
+        mensagem: `O tablet com serial ${snLimpo} já se encontra cadastrado na frota.`,
+      });
       return;
     }
 
@@ -224,7 +273,7 @@ export async function cadastrar_dispositivo_manual(
     `;
 
     const res = await executar_consulta(sqlInsert, [
-      numero_serie.trim().toUpperCase(),
+      snLimpo,
       modelo?.trim() || 'Samsung Galaxy Tab A9+',
       versao_so?.trim() || 'Android 14 (API 34)',
       bateria ?? 100,
@@ -267,12 +316,16 @@ export async function receber_telemetria_http(
 ): Promise<void> {
   try {
     const dados = requisicao.body;
-    if (!dados || !dados.numero_serie) {
+    if (!dados || !dados.numero_serie || dados.numero_serie.trim().length === 0) {
       resposta.status(400).send({ sucesso: false, mensagem: 'Número de série é obrigatório.' });
       return;
     }
+
+    const snNormalizado = dados.numero_serie.trim().toUpperCase();
+    dados.numero_serie = snNormalizado;
+
     const { processar_mensagem_telemetria } = await import('../servicos/servico_mqtt');
-    await processar_mensagem_telemetria(dados.numero_serie, dados);
+    await processar_mensagem_telemetria(snNormalizado, dados);
     resposta.status(200).send({ sucesso: true, mensagem: 'Telemetria registrada com sucesso.' });
   } catch (erro) {
     console.error('Erro em receber_telemetria_http:', erro);

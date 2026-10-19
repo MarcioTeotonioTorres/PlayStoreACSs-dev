@@ -23,12 +23,13 @@ let politicasMemoria: PoliticaDTO = {
   bloquear_usb: true,
   permitir_reset_fabrica: false,
   bloquear_instalacao_apps: true,
-  bloquear_bluetooth: false,
+  bloquear_bluetooth: true,
   modo_quiosque_app: '',
   habilitar_modo_quiosque: false,
   pacotes_ocultos: [
     'com.google.android.youtube',
     'com.android.vending',
+    'com.sec.android.app.samsungapps',
     'com.google.android.apps.photos',
   ],
   urls_permitidas: [

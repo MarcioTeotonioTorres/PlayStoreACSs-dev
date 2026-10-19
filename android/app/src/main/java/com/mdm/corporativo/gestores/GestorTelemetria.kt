@@ -84,13 +84,17 @@ class GestorTelemetria(private val contexto: Context) {
      * Obtém o nível percentual de carga da bateria (0 a 100).
      */
     fun obter_nivel_bateria(): Int {
-        val filtroBateria = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        val statusBateria: Intent? = contexto.registerReceiver(null, filtroBateria)
-        val nivel = statusBateria?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val escala = statusBateria?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        return if (nivel >= 0 && escala > 0) {
-            (nivel * 100 / escala.toFloat()).toInt()
-        } else {
+        return try {
+            val filtroBateria = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            val statusBateria: Intent? = contexto.registerReceiver(null, filtroBateria)
+            val nivel = statusBateria?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val escala = statusBateria?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (nivel >= 0 && escala > 0) {
+                (nivel * 100 / escala.toFloat()).toInt()
+            } else {
+                0
+            }
+        } catch (_: Throwable) {
             0
         }
     }
@@ -99,37 +103,63 @@ class GestorTelemetria(private val contexto: Context) {
      * Verifica se o tablet está conectado à fonte de alimentação.
      */
     fun obter_status_carregando(): Boolean {
-        val filtroBateria = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        val statusBateria: Intent? = contexto.registerReceiver(null, filtroBateria)
-        val status = statusBateria?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        return status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL
+        return try {
+            val filtroBateria = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            val statusBateria: Intent? = contexto.registerReceiver(null, filtroBateria)
+            val status = statusBateria?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                    status == BatteryManager.BATTERY_STATUS_FULL
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     /**
      * Obtém o nível do sinal Wi-Fi (RSSI em dBm).
      */
     fun obter_nivel_sinal_wifi(): Int {
-        val gestorWifi = contexto.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val info = gestorWifi.connectionInfo
-        return info?.rssi ?: -127
+        return try {
+            val gestorWifi = contexto.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val info = gestorWifi?.connectionInfo
+            info?.rssi ?: -127
+        } catch (_: Throwable) {
+            -127
+        }
     }
 
     /**
      * Obtém o nome da rede Wi-Fi conectada (SSID).
      */
     fun obter_ssid_wifi(): String {
-        val gestorWifi = contexto.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val info = gestorWifi.connectionInfo
-        val ssid = info?.ssid ?: "<Desconectado>"
-        return ssid.replace("\"", "")
+        return try {
+            val gestorWifi = contexto.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val info = gestorWifi?.connectionInfo
+            val ssid = info?.ssid ?: "<Desconectado>"
+            ssid.replace("\"", "")
+        } catch (_: Throwable) {
+            "<Desconectado>"
+        }
     }
 
     companion object {
-        @Volatile
-        private var ultimoMomentoAtivoMs: Long = System.currentTimeMillis()
-        @Volatile
+        private const val PREFS_NOME = "telemetria_mdm"
+        private const val CHAVE_ULTIMO_ATIVO = "ultimo_momento_ativo_ms"
+        private const val CHAVE_NUMERO_SERIE = "numero_serie_definitivo"
+
+        private var ultimoMomentoAtivoMs: Long = 0L
         private var receptorTelaRegistrado: Boolean = false
+
+        /**
+         * Atualiza o timestamp do último momento ativo do usuário e persiste no disco.
+         */
+        fun atualizar_momento_ativo(contexto: Context, timestampMs: Long = System.currentTimeMillis()) {
+            ultimoMomentoAtivoMs = timestampMs
+            try {
+                val prefs = contexto.applicationContext.getSharedPreferences(PREFS_NOME, Context.MODE_PRIVATE)
+                prefs.edit().putLong(CHAVE_ULTIMO_ATIVO, ultimoMomentoAtivoMs).apply()
+            } catch (_: Throwable) {
+            }
+        }
 
         /**
          * Registra dinamicamente um ouvinte para estados de tela e desbloqueio do tablet.
@@ -137,6 +167,11 @@ class GestorTelemetria(private val contexto: Context) {
         fun registrar_monitor_tela(contexto: Context) {
             if (receptorTelaRegistrado) return
             try {
+                val prefs = contexto.applicationContext.getSharedPreferences(PREFS_NOME, Context.MODE_PRIVATE)
+                if (ultimoMomentoAtivoMs == 0L) {
+                    ultimoMomentoAtivoMs = prefs.getLong(CHAVE_ULTIMO_ATIVO, System.currentTimeMillis())
+                }
+
                 val filtro = IntentFilter().apply {
                     addAction(Intent.ACTION_SCREEN_ON)
                     addAction(Intent.ACTION_SCREEN_OFF)
@@ -146,10 +181,10 @@ class GestorTelemetria(private val contexto: Context) {
                     override fun onReceive(c: Context?, intent: Intent?) {
                         when (intent?.action) {
                             Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
-                                ultimoMomentoAtivoMs = System.currentTimeMillis()
+                                atualizar_momento_ativo(contexto)
                             }
                             Intent.ACTION_SCREEN_OFF -> {
-                                ultimoMomentoAtivoMs = System.currentTimeMillis()
+                                atualizar_momento_ativo(contexto)
                             }
                         }
                     }
@@ -191,6 +226,7 @@ class GestorTelemetria(private val contexto: Context) {
                         .maxByOrNull { it.lastTimeUsed }
 
                     if (appMaisRecente != null && (tempoFim - appMaisRecente.lastTimeUsed) < 1000 * 60 * 5) {
+                        atualizar_momento_ativo(contexto, appMaisRecente.lastTimeUsed)
                         return appMaisRecente.packageName
                     }
                 }
@@ -204,6 +240,9 @@ class GestorTelemetria(private val contexto: Context) {
                     eventos.getNextEvent(eventoAtual)
                     if (eventoAtual.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
                         pacoteEmFoco = eventoAtual.packageName
+                        if (eventoAtual.timeStamp > 0) {
+                            atualizar_momento_ativo(contexto, eventoAtual.timeStamp)
+                        }
                     }
                 }
 
@@ -218,20 +257,45 @@ class GestorTelemetria(private val contexto: Context) {
     }
 
     /**
-     * Retorna os minutos em que o tablet esteve ocioso (sem interação ou troca de app).
+     * Retorna os minutos em que o tablet esteve ocioso (sem interação ou tela desligada).
+     * O valor é persistente entre reinicializações de serviços e processos em background.
      */
     fun obter_tempo_ocioso_minutos(): Long {
         registrar_monitor_tela(contexto)
+
+        if (ultimoMomentoAtivoMs == 0L) {
+            val prefs = contexto.applicationContext.getSharedPreferences(PREFS_NOME, Context.MODE_PRIVATE)
+            ultimoMomentoAtivoMs = prefs.getLong(CHAVE_ULTIMO_ATIVO, System.currentTimeMillis())
+        }
+
         val powerManager = contexto.getSystemService(Context.POWER_SERVICE) as? PowerManager
         val estaInterativo = powerManager?.isInteractive ?: true
 
-        // Se o usuário está com o tablet com a tela ligada e ativa:
+        // Se o usuário está com o tablet ativo e tela ligada:
         if (estaInterativo) {
-            ultimoMomentoAtivoMs = System.currentTimeMillis()
+            // Verifica se houve uso de app recente via UsageStatsManager
+            try {
+                val usage = contexto.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                if (usage != null) {
+                    val fim = System.currentTimeMillis()
+                    val stats = usage.queryUsageStats(UsageStatsManager.INTERVAL_BEST, fim - 1000 * 60 * 10, fim)
+                    val maisRecente = stats?.filter { it.lastTimeUsed > 0 && it.packageName != contexto.packageName }?.maxByOrNull { it.lastTimeUsed }
+                    if (maisRecente != null && maisRecente.lastTimeUsed > ultimoMomentoAtivoMs && maisRecente.lastTimeUsed <= fim) {
+                        atualizar_momento_ativo(contexto, maisRecente.lastTimeUsed)
+                    } else if (fim - ultimoMomentoAtivoMs > 1000 * 60 * 5) {
+                        // Tela ligada sem app ativo por mais de 5 minutos: considera ocioso o tempo sem interação
+                        val decorridoMs = fim - ultimoMomentoAtivoMs
+                        return (decorridoMs / (1000 * 60)).coerceAtLeast(0)
+                    }
+                }
+            } catch (_: Throwable) {
+            }
+
+            atualizar_momento_ativo(contexto)
             return 0L
         }
 
-        // Se a tela estiver apagada, calcula os minutos desde que foi apagada ou última interação
+        // Se a tela estiver apagada, calcula os minutos desde a última atividade real gravada
         val decorridoMs = System.currentTimeMillis() - ultimoMomentoAtivoMs
         return (decorridoMs / (1000 * 60)).coerceAtLeast(0)
     }
@@ -265,9 +329,18 @@ class GestorTelemetria(private val contexto: Context) {
     }
 
     /**
-     * Obtém o número de série único do tablet (Device Owner tem acesso total ao Build.getSerial()).
+     * Obtém o número de série único do tablet de forma definitiva.
+     * Prioriza a leitura do número de série real do hardware (impresso no tablet e ro.serialno).
+     * Evita duplicidade e oscilação de ID persistindo o identificador no SharedPreferences.
      */
     fun obter_numero_serie(): String {
+        val prefs = contexto.applicationContext.getSharedPreferences(PREFS_NOME, Context.MODE_PRIVATE)
+        val serialSalvo = prefs.getString(CHAVE_NUMERO_SERIE, null)
+        if (!serialSalvo.isNullOrBlank() && serialSalvo != Build.UNKNOWN && !serialSalvo.startsWith("TABLET-")) {
+            return serialSalvo
+        }
+
+        // 1. Tentar auto-conceder permissão de leitura de telefone caso seja Device Owner
         try {
             val dpm = contexto.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
             val admin = ReceptorAdministradorDispositivo.obter_componente_administrador(contexto)
@@ -284,26 +357,85 @@ class GestorTelemetria(private val contexto: Context) {
         } catch (_: Throwable) {
         }
 
-        return try {
+        // 2. Extração de serial via Build.getSerial() oficial
+        var serialResolvido: String? = null
+        try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val serial = Build.getSerial()
-                if (serial.isNotEmpty() && serial != Build.UNKNOWN) serial else obter_fallback_id()
+                val sn = Build.getSerial()
+                if (!sn.isNullOrBlank() && sn != Build.UNKNOWN && sn != "0") {
+                    serialResolvido = sn.trim().uppercase()
+                }
             } else {
-                val serial = Build.SERIAL
-                if (serial.isNotEmpty() && serial != Build.UNKNOWN) serial else obter_fallback_id()
+                @Suppress("DEPRECATION")
+                val sn = Build.SERIAL
+                if (!sn.isNullOrBlank() && sn != Build.UNKNOWN && sn != "0") {
+                    serialResolvido = sn.trim().uppercase()
+                }
             }
-        } catch (e: SecurityException) {
-            obter_fallback_id()
-        } catch (e: Exception) {
-            obter_fallback_id()
+        } catch (_: Throwable) {
         }
+
+        // 3. Extração avançada via reflexão do hardware (ro.serialno) - contorna restrições do Android 14 e 15 em tablets Samsung/Lenovo
+        if (serialResolvido.isNullOrBlank()) {
+            serialResolvido = obter_serial_propriedades_sistema()
+        }
+
+        // 4. Identificador corporativo Android Enterprise (DevicePolicyManager)
+        if (serialResolvido.isNullOrBlank()) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val dpm = contexto.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+                    val enrollmentId = dpm?.enrollmentSpecificId
+                    if (!enrollmentId.isNullOrBlank()) {
+                        serialResolvido = enrollmentId.trim().uppercase()
+                    }
+                }
+            } catch (_: Throwable) {
+            }
+        }
+
+        // 5. Fallback estável para ANDROID_ID (persistido para nunca mudar)
+        if (serialResolvido.isNullOrBlank()) {
+            val androidId = android.provider.Settings.Secure.getString(
+                contexto.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+            serialResolvido = if (!androidId.isNullOrBlank()) {
+                androidId.trim().uppercase()
+            } else {
+                "TB-${Build.MODEL.replace(" ", "").uppercase()}"
+            }
+        }
+
+        // Persiste o serial definitivo para garantir integridade e unicidade do tablet
+        prefs.edit().putString(CHAVE_NUMERO_SERIE, serialResolvido).apply()
+        return serialResolvido
     }
 
-    private fun obter_fallback_id(): String {
-        val androidId = android.provider.Settings.Secure.getString(
-            contexto.contentResolver,
-            android.provider.Settings.Secure.ANDROID_ID
+    /**
+     * Extrai o número de série gravado no hardware pelo fabricante via SystemProperties (bypass Android 14/15).
+     */
+    private fun obter_serial_propriedades_sistema(): String? {
+        val chavesPropriedades = arrayOf(
+            "ro.serialno",
+            "ro.boot.serialno",
+            "ril.serialnumber",
+            "sys.serialnumber",
+            "ro.ril.oem.nosim.sn",
+            "gsm.sn1"
         )
-        return if (!androidId.isNullOrEmpty()) androidId.uppercase() else "TABLET-${Build.MODEL.replace(" ", "")}"
+        return try {
+            val systemPropertiesClass = Class.forName("android.os.SystemProperties")
+            val getMethod = systemPropertiesClass.getMethod("get", String::class.java)
+            for (chave in chavesPropriedades) {
+                val valor = getMethod.invoke(null, chave) as? String
+                if (!valor.isNullOrBlank() && valor != "unknown" && valor != "0" && valor.length >= 4) {
+                    return valor.trim().uppercase()
+                }
+            }
+            null
+        } catch (_: Throwable) {
+            null
+        }
     }
 }
