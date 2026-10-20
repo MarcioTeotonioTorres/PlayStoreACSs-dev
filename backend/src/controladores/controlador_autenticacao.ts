@@ -4,6 +4,7 @@ import {
   hash_senha,
   verificar_senha,
   gerar_token_jwt,
+  garantir_usuario_admin_inicial,
   PayloadUsuarioJwt,
 } from '../servicos/servico_autenticacao';
 
@@ -39,7 +40,15 @@ export async function login_usuario(
 
     // Busca usuário pelo e-mail
     const sql = `SELECT id, nome, email, senha_hash, perfil, ativo FROM usuarios WHERE LOWER(email) = $1 LIMIT 1;`;
-    const res = await executar_consulta(sql, [emailLimpo]);
+    let res = await executar_consulta(sql, [emailLimpo]);
+
+    // Resiliência / Auto-recuperação: se for o admin padrão e ainda não existir no banco, garante o seed e reconsulta
+    const emailAdminPadrao = (process.env.ADMIN_EMAIL || 'admin@mdm.corporativo').trim().toLowerCase();
+    if (res.rows.length === 0 && emailLimpo === emailAdminPadrao) {
+      console.log(`[MDM Auth] Administrador padrão não encontrado no banco. Executando seed de auto-recuperação...`);
+      await garantir_usuario_admin_inicial();
+      res = await executar_consulta(sql, [emailLimpo]);
+    }
 
     if (res.rows.length === 0) {
       // Retorna mensagem genérica para não vazar existência de contas

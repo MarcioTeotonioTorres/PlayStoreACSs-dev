@@ -46,12 +46,6 @@ export const PaginaLogin: React.FC = () => {
     }
   }
 
-  function preencherCredenciaisPadrao() {
-    setEmail('admin@mdm.corporativo');
-    setSenha('Admin@Mdm2026!');
-    setErro('');
-  }
-
   return (
     <div
       style={{
@@ -299,41 +293,6 @@ export const PaginaLogin: React.FC = () => {
             )}
           </button>
         </form>
-
-        {/* Dica de Acesso Inicial */}
-        <div
-          style={{
-            marginTop: '28px',
-            padding: '12px 14px',
-            background: 'rgba(59, 130, 246, 0.08)',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
-            borderRadius: '10px',
-            fontSize: '12px',
-            color: '#94a3b8',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 600, color: '#e2e8f0' }}>Acesso Administrador Padrão</span>
-            <button
-              type="button"
-              onClick={preencherCredenciaisPadrao}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#60a5fa',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: 600,
-                textDecoration: 'underline',
-              }}
-            >
-              Preencher dados
-            </button>
-          </div>
-          <div style={{ marginTop: '6px', fontFamily: 'monospace', fontSize: '11px', color: '#cbd5e1' }}>
-            admin@mdm.corporativo • Admin@Mdm2026!
-          </div>
-        </div>
 
         {/* Rodapé de Segurança */}
         <div

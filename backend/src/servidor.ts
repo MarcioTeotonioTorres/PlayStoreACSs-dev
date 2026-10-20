@@ -40,7 +40,7 @@ import {
   garantir_usuario_admin_inicial,
 } from './servicos/servico_autenticacao';
 import { inicializar_servico_mqtt } from './servicos/servico_mqtt';
-import { inicializar_pool_conexoes } from './banco/conexao';
+import { inicializar_pool_conexoes, executar_migracoes_banco } from './banco/conexao';
 
 dotenv.config();
 
@@ -296,8 +296,9 @@ export async function iniciar_servidor_mdm(): Promise<void> {
     // Libera a porta antes de iniciar caso haja processo órfão
     liberar_porta_se_ocupada(porta);
 
-    // 1. Conexão com o banco de dados PostgreSQL
+    // 1. Conexão com o banco de dados PostgreSQL e execução de migrações estruturais
     inicializar_pool_conexoes();
+    await executar_migracoes_banco();
 
     // 1.1 Garante existência do usuário administrador padrão
     await garantir_usuario_admin_inicial();

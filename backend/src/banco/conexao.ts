@@ -396,6 +396,21 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     const nomeParam = parametros[0] || 'Usuário';
     const emailParam = (parametros[1] || '').toString().toLowerCase();
     const hashParam = parametros[2] || '';
+
+    const usuarioExistente = usuariosMemoria.find((u) => u.email.toLowerCase() === emailParam);
+    if (usuarioExistente) {
+      usuarioExistente.nome = nomeParam;
+      usuarioExistente.senha_hash = hashParam;
+      usuarioExistente.ativo = true;
+      return {
+        rows: [usuarioExistente] as unknown as T[],
+        command: 'INSERT',
+        rowCount: 1,
+        oid: 0,
+        fields: [],
+      };
+    }
+
     const userNovo: UsuarioSimulado = {
       id: crypto.randomUUID(),
       nome: nomeParam,
@@ -445,13 +460,32 @@ export function inicializar_pool_conexoes(): Pool {
     pool.on('error', () => {
       // Ignora para não poluir terminal caso não haja Postgres local
     });
+  }
+  return pool;
+}
 
-    // Migração automática para garantir colunas novas sem precisar de script manual
-    pool.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS tempo_ocioso_minutos INT DEFAULT 0;`).catch(() => {});
-    pool.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS aplicativos_instalados JSONB DEFAULT '[]'::jsonb;`).catch(() => {});
-    pool.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;`).catch(() => {});
-    pool.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;`).catch(() => {});
-    pool.query(`
+/**
+ * Executa as migrações estruturais necessárias de forma síncrona e segura no PostgreSQL.
+ */
+export async function executar_migracoes_banco(): Promise<void> {
+  const poolInstancia = pool || inicializar_pool_conexoes();
+  try {
+    // 1. Extensões criptográficas e de UUID
+    try {
+      await poolInstancia.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
+      await poolInstancia.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+    } catch (_) {
+      // Extensões podem requerer privilégios elevados ou já estarem instaladas
+    }
+
+    // 2. Colunas atualizadas da frota
+    await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS tempo_ocioso_minutos INT DEFAULT 0;`).catch(() => {});
+    await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS aplicativos_instalados JSONB DEFAULT '[]'::jsonb;`).catch(() => {});
+    await poolInstancia.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;`).catch(() => {});
+    await poolInstancia.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;`).catch(() => {});
+
+    // 3. Tabela de usuários para autenticação segura
+    await poolInstancia.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         nome VARCHAR(100) NOT NULL,
@@ -463,10 +497,17 @@ export function inicializar_pool_conexoes(): Pool {
         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-    `).catch(() => {});
-  }
-  return pool;
+    `);
 
+    await poolInstancia.query(`CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);`).catch(() => {});
+    console.log('[MDM Banco] Migrações estruturais e tabela de usuários verificadas com sucesso no PostgreSQL.');
+  } catch (erro: any) {
+    if (erro.code === 'ECONNREFUSED' || erro.message?.includes('timeout') || erro.code === '28P01') {
+      // PostgreSQL indisponível localmente, fallback em memória cuidará das requisições
+      return;
+    }
+    console.warn('[MDM Banco] Aviso ao executar migrações no banco:', erro?.message || erro);
+  }
 }
 
 /**

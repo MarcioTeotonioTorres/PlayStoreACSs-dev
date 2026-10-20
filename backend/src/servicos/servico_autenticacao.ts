@@ -142,25 +142,25 @@ export function verificar_token_jwt(token: string): PayloadUsuarioJwt | null {
 }
 
 /**
- * Inicializa e assegura o cadastro do usuário administrador padrão se nenhum existir.
+ * Inicializa e assegura o cadastro do usuário administrador padrão com credenciais sincronizadas.
  */
 export async function garantir_usuario_admin_inicial(): Promise<void> {
   try {
-    const emailAdmin = process.env.ADMIN_EMAIL || 'admin@mdm.corporativo';
+    const emailAdmin = (process.env.ADMIN_EMAIL || 'admin@mdm.corporativo').trim().toLowerCase();
     const senhaAdmin = process.env.ADMIN_SENHA || 'Admin@Mdm2026!';
+    const hash = hash_senha(senhaAdmin);
 
-    const resCheck = await executar_consulta('SELECT id FROM usuarios WHERE email = $1 LIMIT 1;', [emailAdmin]);
-    if (resCheck.rows.length === 0) {
-      const hash = hash_senha(senhaAdmin);
-      await executar_consulta(
-        `INSERT INTO usuarios (nome, email, senha_hash, perfil, ativo)
-         VALUES ($1, $2, $3, 'admin', TRUE)
-         ON CONFLICT (email) DO NOTHING;`,
-        ['Administrador TI', emailAdmin, hash]
-      );
-      console.log(`[MDM Auth] Usuário administrador inicial garantido com segurança: ${emailAdmin}`);
-    }
-  } catch (erro) {
-    console.warn('[MDM Auth] Nota sobre seed de usuário admin inicial:', erro);
+    await executar_consulta(
+      `INSERT INTO usuarios (nome, email, senha_hash, perfil, ativo)
+       VALUES ($1, $2, $3, 'admin', TRUE)
+       ON CONFLICT (email) DO UPDATE 
+       SET senha_hash = EXCLUDED.senha_hash,
+           ativo = TRUE,
+           atualizado_em = NOW();`,
+      ['Administrador TI', emailAdmin, hash]
+    );
+    console.log(`[MDM Auth] Usuário administrador inicial sincronizado e ativo: ${emailAdmin}`);
+  } catch (erro: any) {
+    console.error('[MDM Auth] Falha ao registrar usuário admin inicial:', erro?.message || erro);
   }
 }
