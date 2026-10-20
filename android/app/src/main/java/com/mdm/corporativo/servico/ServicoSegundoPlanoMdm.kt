@@ -39,6 +39,7 @@ class ServicoSegundoPlanoMdm : Service() {
         private const val ID_CANAL = "canal_mdm_servico_permanente"
         private const val INTERVALO_TELEMETRIA_MS = 30000L // 30 segundos
         const val ACAO_FORCAR_SINCRONIZACAO = "com.mdm.corporativo.FORCAR_SINCRONIZACAO"
+        const val ACAO_RESULTADO_INSTALACAO_NOTIFICAR = "com.mdm.corporativo.ACAO_RESULTADO_INSTALACAO_NOTIFICAR"
 
         /**
          * Inicializa o serviço persistente de forma segura e compatível com todas as versões do Android.
@@ -122,6 +123,36 @@ class ServicoSegundoPlanoMdm : Service() {
         if (intent?.action == ACAO_FORCAR_SINCRONIZACAO) {
             Log.i(TAG, "Solicitação de sincronização avulsa recebida. Enviando telemetria agora...")
             enviar_telemetria_avulsa_agora()
+        }
+
+        // Trata resultado definitivo assíncrono emitido pelo PackageInstaller do Android
+        if (intent?.action == ACAO_RESULTADO_INSTALACAO_NOTIFICAR) {
+            val comandoId = intent.getStringExtra("comando_id")
+            val status = intent.getIntExtra("status", android.content.pm.PackageInstaller.STATUS_FAILURE)
+            val mensagem = intent.getStringExtra("mensagem")
+            val pacote = intent.getStringExtra("pacote")
+
+            val sucesso = (status == android.content.pm.PackageInstaller.STATUS_SUCCESS)
+            val statusComando = if (sucesso) "executado" else "falha"
+            val descricao = if (sucesso) {
+                "Aplicativo $pacote instalado e confirmado com êxito pelo sistema operacional Android!"
+            } else {
+                "Falha na instalação ($status): ${mensagem ?: "Erro desconhecido durante validação/gravação do pacote"}"
+            }
+
+            Log.i(TAG, "Notificando resultado de instalação via MQTT: comando=$comandoId, status=$statusComando, msg=$descricao")
+
+            escopoServico.launch(Dispatchers.IO) {
+                if (!comandoId.isNullOrEmpty() && ::clienteMqtt.isInitialized) {
+                    clienteMqtt.enviar_resposta_comando(comandoId, statusComando, descricao)
+                }
+
+                if (sucesso) {
+                    // Aguarda o SO registrar o novo pacote e envia telemetria atualizada
+                    kotlinx.coroutines.delay(1500)
+                    enviar_telemetria_avulsa_agora()
+                }
+            }
         }
 
         // Assegura reconexão se o sistema reiniciar o processo (em background IO)

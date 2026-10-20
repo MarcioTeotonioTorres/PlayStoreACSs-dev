@@ -92,7 +92,22 @@ CREATE TABLE IF NOT EXISTS logs_telemetria (
 -- Índices de Otimização para Consultas em Tempo Real
 CREATE INDEX IF NOT EXISTS idx_dispositivos_numero_serie ON dispositivos(numero_serie);
 CREATE INDEX IF NOT EXISTS idx_dispositivos_status ON dispositivos(status_conexao);
-CREATE INDEX IF NOT EXISTS idx_dispositivos_ultimo_contato ON dispositivos(ultimo_contato DESC);
-CREATE INDEX IF NOT EXISTS idx_comandos_dispositivo_status ON comandos(dispositivo_id, status);
-CREATE INDEX IF NOT EXISTS idx_comandos_criado_em ON comandos(criado_em DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_telemetria_dispositivo_data ON logs_telemetria(dispositivo_id, registrado_em DESC);
+
+-- Tabela de Usuários e Autenticação Segura para o Painel Web
+CREATE TABLE IF NOT EXISTS usuarios (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    senha_hash VARCHAR(255) NOT NULL,
+    perfil VARCHAR(30) NOT NULL DEFAULT 'admin', -- 'admin', 'operador'
+    ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    ultimo_login TIMESTAMPTZ DEFAULT NULL,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Migração para suporte a inventário de pacotes instalados por dispositivo
+ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS aplicativos_instalados JSONB DEFAULT '[]'::jsonb;
+CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
+

@@ -23,7 +23,41 @@ interface DispositivoSimulado {
   memoria_ram_livre_mb: number;
   armazenamento_livre_mb: number;
   ultimo_contato: string;
+  aplicativos_instalados?: Array<{
+    pacote: string;
+    nome: string;
+    versao_nome: string;
+    versao_codigo: number;
+  }>;
 }
+
+interface UsuarioSimulado {
+  id: string;
+  nome: string;
+  email: string;
+  senha_hash: string;
+  perfil: string;
+  ativo: boolean;
+  ultimo_login: string | null;
+  criado_em: string;
+}
+
+// Hash padrão seguro para a senha Admin@Mdm2026! (scrypt salt 'a1b2c3d4e5f60718')
+const saltAdminPadrao = 'a1b2c3d4e5f60718';
+const hashAdminPadrao = crypto.scryptSync('Admin@Mdm2026!', saltAdminPadrao, 64).toString('hex');
+
+let usuariosMemoria: UsuarioSimulado[] = [
+  {
+    id: crypto.randomUUID(),
+    nome: 'Administrador TI',
+    email: 'admin@mdm.corporativo',
+    senha_hash: `${saltAdminPadrao}:${hashAdminPadrao}`,
+    perfil: 'admin',
+    ativo: true,
+    ultimo_login: null,
+    criado_em: new Date().toISOString(),
+  },
+];
 
 let dispositivosMemoria: DispositivoSimulado[] = gerar_dados_simulados_frota();
 let comandosMemoria: Array<{
@@ -34,6 +68,7 @@ let comandosMemoria: Array<{
   status: string;
   criado_em: string;
 }> = [];
+
 
 /**
  * Gera dados simulados realistas para exibição imediata da frota de 250 tablets.
@@ -78,6 +113,20 @@ function gerar_dados_simulados_frota(): DispositivoSimulado[] {
       memoria_ram_livre_mb: Math.floor(Math.random() * 1500) + 1200,
       armazenamento_livre_mb: Math.floor(Math.random() * 25000) + 15000,
       ultimo_contato: new Date(Date.now() - (isOnline ? Math.floor(Math.random() * 15000) : 3600000)).toISOString(),
+      aplicativos_instalados: [
+        {
+          pacote: 'com.empresa.operacao.pdv',
+          nome: 'PDV ACS Mobile',
+          versao_nome: i % 4 === 0 ? '2.3.0' : '2.4.0',
+          versao_codigo: i % 4 === 0 ? 230 : 240,
+        },
+        {
+          pacote: 'com.mdm.corporativo',
+          nome: 'PlayService ACS DPC',
+          versao_nome: '1.0.0',
+          versao_codigo: 1,
+        },
+      ],
     });
   }
 
@@ -278,7 +327,96 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     };
   }
 
-  // 6. Fallback padrão
+  // 6. Consultas e Operações em USUARIOS (Autenticação Segura)
+  if (sqlLimpo.includes('FROM USUARIOS')) {
+    if (sqlLimpo.includes('COUNT(*)')) {
+      return {
+        rows: [{ count: usuariosMemoria.length }] as unknown as T[],
+        command: 'SELECT',
+        rowCount: 1,
+        oid: 0,
+        fields: [],
+      };
+    }
+
+    if (sqlLimpo.includes('WHERE LOWER(EMAIL) = $1') || sqlLimpo.includes('WHERE EMAIL = $1')) {
+      const emailParam = (parametros[0] || '').toString().trim().toLowerCase();
+      const user = usuariosMemoria.find((u) => u.email.toLowerCase() === emailParam);
+      return {
+        rows: (user ? [user] : []) as unknown as T[],
+        command: 'SELECT',
+        rowCount: user ? 1 : 0,
+        oid: 0,
+        fields: [],
+      };
+    }
+
+    if (sqlLimpo.includes('WHERE ID = $1')) {
+      const idParam = (parametros[0] || '').toString();
+      const user = usuariosMemoria.find((u) => u.id === idParam);
+      return {
+        rows: (user ? [user] : []) as unknown as T[],
+        command: 'SELECT',
+        rowCount: user ? 1 : 0,
+        oid: 0,
+        fields: [],
+      };
+    }
+
+    return {
+      rows: usuariosMemoria as unknown as T[],
+      command: 'SELECT',
+      rowCount: usuariosMemoria.length,
+      oid: 0,
+      fields: [],
+    };
+  }
+
+  if (sqlLimpo.startsWith('UPDATE USUARIOS')) {
+    if (sqlLimpo.includes('ULTIMO_LOGIN')) {
+      const idParam = (parametros[0] || '').toString();
+      const user = usuariosMemoria.find((u) => u.id === idParam);
+      if (user) user.ultimo_login = new Date().toISOString();
+    } else if (sqlLimpo.includes('SENHA_HASH')) {
+      const novaSenhaHash = (parametros[0] || '').toString();
+      const idParam = (parametros[1] || '').toString();
+      const user = usuariosMemoria.find((u) => u.id === idParam);
+      if (user) user.senha_hash = novaSenhaHash;
+    }
+    return {
+      rows: [] as T[],
+      command: 'UPDATE',
+      rowCount: 1,
+      oid: 0,
+      fields: [],
+    };
+  }
+
+  if (sqlLimpo.startsWith('INSERT INTO USUARIOS')) {
+    const nomeParam = parametros[0] || 'Usuário';
+    const emailParam = (parametros[1] || '').toString().toLowerCase();
+    const hashParam = parametros[2] || '';
+    const userNovo: UsuarioSimulado = {
+      id: crypto.randomUUID(),
+      nome: nomeParam,
+      email: emailParam,
+      senha_hash: hashParam,
+      perfil: 'admin',
+      ativo: true,
+      ultimo_login: null,
+      criado_em: new Date().toISOString(),
+    };
+    usuariosMemoria.push(userNovo);
+    return {
+      rows: [userNovo] as unknown as T[],
+      command: 'INSERT',
+      rowCount: 1,
+      oid: 0,
+      fields: [],
+    };
+  }
+
+  // 7. Fallback padrão
   return {
     rows: [] as T[],
     command: 'SELECT',
@@ -310,10 +448,25 @@ export function inicializar_pool_conexoes(): Pool {
 
     // Migração automática para garantir colunas novas sem precisar de script manual
     pool.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS tempo_ocioso_minutos INT DEFAULT 0;`).catch(() => {});
+    pool.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS aplicativos_instalados JSONB DEFAULT '[]'::jsonb;`).catch(() => {});
     pool.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;`).catch(() => {});
     pool.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;`).catch(() => {});
+    pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        nome VARCHAR(100) NOT NULL,
+        email VARCHAR(150) UNIQUE NOT NULL,
+        senha_hash VARCHAR(255) NOT NULL,
+        perfil VARCHAR(30) NOT NULL DEFAULT 'admin',
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        ultimo_login TIMESTAMPTZ DEFAULT NULL,
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `).catch(() => {});
   }
   return pool;
+
 }
 
 /**

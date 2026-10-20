@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ProvedorAutenticacao, useAuth } from './contextos/ContextoAutenticacao';
+import { PaginaLogin } from './paginas/PaginaLogin';
 import { BarraLateral } from './componentes/BarraLateral';
 import { PaginaDashboard } from './paginas/PaginaDashboard';
 import { PaginaDispositivos } from './paginas/PaginaDispositivos';
@@ -18,7 +20,42 @@ import {
   DispositivoItem,
 } from './servicos/api_mdm';
 
-export const App: React.FC = () => {
+/**
+ * Guarda de rota segura: exige autenticação ativa para exibir o conteúdo do painel.
+ */
+const RotaProtegida: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { estaAutenticado, carregando } = useAuth();
+
+  if (carregando) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#090d16',
+          color: '#94a3b8',
+          fontSize: '14px',
+          fontWeight: 600,
+        }}
+      >
+        Autenticando sessão segura...
+      </div>
+    );
+  }
+
+  if (!estaAutenticado) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+/**
+ * Layout principal do painel MDM com barra lateral e sincronização de telemetria.
+ */
+const PainelMdmLayout: React.FC = () => {
   const [metricas, setMetricas] = useState<MetricasFrotaResposta['metricas'] | null>(null);
   const [dispositivos, setDispositivos] = useState<DispositivoItem[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -39,9 +76,6 @@ export const App: React.FC = () => {
     return () => clearInterval(intervalo);
   }, []);
 
-  /**
-   * Sincroniza métricas consolidadas e inventário com a API REST.
-   */
   async function carregar_dados_sistema(exibirLoader = true) {
     if (exibirLoader) setCarregando(true);
     try {
@@ -58,9 +92,6 @@ export const App: React.FC = () => {
     }
   }
 
-  /**
-   * Bloqueia a tela de um tablet imediatamente via MQTTS.
-   */
   async function ao_bloquear_dispositivo_rapido(disp: DispositivoItem) {
     try {
       await despachar_comando_api(disp.id, 'bloquear_tela_imediata');
@@ -71,9 +102,6 @@ export const App: React.FC = () => {
     }
   }
 
-  /**
-   * Reinicia o tablet remotamente via comando Device Owner.
-   */
   async function ao_reiniciar_dispositivo_rapido(disp: DispositivoItem) {
     if (confirm(`Deseja reiniciar remotamente o tablet ${disp.modelo} (${disp.numero_serie})?`)) {
       try {
@@ -86,23 +114,14 @@ export const App: React.FC = () => {
     }
   }
 
-  /**
-   * Abre o modal completo de comandos para um tablet específico.
-   */
   function ao_abrir_modal_comandos(disp: DispositivoItem) {
     setDispositivoSelecionado(disp);
   }
 
-  /**
-   * Fecha o modal de comandos.
-   */
   function ao_fechar_modal_comandos() {
     setDispositivoSelecionado(null);
   }
 
-  /**
-   * Executa comandos individuais pelo modal.
-   */
   async function ao_enviar_comando_individual(
     dispositivoId: string,
     tipoComando: string,
@@ -112,9 +131,6 @@ export const App: React.FC = () => {
     carregar_dados_sistema(false);
   }
 
-  /**
-   * Remove um tablet do inventário após confirmação dupla de segurança.
-   */
   async function ao_remover_dispositivo(disp: DispositivoItem) {
     const confirmar = confirm(
       `⚠️ ATENÇÃO: Remover permanentemente o tablet da frota?\n\nModelo: ${disp.modelo}\nSN: ${disp.numero_serie}\n\nEsta ação remove o dispositivo e todo seu histórico de telemetria e comandos. Não pode ser desfeita.`
@@ -131,93 +147,113 @@ export const App: React.FC = () => {
   }
 
   return (
-    <BrowserRouter>
-      <div className="layout-com-sidebar">
-        {/* Barra Lateral com os 5 menus requeridos */}
-        <BarraLateral
-          totalTablets={metricas?.total_dispositivos || 250}
-          onlineTablets={metricas?.conectados || 0}
-        />
+    <div className="layout-com-sidebar">
+      {/* Barra Lateral com Informações de Frota e Perfil */}
+      <BarraLateral
+        totalTablets={metricas?.total_dispositivos || 250}
+        onlineTablets={metricas?.conectados || 0}
+      />
 
-        {/* Área Principal de Conteúdo */}
-        <main className="conteudo-principal">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <PaginaDashboard
-                  metricas={metricas}
-                  dispositivos={dispositivos}
-                  carregando={carregando}
-                  aoAtualizar={() => carregar_dados_sistema(true)}
-                  aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
-                  aoAbrirComandosLote={() => setModalLoteVisivel(true)}
-                  aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
-                  aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
-                  aoAbrirComandosCompletos={ao_abrir_modal_comandos}
-                  aoRemoverDispositivo={ao_remover_dispositivo}
-                />
-              }
-            />
+      {/* Área Principal de Conteúdo */}
+      <main className="conteudo-principal">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <PaginaDashboard
+                metricas={metricas}
+                dispositivos={dispositivos}
+                carregando={carregando}
+                aoAtualizar={() => carregar_dados_sistema(true)}
+                aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
+                aoAbrirComandosLote={() => setModalLoteVisivel(true)}
+                aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
+                aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
+                aoAbrirComandosCompletos={ao_abrir_modal_comandos}
+                aoRemoverDispositivo={ao_remover_dispositivo}
+              />
+            }
+          />
 
-            <Route
-              path="/dispositivos"
-              element={
-                <PaginaDispositivos
-                  dispositivos={dispositivos}
-                  carregando={carregando}
-                  aoAtualizar={() => carregar_dados_sistema(true)}
-                  aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
-                  aoAbrirComandosLote={() => setModalLoteVisivel(true)}
-                  aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
-                  aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
-                  aoAbrirComandosCompletos={ao_abrir_modal_comandos}
-                  aoRemoverDispositivo={ao_remover_dispositivo}
-                />
-              }
-            />
+          <Route
+            path="/dispositivos"
+            element={
+              <PaginaDispositivos
+                dispositivos={dispositivos}
+                carregando={carregando}
+                aoAtualizar={() => carregar_dados_sistema(true)}
+                aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
+                aoAbrirComandosLote={() => setModalLoteVisivel(true)}
+                aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
+                aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
+                aoAbrirComandosCompletos={ao_abrir_modal_comandos}
+                aoRemoverDispositivo={ao_remover_dispositivo}
+              />
+            }
+          />
 
-            <Route
-              path="/aplicativos"
-              element={<PaginaAplicativos dispositivos={dispositivos} />}
-            />
+          <Route
+            path="/aplicativos"
+            element={<PaginaAplicativos dispositivos={dispositivos} />}
+          />
 
-            <Route
-              path="/politicas"
-              element={<PaginaPoliticas dispositivos={dispositivos} />}
-            />
+          <Route
+            path="/politicas"
+            element={<PaginaPoliticas dispositivos={dispositivos} />}
+          />
 
-            <Route
-              path="/provisionamento"
-              element={<PaginaProvisionamento />}
-            />
+          <Route
+            path="/provisionamento"
+            element={<PaginaProvisionamento />}
+          />
 
-            {/* Redirecionamento padrão para rota inicial */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
 
-        {/* Modais Globais */}
-        <ModalComandos
-          dispositivo={dispositivoSelecionado}
-          aoFechar={ao_fechar_modal_comandos}
-          aoEnviarComando={ao_enviar_comando_individual}
-        />
+      {/* Modais Globais */}
+      <ModalComandos
+        dispositivo={dispositivoSelecionado}
+        aoFechar={ao_fechar_modal_comandos}
+        aoEnviarComando={ao_enviar_comando_individual}
+      />
 
-        <ModalAdicionarDispositivo
-          visivel={modalAdicionarVisivel}
-          aoFechar={() => setModalAdicionarVisivel(false)}
-          aoSucesso={() => carregar_dados_sistema(false)}
-        />
+      <ModalAdicionarDispositivo
+        visivel={modalAdicionarVisivel}
+        aoFechar={() => setModalAdicionarVisivel(false)}
+        aoSucesso={() => carregar_dados_sistema(false)}
+      />
 
-        <PainelComandosLote
-          visivel={modalLoteVisivel}
-          totalConectados={metricas?.conectados || 0}
-          aoFechar={() => setModalLoteVisivel(false)}
-          aoConcluirComandoLote={() => carregar_dados_sistema(false)}
-        />
-      </div>
-    </BrowserRouter>
+      <PainelComandosLote
+        visivel={modalLoteVisivel}
+        totalConectados={metricas?.conectados || 0}
+        aoFechar={() => setModalLoteVisivel(false)}
+        aoConcluirComandoLote={() => carregar_dados_sistema(false)}
+      />
+    </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <ProvedorAutenticacao>
+      <BrowserRouter>
+        <Routes>
+          {/* Rota pública de login */}
+          <Route path="/login" element={<PaginaLogin />} />
+
+          {/* Todas as rotas do painel protegidas por autenticação */}
+          <Route
+            path="/*"
+            element={
+              <RotaProtegida>
+                <PainelMdmLayout />
+              </RotaProtegida>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </ProvedorAutenticacao>
   );
 };
 

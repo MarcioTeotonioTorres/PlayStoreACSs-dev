@@ -81,19 +81,36 @@ export async function fazer_upload_aplicativo(
       return;
     }
 
+    const nomeOriginal = dadosArquivo.filename || '';
+    if (!nomeOriginal.toLowerCase().endsWith('.apk')) {
+      resposta.status(400).send({
+        sucesso: false,
+        mensagem: 'Formato inválido. Apenas arquivos com extensão .apk são permitidos.',
+      });
+      return;
+    }
+
+    const buffer = await dadosArquivo.toBuffer();
+    // Validação estrita de Magic Bytes: arquivo ZIP/APK Android DEVE começar com PK\x03\x04 (0x50 0x4B 0x03 0x04)
+    if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4b || buffer[2] !== 0x03 || buffer[3] !== 0x04) {
+      resposta.status(400).send({
+        sucesso: false,
+        mensagem: 'Arquivo rejeitado por segurança: cabeçalho binário incompatível com pacote Android APK.',
+      });
+      return;
+    }
+
     if (!fs.existsSync(DIRETORIO_APKS)) {
       fs.mkdirSync(DIRETORIO_APKS, { recursive: true });
     }
 
-    const nomeSanitizado = dadosArquivo.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const nomeSanitizado = path.basename(nomeOriginal).replace(/[^a-zA-Z0-9._-]/g, '_');
     const caminhoDestino = path.join(DIRETORIO_APKS, nomeSanitizado);
 
-    const streamSaida = fs.createWriteStream(caminhoDestino);
-    await dadosArquivo.toBuffer().then((buffer) => streamSaida.write(buffer));
-    streamSaida.end();
+    fs.writeFileSync(caminhoDestino, buffer);
 
     const stats = fs.statSync(caminhoDestino);
-    const checksum = crypto.createHash('sha256').update(fs.readFileSync(caminhoDestino)).digest('hex');
+    const checksum = crypto.createHash('sha256').update(buffer).digest('hex');
 
     resposta.status(201).send({
       sucesso: true,

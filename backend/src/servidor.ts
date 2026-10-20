@@ -30,6 +30,15 @@ import {
   disparar_instalacao_catalogo,
 } from './controladores/controlador_aplicativos';
 import { obter_dados_provisionamento_qr } from './controladores/controlador_provisionamento';
+import {
+  login_usuario,
+  obter_perfil_usuario,
+  alterar_senha_usuario,
+} from './controladores/controlador_autenticacao';
+import {
+  verificar_token_jwt,
+  garantir_usuario_admin_inicial,
+} from './servicos/servico_autenticacao';
 import { inicializar_servico_mqtt } from './servicos/servico_mqtt';
 import { inicializar_pool_conexoes } from './banco/conexao';
 
@@ -100,9 +109,79 @@ export async function configurar_plugins(app: FastifyInstance): Promise<void> {
 }
 
 /**
- * Registra as rotas da API REST do MDM Corporativo.
+ * Registra as rotas da API REST do MDM Corporativo e middleware de segurança.
  */
 export function configurar_rotas_api(app: FastifyInstance): void {
+  // Hook Global de Autenticação e Proteção de Rotas (Zero Trust para rotas administrativas)
+  app.addHook('preHandler', async (requisicao: FastifyRequest, resposta: FastifyReply) => {
+    const urlLimpa = (requisicao.raw.url || requisicao.url).split('?')[0];
+
+    // Rotas públicas que não requerem autenticação
+    const rotasPublicas = [
+      '/api/auth/login',
+      '/api/saude',
+      '/api/provisionamento/qr',
+      '/api/debug/ping',
+    ];
+
+    if (rotasPublicas.includes(urlLimpa) || urlLimpa.startsWith('/apk/')) {
+      return;
+    }
+
+    // Endpoint de telemetria de tablets via HTTP: aceita Device Token OU Bearer Token
+    if (urlLimpa === '/api/telemetria') {
+      const deviceToken = requisicao.headers['x-device-token'] as string;
+      const deviceKeyPadrao = process.env.DEVICE_API_KEY || 'mdm_device_secret_key_acss_2026';
+      if (deviceToken && deviceToken === deviceKeyPadrao) {
+        return;
+      }
+
+      const authHeader = requisicao.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const payload = verificar_token_jwt(authHeader.substring(7).trim());
+        if (payload) {
+          (requisicao as any).usuario = payload;
+          return;
+        }
+      }
+
+      resposta.status(401).send({
+        sucesso: false,
+        mensagem: 'Acesso não autorizado à telemetria. Chave do tablet ou token inválido.',
+      });
+      return;
+    }
+
+    // Todas as demais rotas administrativas (/api/*) exigem token JWT válido
+    if (urlLimpa.startsWith('/api/')) {
+      const authHeader = requisicao.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        resposta.status(401).send({
+          sucesso: false,
+          mensagem: 'Acesso restrito. Faça login com credenciais válidas para continuar.',
+        });
+        return;
+      }
+
+      const token = authHeader.substring(7).trim();
+      const payload = verificar_token_jwt(token);
+      if (!payload) {
+        resposta.status(401).send({
+          sucesso: false,
+          mensagem: 'Sessão expirada ou token de acesso inválido.',
+        });
+        return;
+      }
+
+      (requisicao as any).usuario = payload;
+    }
+  });
+
+  // 0. Rotas de Autenticação e Gestão de Operadores
+  app.post('/api/auth/login', login_usuario);
+  app.get('/api/auth/perfil', obter_perfil_usuario);
+  app.post('/api/auth/senha', alterar_senha_usuario);
+
   // 1. Verificação de saúde da aplicação
   app.get('/api/saude', async () => ({
     status: 'operacional',
@@ -155,38 +234,49 @@ export function configurar_rotas_api(app: FastifyInstance): void {
     }
   );
 
-  // 8. Rota dedicada de entrega de pacotes APK com busca inteligente em múltiplos diretórios
+  // 8. Rota dedicada de entrega de pacotes APK com proteção contra Path Traversal
   app.get(
     '/apk/:nomeArquivo',
     async (
       requisicao: FastifyRequest<{ Params: { nomeArquivo: string } }>,
       resposta: FastifyReply
     ) => {
-      const { nomeArquivo } = requisicao.params;
+      const nomeBruto = requisicao.params.nomeArquivo;
+      const nomeSeguro = path.basename(nomeBruto);
+
+      // Bloqueia qualquer tentativa de escape de diretório ou arquivo não-APK
+      if (nomeSeguro !== nomeBruto || !nomeSeguro.toLowerCase().endsWith('.apk')) {
+        resposta.status(400).send({
+          sucesso: false,
+          mensagem: 'Nome de arquivo inválido ou requisição de arquivo não autorizada.',
+        });
+        return;
+      }
+
       const tentativas = [
-        path.resolve('/app/public/apk', nomeArquivo),
-        path.resolve('/app/apk', nomeArquivo),
-        path.resolve(process.cwd(), 'public/apk', nomeArquivo),
-        path.resolve(process.cwd(), 'apk', nomeArquivo),
-        path.resolve(__dirname, '../public/apk', nomeArquivo),
-        path.resolve(__dirname, '../../public/apk', nomeArquivo),
-        path.resolve(__dirname, '../../../apk', nomeArquivo),
+        path.resolve('/app/public/apk', nomeSeguro),
+        path.resolve('/app/apk', nomeSeguro),
+        path.resolve(process.cwd(), 'public/apk', nomeSeguro),
+        path.resolve(process.cwd(), 'apk', nomeSeguro),
+        path.resolve(__dirname, '../public/apk', nomeSeguro),
+        path.resolve(__dirname, '../../public/apk', nomeSeguro),
+        path.resolve(__dirname, '../../../apk', nomeSeguro),
       ];
 
       for (const caminho of tentativas) {
         if (fs.existsSync(caminho) && fs.statSync(caminho).isFile()) {
           const stat = fs.statSync(caminho);
           resposta.header('Content-Type', 'application/vnd.android.package-archive');
-          resposta.header('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+          resposta.header('Content-Disposition', `attachment; filename="${nomeSeguro}"`);
           resposta.header('Content-Length', stat.size);
           return resposta.send(fs.createReadStream(caminho));
         }
       }
 
-      console.warn(`[MDM APK 404] Arquivo '${nomeArquivo}' não encontrado nos caminhos:`, tentativas);
+      console.warn(`[MDM APK 404] Arquivo '${nomeSeguro}' não encontrado nos caminhos:`, tentativas);
       resposta.status(404).send({
         sucesso: false,
-        mensagem: `Arquivo APK '${nomeArquivo}' não encontrado no servidor.`,
+        mensagem: `Arquivo APK '${nomeSeguro}' não encontrado no servidor.`,
         locais_verificados: tentativas,
       });
     }
@@ -208,6 +298,9 @@ export async function iniciar_servidor_mdm(): Promise<void> {
 
     // 1. Conexão com o banco de dados PostgreSQL
     inicializar_pool_conexoes();
+
+    // 1.1 Garante existência do usuário administrador padrão
+    await garantir_usuario_admin_inicial();
 
     // 2. Conexão com o Broker MQTT
     try {

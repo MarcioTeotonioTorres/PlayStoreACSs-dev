@@ -105,22 +105,30 @@ class GestorComandosMdm(
                             val arquivoTemporario = File(contexto.cacheDir, "update_temporario.apk")
                             val downloadOk = baixar_apk_remoto(urlDownload, arquivoTemporario.absolutePath)
                             if (downloadOk) {
-                                val sucesso = instaladorSilencioso.instalar_aplicativo_silencioso(arquivoTemporario.absolutePath)
-                                clienteMqtt.enviar_resposta_comando(
-                                    comandoId,
-                                    if (sucesso) "executado" else "falha",
-                                    "Instalação silenciosa iniciada para APK baixado da URL."
-                                )
+                                val sucesso = instaladorSilencioso.instalar_aplicativo_silencioso(arquivoTemporario.absolutePath, comandoId)
+                                if (sucesso) {
+                                    clienteMqtt.enviar_resposta_comando(
+                                        comandoId,
+                                        "processando",
+                                        "Download concluído com êxito. Sessão de instalação submetida ao SO Android. Aguardando confirmação..."
+                                    )
+                                } else {
+                                    clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Falha ao submeter sessão do instalador Android.")
+                                }
                             } else {
                                 clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Falha ao baixar APK da URL fornecida.")
                             }
                         } else if (caminhoLocal.isNotEmpty()) {
-                            val sucesso = instaladorSilencioso.instalar_aplicativo_silencioso(caminhoLocal)
-                            clienteMqtt.enviar_resposta_comando(
-                                comandoId,
-                                if (sucesso) "executado" else "falha",
-                                "Instalação silenciosa submetida para caminho local."
-                            )
+                            val sucesso = instaladorSilencioso.instalar_aplicativo_silencioso(caminhoLocal, comandoId)
+                            if (sucesso) {
+                                clienteMqtt.enviar_resposta_comando(
+                                    comandoId,
+                                    "processando",
+                                    "Sessão de instalação submetida para caminho local. Aguardando confirmação do SO..."
+                                )
+                            } else {
+                                clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Falha ao submeter sessão de instalação local.")
+                            }
                         } else {
                             clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Parâmetro url_apk ou caminho_local ausente.")
                         }

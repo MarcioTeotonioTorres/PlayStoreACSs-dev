@@ -76,19 +76,24 @@ export async function processar_mensagem_telemetria(
     tempo_ocioso_minutos?: number;
     armazenamento_livre_mb?: number;
     memoria_ram_livre_mb?: number;
+    aplicativos_instalados?: any;
   }
 ): Promise<void> {
   const snNormalizado = numeroSerie?.trim().toUpperCase();
   if (!snNormalizado) return;
+
+  const appsJson = typeof telemetria.aplicativos_instalados === 'string'
+    ? telemetria.aplicativos_instalados
+    : JSON.stringify(telemetria.aplicativos_instalados || []);
 
   // Upsert do dispositivo no banco de dados garantindo integridade de unicidade
   const sqlUpsert = `
     INSERT INTO dispositivos (
       numero_serie, modelo, versao_so, status_conexao, bateria, esta_carregando,
       sinal_wifi_rssi, ssid_wifi, app_foco, tempo_ocioso_minutos, armazenamento_livre_mb, memoria_ram_livre_mb,
-      ultimo_contato, atualizado_em
+      aplicativos_instalados, ultimo_contato, atualizado_em
     ) VALUES (
-      $1, $2, $3, 'conectado', $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
+      $1, $2, $3, 'conectado', $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, NOW(), NOW()
     )
     ON CONFLICT (numero_serie) DO UPDATE SET
       modelo = COALESCE(EXCLUDED.modelo, dispositivos.modelo),
@@ -102,6 +107,7 @@ export async function processar_mensagem_telemetria(
       tempo_ocioso_minutos = EXCLUDED.tempo_ocioso_minutos,
       armazenamento_livre_mb = EXCLUDED.armazenamento_livre_mb,
       memoria_ram_livre_mb = EXCLUDED.memoria_ram_livre_mb,
+      aplicativos_instalados = CASE WHEN $12::text = '[]' THEN dispositivos.aplicativos_instalados ELSE $12::jsonb END,
       ultimo_contato = NOW(),
       atualizado_em = NOW()
     RETURNING id;
@@ -119,6 +125,7 @@ export async function processar_mensagem_telemetria(
     telemetria.tempo_ocioso_minutos ?? 0,
     telemetria.armazenamento_livre_mb ?? 0,
     telemetria.memoria_ram_livre_mb ?? 0,
+    appsJson,
   ]);
 
   const dispositivoId = res.rows[0]?.id;

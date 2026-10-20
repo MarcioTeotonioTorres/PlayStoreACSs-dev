@@ -1,3 +1,12 @@
+import { obter_token_armazenado, limpar_sessao } from './auth_servico';
+
+export interface AplicativoInstaladoItem {
+  pacote: string;
+  nome: string;
+  versao_nome: string;
+  versao_codigo: number;
+}
+
 export interface MetricasFrotaResposta {
   sucesso: boolean;
   capacidade_frota: number;
@@ -31,6 +40,7 @@ export interface DispositivoItem {
   armazenamento_livre_mb: number;
   ultimo_contato: string;
   tempo_ocioso_minutos?: number;
+  aplicativos_instalados?: AplicativoInstaladoItem[];
 }
 
 export interface RespostaListagemDispositivos {
@@ -50,10 +60,34 @@ export interface RespostaProvisionamentoQr {
 const URL_BASE = '/api';
 
 /**
+ * Cliente HTTP autenticado com injeção de Bearer Token e redirecionamento 401.
+ */
+async function fetchAutenticado(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const token = obter_token_armazenado();
+  const headers = new Headers(init?.headers || {});
+
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const resposta = await fetch(input, {
+    ...init,
+    headers,
+  });
+
+  if (resposta.status === 401 && !window.location.pathname.startsWith('/login')) {
+    limpar_sessao();
+    window.location.href = '/login';
+  }
+
+  return resposta;
+}
+
+/**
  * Consulta as métricas consolidadas dos 250 tablets.
  */
 export async function obter_resumo_frota_api(): Promise<MetricasFrotaResposta> {
-  const resposta = await fetch(`${URL_BASE}/frota/resumo`);
+  const resposta = await fetchAutenticado(`${URL_BASE}/frota/resumo`);
   if (!resposta.ok) {
     throw new Error('Falha ao obter resumo da frota');
   }
@@ -73,7 +107,7 @@ export async function listar_dispositivos_api(filtros?: {
   if (filtros?.busca) params.append('busca', filtros.busca);
   if (filtros?.ordem) params.append('ordem', filtros.ordem);
 
-  const resposta = await fetch(`${URL_BASE}/dispositivos?${params.toString()}`);
+  const resposta = await fetchAutenticado(`${URL_BASE}/dispositivos?${params.toString()}`);
   if (!resposta.ok) {
     throw new Error('Falha ao listar dispositivos');
   }
@@ -88,7 +122,7 @@ export async function despachar_comando_api(
   tipoComando: string,
   parametros: Record<string, any> = {}
 ): Promise<{ sucesso: boolean; mensagem: string }> {
-  const resposta = await fetch(`${URL_BASE}/comandos/despachar`, {
+  const resposta = await fetchAutenticado(`${URL_BASE}/comandos/despachar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -108,7 +142,7 @@ export async function despachar_comando_lote_api(
   parametros: Record<string, any> = {},
   apenasConectados: boolean = true
 ): Promise<{ sucesso: boolean; mensagem: string; total_afetados: number }> {
-  const resposta = await fetch(`${URL_BASE}/comandos/lote`, {
+  const resposta = await fetchAutenticado(`${URL_BASE}/comandos/lote`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -135,7 +169,7 @@ export async function obter_dados_provisionamento_qr_api(
   if (parametros.wifiSsid) params.append('wifiSsid', parametros.wifiSsid);
   if (parametros.wifiSenha) params.append('wifiSenha', parametros.wifiSenha);
 
-  const resposta = await fetch(`${URL_BASE}/provisionamento/qr?${params.toString()}`);
+  const resposta = await fetchAutenticado(`${URL_BASE}/provisionamento/qr?${params.toString()}`);
   if (!resposta.ok) {
     throw new Error('Falha ao obter QR code de provisionamento');
   }
@@ -153,7 +187,7 @@ export async function cadastrar_dispositivo_api(dados: {
   ssid_wifi?: string;
   app_foco?: string;
 }): Promise<{ sucesso: boolean; mensagem: string; dispositivo: DispositivoItem }> {
-  const resposta = await fetch(`${URL_BASE}/dispositivos`, {
+  const resposta = await fetchAutenticado(`${URL_BASE}/dispositivos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dados),
@@ -193,7 +227,7 @@ export interface ItemCatalogoApk {
  * Consulta as políticas e restrições configuradas para a frota.
  */
 export async function obter_politicas_api(): Promise<{ sucesso: boolean; politica: DadosPolitica }> {
-  const resposta = await fetch(`${URL_BASE}/politicas`);
+  const resposta = await fetchAutenticado(`${URL_BASE}/politicas`);
   if (!resposta.ok) {
     throw new Error('Falha ao obter políticas');
   }
@@ -206,7 +240,7 @@ export async function obter_politicas_api(): Promise<{ sucesso: boolean; politic
 export async function salvar_politicas_frota_api(
   politica: Partial<DadosPolitica>
 ): Promise<{ sucesso: boolean; mensagem: string; politica: DadosPolitica }> {
-  const resposta = await fetch(`${URL_BASE}/politicas`, {
+  const resposta = await fetchAutenticado(`${URL_BASE}/politicas`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(politica),
@@ -224,7 +258,7 @@ export async function salvar_politicas_dispositivo_api(
   dispositivoId: string,
   politica: Partial<DadosPolitica>
 ): Promise<{ sucesso: boolean; mensagem: string; comando_id: string }> {
-  const resposta = await fetch(`${URL_BASE}/politicas/dispositivo/${dispositivoId}`, {
+  const resposta = await fetchAutenticado(`${URL_BASE}/politicas/dispositivo/${dispositivoId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(politica),
@@ -243,7 +277,7 @@ export async function listar_catalogo_aplicativos_api(): Promise<{
   total_aplicativos: number;
   aplicativos: ItemCatalogoApk[];
 }> {
-  const resposta = await fetch(`${URL_BASE}/aplicativos`);
+  const resposta = await fetchAutenticado(`${URL_BASE}/aplicativos`);
   if (!resposta.ok) {
     throw new Error('Falha ao obter catálogo de aplicativos');
   }
@@ -259,7 +293,7 @@ export async function fazer_upload_aplicativo_api(
   const formData = new FormData();
   formData.append('arquivo', arquivo);
 
-  const resposta = await fetch(`${URL_BASE}/aplicativos/upload`, {
+  const resposta = await fetchAutenticado(`${URL_BASE}/aplicativos/upload`, {
     method: 'POST',
     body: formData,
   });
@@ -276,7 +310,7 @@ export async function disparar_instalacao_catalogo_api(
   nomeArquivo: string,
   dispositivoId?: string
 ): Promise<{ sucesso: boolean; mensagem: string; comando_id: string }> {
-  const resposta = await fetch(`${URL_BASE}/aplicativos/instalar`, {
+  const resposta = await fetchAutenticado(`${URL_BASE}/aplicativos/instalar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -296,7 +330,7 @@ export async function disparar_instalacao_catalogo_api(
 export async function remover_dispositivo_api(
   dispositivoId: string
 ): Promise<{ sucesso: boolean; mensagem: string; dispositivo_removido?: { id: string; numero_serie: string; modelo: string } }> {
-  const resposta = await fetch(`${URL_BASE}/dispositivos/${dispositivoId}`, {
+  const resposta = await fetchAutenticado(`${URL_BASE}/dispositivos/${dispositivoId}`, {
     method: 'DELETE',
   });
   if (!resposta.ok) {

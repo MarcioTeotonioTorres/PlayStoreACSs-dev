@@ -32,7 +32,8 @@ data class DadosTelemetria(
     val tempo_ocioso_minutos: Long,
     val armazenamento_livre_mb: Long,
     val memoria_ram_livre_mb: Long,
-    val timestamp: Long
+    val timestamp: Long,
+    val aplicativos_instalados: String = "[]"
 )
 
 /**
@@ -56,7 +57,8 @@ class GestorTelemetria(private val contexto: Context) {
             tempo_ocioso_minutos = obter_tempo_ocioso_minutos(),
             armazenamento_livre_mb = obter_armazenamento_livre_mb(),
             memoria_ram_livre_mb = obter_memoria_ram_livre_mb(),
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            aplicativos_instalados = obter_aplicativos_gerenciados()
         )
     }
 
@@ -77,7 +79,45 @@ class GestorTelemetria(private val contexto: Context) {
         json.put("armazenamento_livre_mb", dados.armazenamento_livre_mb)
         json.put("memoria_ram_livre_mb", dados.memoria_ram_livre_mb)
         json.put("timestamp", dados.timestamp)
+        json.put("aplicativos_instalados", org.json.JSONArray(dados.aplicativos_instalados))
         return json.toString()
+    }
+
+    /**
+     * Inspeciona os pacotes instalados e obtém versão, nome e código de versão.
+     */
+    fun obter_aplicativos_gerenciados(): String {
+        return try {
+            val pm = contexto.packageManager
+            val pacotes = pm.getInstalledPackages(0)
+            val jsonArray = org.json.JSONArray()
+
+            for (pkg in pacotes) {
+                val appInfo = pkg.applicationInfo ?: continue
+                val isSystem = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                val nomePacote = pkg.packageName ?: ""
+
+                // Inclui todos os apps corporativos/terceiros e o próprio MDM DPC
+                if (!isSystem || nomePacote.startsWith("com.mdm") || nomePacote.startsWith("com.empresa")) {
+                    val appObj = JSONObject()
+                    appObj.put("pacote", nomePacote)
+                    val label = pm.getApplicationLabel(appInfo).toString()
+                    appObj.put("nome", label)
+                    appObj.put("versao_nome", pkg.versionName ?: "1.0.0")
+                    val versaoCodigo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        pkg.longVersionCode
+                    } else {
+                        @Suppress("DEPRECATION")
+                        pkg.versionCode.toLong()
+                    }
+                    appObj.put("versao_codigo", versaoCodigo)
+                    jsonArray.put(appObj)
+                }
+            }
+            jsonArray.toString()
+        } catch (_: Exception) {
+            "[]"
+        }
     }
 
     /**

@@ -295,11 +295,40 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                       </div>
                     </td>
 
-                    {/* Versão SO */}
+                    {/* Versão SO e Aplicativos Instalados */}
                     <td>
                       <span style={{ fontSize: '13px', color: 'var(--texto-secundario)' }}>
                         {disp.versao_so}
                       </span>
+                      {disp.aplicativos_instalados && disp.aplicativos_instalados.length > 0 ? (
+                        <div style={{ marginTop: '5px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {disp.aplicativos_instalados.map((app) => (
+                            <span
+                              key={app.pacote}
+                              style={{
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                color: '#93c5fd',
+                                border: '1px solid rgba(59, 130, 246, 0.25)',
+                                fontSize: '10px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}
+                              title={`${app.nome || app.pacote} • Versão Código: ${app.versao_codigo}`}
+                            >
+                              <span style={{ color: '#60a5fa' }}>●</span>
+                              {app.nome ? app.nome.split(' ')[0] : 'App'}: v{app.versao_nome}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '10px', color: 'var(--texto-fraco)', display: 'block', marginTop: '3px' }}>
+                          Telemetria de apps pendente
+                        </span>
+                      )}
                     </td>
 
                     {/* Bateria */}

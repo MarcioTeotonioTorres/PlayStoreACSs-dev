@@ -27,8 +27,9 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
     /**
      * Instala um pacote APK silenciosamente sem exigir confirmação do usuário.
      * @param caminhoApk Caminho do arquivo APK no sistema de arquivos local.
+     * @param comandoId Identificador do comando MQTT que disparou a instalação.
      */
-    fun instalar_aplicativo_silencioso(caminhoApk: String): Boolean {
+    fun instalar_aplicativo_silencioso(caminhoApk: String, comandoId: String? = null): Boolean {
         val arquivo = File(caminhoApk)
         if (!arquivo.exists() || !arquivo.isFile) {
             Log.e(TAG, "Arquivo APK não encontrado em: $caminhoApk")
@@ -61,11 +62,11 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
             entrada.close()
             saida.close()
 
-            val intentSender = criar_intent_sender_callback(sessaoId)
+            val intentSender = criar_intent_sender_callback(sessaoId, comandoId)
             sessao.commit(intentSender)
             sessao.close()
 
-            Log.i(TAG, "Sessão de instalação silenciosa submetida com sucesso! Sessão ID: $sessaoId")
+            Log.i(TAG, "Sessão de instalação silenciosa submetida com sucesso! Sessão ID: $sessaoId, Comando ID: $comandoId")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Falha na instalação silenciosa: ${e.message}", e)
@@ -97,10 +98,13 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
     /**
      * Cria o IntentSender necessário para receber o status da operação do PackageInstaller.
      */
-    private fun criar_intent_sender_callback(sessaoId: Int): IntentSender {
+    private fun criar_intent_sender_callback(sessaoId: Int, comandoId: String? = null): IntentSender {
         val intent = Intent(ACAO_RESULTADO_INSTALACAO).apply {
             setPackage(contexto.packageName)
             putExtra("sessao_id", sessaoId)
+            if (!comandoId.isNullOrEmpty()) {
+                putExtra("comando_id", comandoId)
+            }
         }
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
@@ -120,21 +124,42 @@ class ReceptorResultadoInstalacao : BroadcastReceiver() {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         val mensagem = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
         val pacote = intent.getStringExtra(PackageInstaller.EXTRA_OTHER_PACKAGE_NAME)
+        val comandoId = intent.getStringExtra("comando_id")
 
-        processar_resultado_instalacao(context, status, mensagem, pacote)
+        processar_resultado_instalacao(context, status, mensagem, pacote, comandoId)
     }
 
-    fun processar_resultado_instalacao(contexto: Context, status: Int, mensagem: String?, pacote: String?) {
+    fun processar_resultado_instalacao(
+        contexto: Context,
+        status: Int,
+        mensagem: String?,
+        pacote: String?,
+        comandoId: String?
+    ) {
         when (status) {
             PackageInstaller.STATUS_SUCCESS -> {
-                Log.i("MDM_Instalador", "Sucesso: Aplicativo instalado com êxito! Pacote: $pacote")
+                Log.i("MDM_Instalador", "Sucesso: Aplicativo instalado com êxito! Pacote: $pacote (Comando: $comandoId)")
             }
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 Log.w("MDM_Instalador", "Aviso: Ação do usuário requisitada inesperadamente.")
             }
             else -> {
-                Log.e("MDM_Instalador", "Falha na instalação ($status): $mensagem")
+                Log.e("MDM_Instalador", "Falha na instalação ($status): $mensagem (Comando: $comandoId)")
             }
+        }
+
+        // Repassa o resultado com comandoId para o serviço em segundo plano notificar o broker MQTT
+        try {
+            val intentServico = Intent(contexto, com.mdm.corporativo.servico.ServicoSegundoPlanoMdm::class.java).apply {
+                action = com.mdm.corporativo.servico.ServicoSegundoPlanoMdm.ACAO_RESULTADO_INSTALACAO_NOTIFICAR
+                putExtra("comando_id", comandoId)
+                putExtra("status", status)
+                putExtra("mensagem", mensagem)
+                putExtra("pacote", pacote)
+            }
+            contexto.startService(intentServico)
+        } catch (e: Exception) {
+            Log.e("MDM_Instalador", "Erro ao repassar status de instalação ao serviço MDM: ${e.message}", e)
         }
     }
 }
