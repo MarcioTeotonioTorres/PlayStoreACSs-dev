@@ -279,7 +279,7 @@ class ServicoSegundoPlanoMdm : Service() {
     }
 
     /**
-     * Envia telemetria diretamente via HTTP REST para a VPS.
+     * Envia telemetria via HTTP REST para a VPS e sincroniza políticas e comandos pendentes.
      */
     fun enviar_telemetria_http(telemetriaJson: String) {
         try {
@@ -289,17 +289,82 @@ class ServicoSegundoPlanoMdm : Service() {
             val conexao = url.openConnection() as java.net.HttpURLConnection
             conexao.requestMethod = "POST"
             conexao.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-            conexao.connectTimeout = 5000
-            conexao.readTimeout = 5000
+            conexao.connectTimeout = 7000
+            conexao.readTimeout = 7000
             conexao.doOutput = true
             conexao.outputStream.use { os ->
                 os.write(telemetriaJson.toByteArray(Charsets.UTF_8))
             }
             val codigo = conexao.responseCode
             Log.d(TAG, "Telemetria HTTP enviada com status: $codigo")
+
+            if (codigo == 200) {
+                val respostaStr = conexao.inputStream.bufferedReader().use { it.readText() }
+                val jsonResp = org.json.JSONObject(respostaStr)
+
+                // 1. Sincronização automática das políticas corporativas
+                if (jsonResp.has("politica") && !jsonResp.isNull("politica")) {
+                    val polJson = jsonResp.getJSONObject("politica")
+                    aplicar_politicas_recebidas_http(polJson)
+                }
+
+                // 2. Execução de comandos pendentes recebidos pelo canal HTTP
+                if (jsonResp.has("comandos_pendentes") && !jsonResp.isNull("comandos_pendentes")) {
+                    val cmds = jsonResp.getJSONArray("comandos_pendentes")
+                    for (i in 0 until cmds.length()) {
+                        val cmdObj = cmds.getJSONObject(i)
+                        Log.i(TAG, "Executando comando pendente via HTTP: ${cmdObj.optString("tipo_comando")}")
+                        gestorComandos.processar_e_executar_comando(cmdObj.toString())
+                    }
+                }
+            }
+
             conexao.disconnect()
         } catch (e: Exception) {
             Log.w(TAG, "Aviso no envio de telemetria HTTP: ${e.message}")
+        }
+    }
+
+    /**
+     * Aplica o pacote de políticas recebido via HTTP na camada de Device Owner.
+     */
+    private fun aplicar_politicas_recebidas_http(polJson: org.json.JSONObject) {
+        try {
+            val permitirCamera = polJson.optBoolean("permitir_camera", true)
+            val bloquearUsb = polJson.optBoolean("bloquear_usb", true)
+            val permitirReset = polJson.optBoolean("permitir_reset_fabrica", false)
+            val bloquearInstalacao = polJson.optBoolean("bloquear_instalacao_apps", true)
+            val bloquearBluetooth = polJson.optBoolean("bloquear_bluetooth", false)
+
+            val pacotesJson = polJson.optJSONArray("pacotes_ocultos")
+            val listaPacotes = mutableListOf<String>()
+            if (pacotesJson != null) {
+                for (i in 0 until pacotesJson.length()) {
+                    listaPacotes.add(pacotesJson.getString(i))
+                }
+            }
+
+            val urlsJson = polJson.optJSONArray("urls_permitidas")
+            val listaUrls = mutableListOf<String>()
+            if (urlsJson != null) {
+                for (i in 0 until urlsJson.length()) {
+                    listaUrls.add(urlsJson.getString(i))
+                }
+            }
+
+            gestorPoliticas.aplicar_politicas_sistema_completas(
+                pacotesOcultos = listaPacotes,
+                pacotesLiberados = emptyList<String>(),
+                dominiosAutorizados = listaUrls,
+                permitirCamera = permitirCamera,
+                bloquearUsb = bloquearUsb,
+                bloquearInstalacaoApps = bloquearInstalacao,
+                bloquearBluetooth = bloquearBluetooth
+            )
+            gestorPoliticas.definir_bloqueio_reset_fabrica(!permitirReset)
+            Log.i(TAG, "Políticas de bloqueio aplicadas com sucesso pelo canal HTTP!")
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao aplicar políticas via HTTP: ${e.message}", e)
         }
     }
 

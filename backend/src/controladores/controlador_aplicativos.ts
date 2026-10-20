@@ -165,8 +165,25 @@ export async function disparar_instalacao_catalogo(
     };
 
     if (!dispositivo_id || dispositivo_id === 'todos') {
-      // Disparo em lote
-      await despachar_comando_mqtt('todos', payloadComando);
+      // Disparo em lote para todos os tablets registrados
+      const resTodos = await executar_consulta('SELECT id, numero_serie FROM dispositivos;');
+      for (const d of resTodos.rows) {
+        const cmdId = crypto.randomUUID();
+        try {
+          await executar_consulta(
+            `INSERT INTO comandos (id, dispositivo_id, tipo_comando, parametros, status, criado_em)
+             VALUES ($1, $2, 'instalar_aplicativo_silencioso', $3, 'pendente', NOW());`,
+            [cmdId, d.id, JSON.stringify({ url_apk: urlDownload, nome_arquivo })]
+          );
+        } catch (_) {}
+
+        await despachar_comando_mqtt(d.numero_serie, {
+          id: cmdId,
+          tipo_comando: 'instalar_aplicativo_silencioso',
+          parametros: { url_apk: urlDownload, nome_arquivo },
+        });
+      }
+
       resposta.status(200).send({
         sucesso: true,
         mensagem: `Ordem de instalação silenciosa de '${nome_arquivo}' despachada para toda a frota!`,
@@ -174,14 +191,26 @@ export async function disparar_instalacao_catalogo(
       });
     } else {
       // Disparo individual
-      const sqlDisp = `SELECT numero_serie FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
+      const sqlDisp = `SELECT id, numero_serie FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
       const resDisp = await executar_consulta(sqlDisp, [dispositivo_id]);
-      const numeroSerie = resDisp.rows.length > 0 ? resDisp.rows[0].numero_serie : dispositivo_id;
+      if (resDisp.rows.length === 0) {
+        resposta.status(404).send({ sucesso: false, mensagem: 'Dispositivo alvo não encontrado.' });
+        return;
+      }
 
-      await despachar_comando_mqtt(numeroSerie, payloadComando);
+      const disp = resDisp.rows[0];
+      try {
+        await executar_consulta(
+          `INSERT INTO comandos (id, dispositivo_id, tipo_comando, parametros, status, criado_em)
+           VALUES ($1, $2, 'instalar_aplicativo_silencioso', $3, 'pendente', NOW());`,
+          [comandoId, disp.id, JSON.stringify({ url_apk: urlDownload, nome_arquivo })]
+        );
+      } catch (_) {}
+
+      await despachar_comando_mqtt(disp.numero_serie, payloadComando);
       resposta.status(200).send({
         sucesso: true,
-        mensagem: `Ordem de instalação de '${nome_arquivo}' enviada para o tablet ${numeroSerie}.`,
+        mensagem: `Ordem de instalação de '${nome_arquivo}' enviada para o tablet ${disp.numero_serie}.`,
         comando_id: comandoId,
       });
     }

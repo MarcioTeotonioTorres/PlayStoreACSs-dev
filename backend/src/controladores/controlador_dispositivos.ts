@@ -326,10 +326,84 @@ export async function receber_telemetria_http(
 
     const { processar_mensagem_telemetria } = await import('../servicos/servico_mqtt');
     await processar_mensagem_telemetria(snNormalizado, dados);
-    resposta.status(200).send({ sucesso: true, mensagem: 'Telemetria registrada com sucesso.' });
+
+    // 1. Obtém as políticas ativas da frota para sincronização direta via HTTP
+    let politicaAtiva: any = null;
+    try {
+      const resPol = await executar_consulta(`
+        SELECT permitir_camera, bloquear_usb, permitir_reset_fabrica,
+               bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app,
+               habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas
+        FROM politicas
+        ORDER BY atualizado_em DESC
+        LIMIT 1;
+      `);
+      if (resPol.rows.length > 0) {
+        politicaAtiva = resPol.rows[0];
+      }
+    } catch (_) {}
+
+    // 2. Obtém comandos pendentes na fila para este dispositivo
+    let comandosPendentes: any[] = [];
+    try {
+      const sqlBuscaDisp = `SELECT id FROM dispositivos WHERE numero_serie = $1 LIMIT 1;`;
+      const resDisp = await executar_consulta(sqlBuscaDisp, [snNormalizado]);
+      if (resDisp.rows.length > 0) {
+        const dispId = resDisp.rows[0].id;
+        const sqlCmds = `
+          SELECT id, tipo_comando, parametros
+          FROM comandos
+          WHERE dispositivo_id = $1 AND status = 'pendente'
+          ORDER BY criado_em ASC
+          LIMIT 5;
+        `;
+        const resCmds = await executar_consulta(sqlCmds, [dispId]);
+        comandosPendentes = resCmds.rows;
+
+        // Marca comandos como 'enviado' para evitar reprocessamento em loop
+        for (const cmd of comandosPendentes) {
+          await executar_consulta(`UPDATE comandos SET status = 'enviado' WHERE id = $1;`, [cmd.id]);
+        }
+      }
+    } catch (_) {}
+
+    resposta.status(200).send({
+      sucesso: true,
+      mensagem: 'Telemetria registrada com sucesso.',
+      politica: politicaAtiva,
+      comandos_pendentes: comandosPendentes,
+    });
   } catch (erro) {
     console.error('Erro em receber_telemetria_http:', erro);
     resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao processar telemetria HTTP.' });
+  }
+}
+
+/**
+ * Endpoint HTTP REST para confirmação e feedback de execução de comandos pelo tablet.
+ */
+export async function receber_resposta_comando_http(
+  requisicao: FastifyRequest<{
+    Params: { numero_serie: string; comando_id: string };
+    Body: { status: string; mensagem?: string };
+  }>,
+  resposta: FastifyReply
+): Promise<void> {
+  try {
+    const { numero_serie, comando_id } = requisicao.params;
+    const { status, mensagem } = requisicao.body || {};
+
+    const { processar_resposta_comando } = await import('../servicos/servico_mqtt');
+    await processar_resposta_comando(numero_serie, {
+      comando_id,
+      status: status || 'executado',
+      mensagem: mensagem || 'Comando processado com sucesso pelo tablet.',
+    });
+
+    resposta.status(200).send({ sucesso: true, mensagem: 'Resposta do comando registrada com sucesso.' });
+  } catch (erro) {
+    console.error('Erro em receber_resposta_comando_http:', erro);
+    resposta.status(500).send({ sucesso: false, mensagem: 'Falha ao registrar resposta do comando.' });
   }
 }
 

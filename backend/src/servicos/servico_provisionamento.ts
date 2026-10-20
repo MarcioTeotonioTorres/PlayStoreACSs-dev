@@ -42,7 +42,7 @@ export function gerar_payload_provisionamento_qr(
   parametros: ParametrosProvisionamento = {}
 ): Record<string, any> {
   let hostEntrada = (parametros.dominioDuckDns || process.env.DOMINIO_DUCKDNS || 'mdm-corporativo.duckdns.org').trim();
-  const portaMqtt = parametros.portaMqtt || (process.env.MQTT_PORT ? Number(process.env.MQTT_PORT) : 8883);
+  const portaMqtt = parametros.portaMqtt || (process.env.MQTT_PORT ? Number(process.env.MQTT_PORT) : 1883);
   const nomeApk = parametros.nomeArquivoApk || 'mdm-dpc.apk';
   let urlBase = '';
 

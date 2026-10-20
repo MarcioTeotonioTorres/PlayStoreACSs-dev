@@ -59,7 +59,7 @@ class ClienteMqttSeguro(
                 }
 
                 override fun messageArrived(topic: String?, message: MqttMessage?) {
-                    if (topic == topicoComandos && message != null) {
+                    if ((topic == topicoComandos || topic == "mdm/frota/todos/comandos") && message != null) {
                         val payload = String(message.payload)
                         Log.i(TAG, "Comando recebido no tópico $topic: $payload")
                         aoReceberComando(payload)
@@ -74,7 +74,7 @@ class ClienteMqttSeguro(
     }
 
     /**
-     * Estabelece conexão com o broker MQTT via TLS seguro.
+     * Estabelece conexão com o broker MQTT via TLS seguro com fallback TCP.
      */
     fun conectar_broker_mqtt() {
         if (clienteMqtt == null) {
@@ -87,7 +87,7 @@ class ClienteMqttSeguro(
             val opcoes = MqttConnectOptions().apply {
                 isAutomaticReconnect = true
                 isCleanSession = false
-                connectionTimeout = 15
+                connectionTimeout = 10
                 keepAliveInterval = 30
 
                 // Last Will and Testament (LWT) para sinalizar desconexão imediata ao servidor
@@ -98,18 +98,37 @@ class ClienteMqttSeguro(
                 }
                 setWill(topicoStatus, lwtJson.toString().toByteArray(), 1, true)
 
-                // Configuração SSL/TLS para certificado Let's Encrypt / DuckDNS quando em porta segura
+                // Configuração SSL/TLS quando em porta segura
                 if (brokerPort != 1883) {
                     try {
                         socketFactory = obter_fabrica_soquetes_tls()
                     } catch (sslEx: Exception) {
-                        Log.w(TAG, "Aviso ao carregar certificados customizados, usando SSL padrão: ${sslEx.message}")
+                        Log.w(TAG, "Aviso ao carregar certificados SSL: ${sslEx.message}")
                     }
                 }
             }
 
             Log.i(TAG, "Iniciando conexão MQTT com $brokerHost:$brokerPort...")
-            clienteMqtt?.connect(opcoes)
+            try {
+                clienteMqtt?.connect(opcoes)
+            } catch (connErr: Exception) {
+                // Fallback automático na porta 1883 TCP se a porta 8883 falhar por certificado não configurado
+                if (brokerPort != 1883) {
+                    Log.w(TAG, "Falha na porta $brokerPort. Tentando fallback imediato em tcp://$brokerHost:1883...")
+                    val fallbackUri = "tcp://$brokerHost:1883"
+                    clienteMqtt = MqttClient(fallbackUri, "tablet_$numeroSerie", MemoryPersistence())
+                    val fallbackOpcoes = MqttConnectOptions().apply {
+                        isAutomaticReconnect = true
+                        connectionTimeout = 8
+                        keepAliveInterval = 30
+                    }
+                    clienteMqtt?.connect(fallbackOpcoes)
+                    assinar_topico_comandos()
+                    Log.i(TAG, "Conectado via fallback TCP na porta 1883!")
+                } else {
+                    throw connErr
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao conectar ao broker MQTT: ${e.message}", e)
         }
@@ -130,16 +149,17 @@ class ClienteMqttSeguro(
     }
 
     /**
-     * Assina o canal exclusivo de comandos remotos deste dispositivo.
+     * Assina os canais de comandos individuais e gerais da frota.
      */
     fun assinar_topico_comandos() {
         try {
             if (clienteMqtt?.isConnected == true) {
                 clienteMqtt?.subscribe(topicoComandos, 1)
-                Log.i(TAG, "Tópico assinado com sucesso: $topicoComandos")
+                clienteMqtt?.subscribe("mdm/frota/todos/comandos", 1)
+                Log.i(TAG, "Tópicos de comandos assinados: $topicoComandos e mdm/frota/todos/comandos")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Falha ao assinar tópico de comandos: ${e.message}", e)
+            Log.e(TAG, "Falha ao assinar tópicos de comandos: ${e.message}", e)
         }
     }
 
@@ -163,7 +183,7 @@ class ClienteMqttSeguro(
     }
 
     /**
-     * Devolve ao backend a confirmação e resultado da execução do comando.
+     * Devolve ao backend a confirmação e resultado da execução do comando via MQTT e HTTP.
      */
     fun enviar_resposta_comando(comandoId: String, status: String, mensagem: String) {
         val resposta = JSONObject().apply {
@@ -173,7 +193,40 @@ class ClienteMqttSeguro(
             put("mensagem", mensagem)
             put("timestamp", System.currentTimeMillis())
         }
+        // 1. MQTT
         publicar_mensagem(topicoRespostaComando, resposta.toString(), qos = 1, retido = false)
+
+        // 2. HTTP Fail-Safe (garante feedback na interface web mesmo sem MQTT)
+        enviar_resposta_comando_http(comandoId, status, mensagem)
+    }
+
+    private fun enviar_resposta_comando_http(comandoId: String, status: String, mensagem: String) {
+        kotlin.concurrent.thread {
+            try {
+                val prefs = contexto.getSharedPreferences("config_mdm", Context.MODE_PRIVATE)
+                val servidorApi = prefs.getString("servidor_api", "https://mdmplaystoreacs.duckdns.org/api") ?: "https://mdmplaystoreacs.duckdns.org/api"
+                val url = java.net.URL("$servidorApi/dispositivos/$numeroSerie/comandos/$comandoId/resposta")
+                val conexao = url.openConnection() as java.net.HttpURLConnection
+                conexao.requestMethod = "POST"
+                conexao.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                conexao.connectTimeout = 5000
+                conexao.readTimeout = 5000
+                conexao.doOutput = true
+
+                val payload = JSONObject().apply {
+                    put("status", status)
+                    put("mensagem", mensagem)
+                }
+                conexao.outputStream.use { os ->
+                    os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                }
+                val codigo = conexao.responseCode
+                Log.d(TAG, "Feedback do comando enviado via HTTP: $codigo")
+                conexao.disconnect()
+            } catch (t: Throwable) {
+                Log.w(TAG, "Aviso ao enviar feedback via HTTP: ${t.message}")
+            }
+        }
     }
 
     /**

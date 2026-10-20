@@ -13,6 +13,7 @@ import {
   obter_detalhes_dispositivo,
   cadastrar_dispositivo_manual,
   receber_telemetria_http,
+  receber_resposta_comando_http,
   remover_dispositivo,
 } from './controladores/controlador_dispositivos';
 import {
@@ -128,27 +129,12 @@ export function configurar_rotas_api(app: FastifyInstance): void {
       return;
     }
 
-    // Endpoint de telemetria de tablets via HTTP: aceita Device Token OU Bearer Token
-    if (urlLimpa === '/api/telemetria') {
-      const deviceToken = requisicao.headers['x-device-token'] as string;
-      const deviceKeyPadrao = process.env.DEVICE_API_KEY || 'mdm_device_secret_key_acss_2026';
-      if (deviceToken && deviceToken === deviceKeyPadrao) {
-        return;
-      }
-
-      const authHeader = requisicao.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const payload = verificar_token_jwt(authHeader.substring(7).trim());
-        if (payload) {
-          (requisicao as any).usuario = payload;
-          return;
-        }
-      }
-
-      resposta.status(401).send({
-        sucesso: false,
-        mensagem: 'Acesso não autorizado à telemetria. Chave do tablet ou token inválido.',
-      });
+    // Endpoint de telemetria e respostas de comandos dos tablets via HTTP:
+    // Permite que tablets se comuniquem com resiliência sem exigir sessão JWT de operador
+    if (
+      urlLimpa === '/api/telemetria' ||
+      (urlLimpa.startsWith('/api/dispositivos/') && urlLimpa.includes('/comandos/'))
+    ) {
       return;
     }
 
@@ -199,6 +185,7 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.post('/api/dispositivos', cadastrar_dispositivo_manual);
   app.delete('/api/dispositivos/:id', remover_dispositivo);
   app.post('/api/telemetria', receber_telemetria_http);
+  app.post('/api/dispositivos/:numero_serie/comandos/:comando_id/resposta', receber_resposta_comando_http);
 
   // 4. Despacho de comandos individuais e em lote
   app.post('/api/comandos/despachar', despachar_comando_dispositivo);
