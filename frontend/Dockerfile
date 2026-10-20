@@ -5,7 +5,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm ci && npm cache clean --force
 
 COPY tsconfig*.json vite.config.ts index.html ./
 COPY src/ ./src/
