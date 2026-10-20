@@ -118,9 +118,9 @@ export async function atualizar_politicas_globais_frota(
       console.warn('Fallback: Banco de dados não disponível para salvar políticas. Mantendo em memória.', dbErr);
     }
 
-    // Despacho MQTT para todos os dispositivos cadastrados na frota individualmente
+    // Despacho MQTT e persistência na fila de comandos para sincronização HTTP dual-channel
     try {
-      const resDisp = await executar_consulta("SELECT numero_serie FROM dispositivos;");
+      const resDisp = await executar_consulta("SELECT id, numero_serie FROM dispositivos;");
       for (const disp of resDisp.rows) {
         const comandoId = crypto.randomUUID();
         const payloadComando = {
@@ -137,6 +137,16 @@ export async function atualizar_politicas_globais_frota(
             urls_permitidas: politicasMemoria.urls_permitidas,
           },
         };
+
+        // Grava na fila de comandos para resgate imediato via polling HTTP de telemetria
+        try {
+          await executar_consulta(
+            `INSERT INTO comandos (id, dispositivo_id, tipo_comando, parametros, status) VALUES ($1, $2, $3, $4, 'pendente');`,
+            [comandoId, disp.id, 'aplicar_politica', JSON.stringify(payloadComando.parametros)]
+          );
+        } catch (_) {}
+
+        // Despacha instantaneamente via MQTT para os tablets conectados
         await despachar_comando_mqtt(disp.numero_serie, payloadComando);
       }
     } catch (errMqttLoop) {
@@ -185,6 +195,15 @@ export async function atualizar_politicas_dispositivo(
         urls_permitidas: dto.urls_permitidas || [],
       },
     };
+
+    if (resDisp.rows.length > 0) {
+      try {
+        await executar_consulta(
+          `INSERT INTO comandos (id, dispositivo_id, tipo_comando, parametros, status) VALUES ($1, $2, $3, $4, 'pendente');`,
+          [comandoId, resDisp.rows[0].id, 'aplicar_politica', JSON.stringify(payloadComando.parametros)]
+        );
+      } catch (_) {}
+    }
 
     await despachar_comando_mqtt(numeroSerie, payloadComando);
 
