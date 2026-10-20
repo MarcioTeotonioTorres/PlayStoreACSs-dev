@@ -272,8 +272,12 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
       >
         <div
           style={{
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
+            background: politica.bloquear_instalacao_apps
+              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)'
+              : 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)',
+            border: politica.bloquear_instalacao_apps
+              ? '1px solid rgba(16, 185, 129, 0.25)'
+              : '1px solid rgba(245, 158, 11, 0.25)',
             borderRadius: '10px',
             padding: '14px 18px',
             display: 'flex',
@@ -281,12 +285,33 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
             gap: '12px',
           }}
         >
-          <div style={{ background: 'rgba(16, 185, 129, 0.2)', padding: '10px', borderRadius: '8px', color: '#34d399' }}>
+          <div
+            style={{
+              background: politica.bloquear_instalacao_apps ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+              padding: '10px',
+              borderRadius: '8px',
+              color: politica.bloquear_instalacao_apps ? '#34d399' : '#fbbf24',
+            }}
+          >
             <Package size={20} />
           </div>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#34d399' }}>Bloqueio de APKs Externos Ativo</div>
-            <div style={{ fontSize: '11px', color: '#94a3b8' }}>Fontes desconhecidas e instaladores manuais desativados em nível de SO.</div>
+            <div
+              style={{
+                fontSize: '13px',
+                fontWeight: 700,
+                color: politica.bloquear_instalacao_apps ? '#34d399' : '#fbbf24',
+              }}
+            >
+              {politica.bloquear_instalacao_apps
+                ? 'Bloqueio de APKs: ATIVADO'
+                : 'Bloqueio de APKs: DESATIVADO (Liberado)'}
+            </div>
+            <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+              {politica.bloquear_instalacao_apps
+                ? 'Fontes desconhecidas e instaladores manuais desativados em nível de SO.'
+                : 'Instalação manual permitida. Clique no card abaixo para ativar o bloqueio.'}
+            </div>
           </div>
         </div>
 
