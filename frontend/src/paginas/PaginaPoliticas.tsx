@@ -261,6 +261,76 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
         </div>
       )}
 
+      {/* Banner de Governança de Segurança e Integridade da Frota */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '16px',
+          marginBottom: '24px',
+        }}
+      >
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ background: 'rgba(16, 185, 129, 0.2)', padding: '10px', borderRadius: '8px', color: '#34d399' }}>
+            <Package size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#34d399' }}>Bloqueio de APKs Externos Ativo</div>
+            <div style={{ fontSize: '11px', color: '#94a3b8' }}>Fontes desconhecidas e instaladores manuais desativados em nível de SO.</div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.25)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ background: 'rgba(59, 130, 246, 0.2)', padding: '10px', borderRadius: '8px', color: '#60a5fa' }}>
+            <Usb size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#60a5fa' }}>Depuração USB (ADB) Preservada</div>
+            <div style={{ fontSize: '11px', color: '#94a3b8' }}>Acesso por linha de comando liberado com proteção RSA para TI.</div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(126, 34, 206, 0.05) 100%)',
+            border: '1px solid rgba(168, 85, 247, 0.25)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ background: 'rgba(168, 85, 247, 0.2)', padding: '10px', borderRadius: '8px', color: '#c084fc' }}>
+            <ShieldCheck size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#c084fc' }}>Escudo Anti-Bootloop Ativo</div>
+            <div style={{ fontSize: '11px', color: '#94a3b8' }}>Configurações, Launcher e serviços vitais imunes a bloqueio.</div>
+          </div>
+        </div>
+      </div>
+
       {/* Seleção de Escopo de Aplicação */}
       <div className="card-metrica" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>

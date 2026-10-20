@@ -89,6 +89,9 @@ Pronto! Agora o tablet está corporativo e auto-gerenciável pela VPS.
 * **Causa:** O popup de autorização de depuração USB ainda não foi confirmado na tela do tablet.
 * **Solução:** Desbloqueie a tela do tablet, marque **"Sempre permitir a partir deste computador"**, toque em **Permitir** e execute `adb devices` novamente até constar como `device`.
 
+### Preservação da Depuração USB (ADB) após virar Device Owner (v1.2.0)
+Na versão 1.2.0 em diante, o DPC mantém a depuração USB ativa por padrão (`UserManager.DISALLOW_DEBUGGING_FEATURES` desativada e `ADB_ENABLED = 1`), garantindo que a equipe técnica de TI possa continuar executando comandos ADB no tablet para suporte, diagnósticos ou emergências de bancada sem perda de conexão.
+
 ---
 
 ## 6. Políticas de Bloqueio de APKs Externos e Bluetooth
@@ -96,4 +99,5 @@ Pronto! Agora o tablet está corporativo e auto-gerenciável pela VPS.
 Uma vez provisionado como Device Owner, o painel web oferece:
 * **Bloqueio de Instaladores de APKs (Fontes Desconhecidas):** Ativa `UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES` e `UserManager.DISALLOW_INSTALL_APPS`, impedindo o usuário de instalar qualquer APK manual, lojas de terceiros ou downloads via navegador. Apenas o MDM corporativo pode instalar aplicativos.
 * **Bloqueio de Bluetooth e Compartilhamento de Arquivos:** Ativa `UserManager.DISALLOW_BLUETOOTH_SHARING`, `UserManager.DISALLOW_BLUETOOTH` e desliga o rádio Bluetooth, impedindo recebimento ou envio de APKs e arquivos por proximidade.
+* **Proteção Ativa contra Bootloop:** Pacotes vitais do sistema operacional (Configurações, Launcher, SystemUI, Teclado) são protegidos permanentemente e imunes a suspensão ou bloqueio.
 
