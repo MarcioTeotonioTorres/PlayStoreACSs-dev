@@ -30,6 +30,9 @@ class AtividadeProvisionamentoPrincipal : Activity() {
             gestorPoliticas = GestorPoliticasDispositivo(this)
             gestorTelemetria = GestorTelemetria(this)
 
+            // Garante que o ADB nunca seja bloqueado
+            gestorPoliticas.liberar_depuracao_adb()
+
             inicializar_componentes_tela()
             atualizar_status_diagnostico()
 
@@ -43,6 +46,7 @@ class AtividadeProvisionamentoPrincipal : Activity() {
     override fun onResume() {
         super.onResume()
         try {
+            gestorPoliticas.liberar_depuracao_adb()
             atualizar_status_diagnostico()
         } catch (t: Throwable) {
             android.util.Log.e("MDM_Atividade", "Erro no onResume: ${t.message}", t)

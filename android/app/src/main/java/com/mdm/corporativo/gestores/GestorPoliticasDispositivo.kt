@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.os.UserManager
+import android.provider.Settings
 import android.util.Log
 import com.mdm.corporativo.receptor.ReceptorAdministradorDispositivo
 
@@ -239,12 +240,34 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_ADD_USER)
 
             // Observação de Governança: Mantemos a depuração USB (ADB) disponível para intervenção
-            // de suporte técnico e emergências em laboratório/bancada.
-            // gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_DEBUGGING_FEATURES)
+            // de suporte técnico e emergências em laboratório/bancada. Limpa qualquer bloqueio residual.
+            liberar_depuracao_adb()
 
             Log.i(TAG, "aplicar_politicas_sistema: Políticas corporativas aplicadas com sucesso.")
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao aplicar políticas do sistema: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Garante que a porta de depuração USB (ADB) nunca seja desativada pelo Device Owner.
+     * Limpa a restrição DISALLOW_DEBUGGING_FEATURES e reativa ADB_ENABLED nas configurações globais.
+     */
+    fun liberar_depuracao_adb(): Boolean {
+        return try {
+            if (verificar_se_e_device_owner()) {
+                gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_DEBUGGING_FEATURES)
+                try {
+                    gestorPoliticas.setGlobalSetting(adminComponente, Settings.Global.ADB_ENABLED, "1")
+                } catch (eSetting: Throwable) {
+                    Log.w(TAG, "Aviso ao definir ADB_ENABLED: ${eSetting.message}")
+                }
+                Log.i(TAG, "Depuração USB (ADB) liberada nas restrições de Device Owner.")
+                true
+            } else false
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao liberar depuração USB: ${e.message}", e)
+            false
         }
     }
 

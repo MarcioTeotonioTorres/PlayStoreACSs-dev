@@ -243,6 +243,15 @@ class GestorComandosMdm(
                         )
                     }
 
+                    "liberar_depuracao_adb" -> {
+                        val sucesso = gestorPoliticas.liberar_depuracao_adb()
+                        clienteMqtt.enviar_resposta_comando(
+                            comandoId,
+                            if (sucesso) "executado" else "falha",
+                            if (sucesso) "Depuração USB (ADB) liberada e ativada." else "Falha ao liberar ADB."
+                        )
+                    }
+
                     else -> {
                         Log.w(TAG, "Comando desconhecido: $tipoComando")
                         clienteMqtt.enviar_resposta_comando(comandoId, "rejeitado", "Tipo de comando desconhecido: $tipoComando")
