@@ -57,7 +57,33 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
   const [novoPacote, setNovoPacote] = useState<string>('');
   const [dispositivoAlvo, setDispositivoAlvo] = useState<string>('todos');
 
-  // Aplicativos comuns do sistema Android com seus identificadores de pacote
+  // Lista de pacotes vitais do sistema que JAMAIS podem ser bloqueados ou suspensos
+  const PACOTES_VITAIS_IMUNES = [
+    'com.android.settings',
+    'com.android.systemui',
+    'android',
+    'com.android.launcher',
+    'com.android.launcher3',
+    'com.tcl.launcher',
+    'com.sec.android.app.launcher',
+    'com.google.android.apps.nexuslauncher',
+    'com.android.packageinstaller',
+    'com.google.android.packageinstaller',
+    'com.android.permissioncontroller',
+    'com.google.android.permissioncontroller',
+    'com.android.inputmethod.latin',
+    'com.google.android.inputmethod.latin',
+    'com.google.android.webview',
+    'com.android.webview',
+    'com.android.providers.media',
+    'com.android.providers.media.module',
+    'com.android.providers.settings',
+    'com.android.documentsui',
+    'com.mdm.corporativo',
+    'com.google.android.gms',
+  ];
+
+  // Aplicativos comuns que PODEM ser bloqueados com 100% de segurança (não afetam o boot do sistema)
   const aplicativosComuns = [
     {
       nome: 'YouTube',
@@ -77,12 +103,6 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
       descricao: 'Visualizador e backup de mídias pessoais',
       icone: '🖼️',
     },
-    {
-      nome: 'Configurações do Android',
-      pacote: 'com.android.settings',
-      descricao: 'Ajustes avançados do sistema operacional',
-      icone: '⚙️',
-    }
   ];
 
   useEffect(() => {
@@ -94,11 +114,15 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
     try {
       const resp = await obter_politicas_api();
       if (resp.politica) {
+        // Filtra qualquer pacote de sistema vital que possa ter sido salvo no banco anteriormente
+        const pacotesSeguros = (resp.politica.pacotes_ocultos || []).filter(
+          (p: string) => !PACOTES_VITAIS_IMUNES.includes(p) && !p.startsWith('com.android.providers.')
+        );
         setPolitica({
           ...resp.politica,
           bloquear_instalacao_apps: resp.politica.bloquear_instalacao_apps ?? true,
           bloquear_bluetooth: resp.politica.bloquear_bluetooth ?? false,
-          pacotes_ocultos: resp.politica.pacotes_ocultos || [],
+          pacotes_ocultos: pacotesSeguros,
           urls_permitidas: resp.politica.urls_permitidas || [],
         });
       }
@@ -110,6 +134,11 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
   }
 
   function ao_alternar_bloqueio_app(pacote: string) {
+    if (PACOTES_VITAIS_IMUNES.includes(pacote)) {
+      alert('⚠️ AÇÃO BLOQUEADA POR SEGURANÇA: Este é um pacote vital do sistema operacional e não pode ser suspenso para evitar travamento do tablet.');
+      return;
+    }
+
     const jaOculto = politica.pacotes_ocultos.includes(pacote);
     const novaLista = jaOculto
       ? politica.pacotes_ocultos.filter((p) => p !== pacote)
@@ -121,6 +150,11 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
   function ao_adicionar_pacote_customizado() {
     const pacoteLimpo = novoPacote.trim().toLowerCase();
     if (!pacoteLimpo) return;
+
+    if (PACOTES_VITAIS_IMUNES.includes(pacoteLimpo) || pacoteLimpo.startsWith('com.android.providers.')) {
+      alert('⚠️ AÇÃO BLOQUEADA POR SEGURANÇA: O pacote "' + pacoteLimpo + '" é essencial para o funcionamento do Android. Bloqueá-lo pode causar bootloop no dispositivo.');
+      return;
+    }
 
     if (politica.pacotes_ocultos.includes(pacoteLimpo)) {
       alert('Este pacote já está na lista de bloqueados.');

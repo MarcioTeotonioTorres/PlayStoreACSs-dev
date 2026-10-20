@@ -22,6 +22,32 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
 
     companion object {
         private const val TAG = "MDM_GestorPoliticas"
+
+        // Lista de pacotes vitais do sistema que JAMAIS podem ser bloqueados ou suspensos
+        val PACOTES_VITAIS_IMUNES = setOf(
+            "com.android.settings",
+            "com.android.systemui",
+            "android",
+            "com.android.launcher",
+            "com.android.launcher3",
+            "com.tcl.launcher",
+            "com.sec.android.app.launcher",
+            "com.google.android.apps.nexuslauncher",
+            "com.android.packageinstaller",
+            "com.google.android.packageinstaller",
+            "com.android.permissioncontroller",
+            "com.google.android.permissioncontroller",
+            "com.android.inputmethod.latin",
+            "com.google.android.inputmethod.latin",
+            "com.google.android.webview",
+            "com.android.webview",
+            "com.android.providers.media",
+            "com.android.providers.media.module",
+            "com.android.providers.settings",
+            "com.android.documentsui",
+            "com.mdm.corporativo",
+            "com.google.android.gms"
+        )
     }
 
     /**
@@ -212,8 +238,9 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // Proibir adição de novos usuários secundários no tablet
             gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_ADD_USER)
 
-            // Proibir depuração USB (ADB) não autorizada se necessário
-            gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_DEBUGGING_FEATURES)
+            // Observação de Governança: Mantemos a depuração USB (ADB) disponível para intervenção
+            // de suporte técnico e emergências em laboratório/bancada.
+            // gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_DEBUGGING_FEATURES)
 
             Log.i(TAG, "aplicar_politicas_sistema: Políticas corporativas aplicadas com sucesso.")
         } catch (e: Exception) {
@@ -224,8 +251,17 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
     /**
      * Oculta e desativa um aplicativo nativo indesejado (ex: YouTube, Galeria, Loja)
      * fazendo com que o app desapareça da gaveta e não possa ser executado.
+     * Possui TRAVA DE SEGURANÇA ATIVA que recusa ocultar pacotes vitais do sistema operacional.
      */
     fun ocultar_aplicativo_sistema(nomePacote: String): Boolean {
+        val pacoteLimpo = nomePacote.trim().lowercase()
+
+        // TRAVA DE SEGURANÇA: Impede que o MDM suspenda o launcher, configurações ou serviços vitais
+        if (PACOTES_VITAIS_IMUNES.contains(pacoteLimpo) || pacoteLimpo.startsWith("com.android.providers.")) {
+            Log.w(TAG, "SEGURANÇA ATIVA: Recusando ocultar/suspender pacote vital do sistema: $nomePacote")
+            return false
+        }
+
         return try {
             if (verificar_se_e_device_owner()) {
                 // Tenta ocultar completamente da gaveta
@@ -392,8 +428,7 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             val aplicativosComuns = listOf(
                 "com.google.android.youtube",
                 "com.android.vending",
-                "com.google.android.apps.photos",
-                "com.android.settings"
+                "com.google.android.apps.photos"
             )
 
             // Restaura apps comuns que NÃO estão na lista de ocultos

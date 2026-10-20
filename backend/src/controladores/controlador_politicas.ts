@@ -16,6 +16,38 @@ export interface PoliticaDTO {
   urls_permitidas?: string[];
 }
 
+export const PACOTES_VITAIS_IMUNES = new Set([
+  'com.android.settings',
+  'com.android.systemui',
+  'android',
+  'com.android.launcher',
+  'com.android.launcher3',
+  'com.tcl.launcher',
+  'com.sec.android.app.launcher',
+  'com.google.android.apps.nexuslauncher',
+  'com.android.packageinstaller',
+  'com.google.android.packageinstaller',
+  'com.android.permissioncontroller',
+  'com.google.android.permissioncontroller',
+  'com.android.inputmethod.latin',
+  'com.google.android.inputmethod.latin',
+  'com.google.android.webview',
+  'com.android.webview',
+  'com.android.providers.media',
+  'com.android.providers.media.module',
+  'com.android.providers.settings',
+  'com.android.documentsui',
+  'com.mdm.corporativo',
+  'com.google.android.gms',
+]);
+
+export function filtrarPacotesSeguros(pacotes?: string[]): string[] {
+  if (!pacotes || !Array.isArray(pacotes)) return [];
+  return pacotes.filter(
+    (p) => !PACOTES_VITAIS_IMUNES.has(p.trim().toLowerCase()) && !p.trim().toLowerCase().startsWith('com.android.providers.')
+  );
+}
+
 // Armazenamento em memória das políticas caso o PostgreSQL local não esteja conectado
 let politicasMemoria: PoliticaDTO = {
   nome: 'Política Padrão da Frota',
@@ -59,6 +91,10 @@ export async function obter_politicas_frota(
 
     const dados = resultado.rows.length > 0 ? resultado.rows[0] : politicasMemoria;
 
+    if (dados && dados.pacotes_ocultos) {
+      dados.pacotes_ocultos = filtrarPacotesSeguros(dados.pacotes_ocultos);
+    }
+
     resposta.status(200).send({
       sucesso: true,
       politica: dados,
@@ -82,9 +118,12 @@ export async function atualizar_politicas_globais_frota(
   try {
     const dto = requisicao.body;
 
+    // Sanitiza pacotes ocultos: NUNCA permite que pacotes vitais do sistema operacional sejam bloqueados
+    const pacotesNovosBrutos = dto.pacotes_ocultos ?? (politicasMemoria.pacotes_ocultos || []);
+    const pacotesNovos = filtrarPacotesSeguros(pacotesNovosBrutos);
+
     // Calcula quais pacotes foram removidos da lista de ocultos para enviar explicitamente como liberados
     const pacotesAntigos = politicasMemoria.pacotes_ocultos || [];
-    const pacotesNovos = dto.pacotes_ocultos ?? pacotesAntigos;
     const pacotesLiberados = pacotesAntigos.filter(p => !pacotesNovos.includes(p));
 
     // Atualiza cópia em memória
@@ -181,6 +220,8 @@ export async function atualizar_politicas_dispositivo(
 
     const numeroSerie = resDisp.rows.length > 0 ? resDisp.rows[0].numero_serie : id;
 
+    const pacotesSeguros = filtrarPacotesSeguros(dto.pacotes_ocultos);
+
     const comandoId = crypto.randomUUID();
     const payloadComando = {
       id: comandoId,
@@ -191,7 +232,7 @@ export async function atualizar_politicas_dispositivo(
         permitir_reset_fabrica: dto.permitir_reset_fabrica ?? false,
         bloquear_instalacao_apps: dto.bloquear_instalacao_apps ?? true,
         bloquear_bluetooth: dto.bloquear_bluetooth ?? false,
-        pacotes_ocultos: dto.pacotes_ocultos || [],
+        pacotes_ocultos: pacotesSeguros,
         urls_permitidas: dto.urls_permitidas || [],
       },
     };
