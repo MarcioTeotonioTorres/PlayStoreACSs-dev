@@ -655,7 +655,8 @@ tr:hover td {
   }
 }
 
-.icone-girando {
+.icone-girando,
+.spin {
   animation: girar 0.75s linear infinite;
 }
 

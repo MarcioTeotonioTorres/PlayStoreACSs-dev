@@ -26,7 +26,7 @@ export const PaginaProvisionamento: React.FC = () => {
   }
 
   const comandoVerificar = 'adb devices';
-  const comandoInstalar = 'adb install -r "C:\\Users\\Marcinho do TI\\Documents\\Projetos Mobile\\PlayServiceACSs\\producao\\apk\\mdm-dpc.apk"';
+  const comandoInstalar = 'adb install -r ./backend/public/apk/mdm-dpc.apk';
   const comandoPromover = 'adb shell dpm set-device-owner com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo';
   const comandoBateria = 'adb shell dumpsys deviceidle whitelist +com.mdm.corporativo';
   const comandoUso = 'adb shell appops set com.mdm.corporativo GET_USAGE_STATS allow';
@@ -151,7 +151,7 @@ export const PaginaProvisionamento: React.FC = () => {
                 wordBreak: 'break-all',
               }}
             >
-              C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\producao\apk\mdm-dpc.apk
+              backend/public/apk/mdm-dpc.apk
             </div>
 
             <div

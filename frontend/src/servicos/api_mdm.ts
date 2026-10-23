@@ -216,6 +216,8 @@ export interface DadosPolitica {
 
 export interface ItemCatalogoApk {
   nome_arquivo: string;
+  extensao?: string;
+  tipo?: 'APK' | 'XAPK';
   tamanho_bytes: number;
   tamanho_mb: string;
   checksum_sha256: string;
@@ -319,7 +321,23 @@ export async function disparar_instalacao_catalogo_api(
     }),
   });
   if (!resposta.ok) {
-    throw new Error('Falha ao disparar instalação do APK');
+    throw new Error('Falha ao disparar instalação do pacote');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Remove permanentemente um pacote (APK ou XAPK) do servidor, liberando espaço em disco na VPS.
+ */
+export async function remover_aplicativo_catalogo_api(
+  nomeArquivo: string
+): Promise<{ sucesso: boolean; mensagem: string; mb_liberados?: string; bytes_liberados?: number }> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/aplicativos/${encodeURIComponent(nomeArquivo)}`, {
+    method: 'DELETE',
+  });
+  if (!resposta.ok) {
+    const dadosErro = await resposta.json().catch(() => ({}));
+    throw new Error(dadosErro.mensagem || 'Falha ao remover pacote do catálogo.');
   }
   return await resposta.json();
 }

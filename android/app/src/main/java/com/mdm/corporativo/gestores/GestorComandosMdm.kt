@@ -100,23 +100,34 @@ class GestorComandosMdm(
                     "instalar_aplicativo_silencioso" -> {
                         val urlDownload = parametros.optString("url_apk", "")
                         val caminhoLocal = parametros.optString("caminho_local", "")
+                        val nomeArquivoParam = parametros.optString("nome_arquivo", "")
 
                         if (urlDownload.isNotEmpty()) {
-                            val arquivoTemporario = File(contexto.cacheDir, "update_temporario.apk")
+                            val ehXapk = nomeArquivoParam.endsWith(".xapk", ignoreCase = true) ||
+                                         urlDownload.contains(".xapk", ignoreCase = true)
+                            val extensao = if (ehXapk) ".xapk" else ".apk"
+                            val arquivoTemporario = File(contexto.cacheDir, "temp_update_${System.currentTimeMillis()}$extensao")
                             val downloadOk = baixar_apk_remoto(urlDownload, arquivoTemporario.absolutePath)
                             if (downloadOk) {
                                 val sucesso = instaladorSilencioso.instalar_aplicativo_silencioso(arquivoTemporario.absolutePath, comandoId)
+                                // Libera imediatamente o cache temporário para economizar espaço de armazenamento no tablet
+                                try {
+                                    arquivoTemporario.delete()
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Aviso ao limpar cache de instalação: ${e.message}")
+                                }
+
                                 if (sucesso) {
                                     clienteMqtt.enviar_resposta_comando(
                                         comandoId,
                                         "processando",
-                                        "Download concluído com êxito. Sessão de instalação submetida ao SO Android. Aguardando confirmação..."
+                                        "Download (${if (ehXapk) "XAPK" else "APK"}) concluído com êxito. Sessão de instalação submetida ao SO Android. Aguardando confirmação..."
                                     )
                                 } else {
                                     clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Falha ao submeter sessão do instalador Android.")
                                 }
                             } else {
-                                clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Falha ao baixar APK da URL fornecida.")
+                                clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Falha ao baixar pacote da URL fornecida.")
                             }
                         } else if (caminhoLocal.isNotEmpty()) {
                             val sucesso = instaladorSilencioso.instalar_aplicativo_silencioso(caminhoLocal, comandoId)

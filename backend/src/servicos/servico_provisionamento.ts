@@ -49,7 +49,7 @@ export function gerar_payload_provisionamento_qr(
   if (hostEntrada.startsWith('http://') || hostEntrada.startsWith('https://')) {
     urlBase = hostEntrada.replace(/\/+$/, '');
   } else {
-    // Verifica se é formato de endereço IP (ex: 31.97.86.253 ou 31.97.86.253:8090)
+    // Verifica se é formato de endereço IP (ex: 192.168.1.100 ou 192.168.1.100:8090)
     const ehIp = /^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(hostEntrada);
     if (ehIp) {
       if (!hostEntrada.includes(':')) {

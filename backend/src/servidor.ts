@@ -28,6 +28,7 @@ import {
 import {
   listar_catalogo_aplicativos,
   fazer_upload_aplicativo,
+  remover_aplicativo_catalogo,
   disparar_instalacao_catalogo,
 } from './controladores/controlador_aplicativos';
 import { obter_dados_provisionamento_qr } from './controladores/controlador_provisionamento';
@@ -196,9 +197,10 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.put('/api/politicas', atualizar_politicas_globais_frota);
   app.put('/api/politicas/dispositivo/:id', atualizar_politicas_dispositivo);
 
-  // 6. Catálogo e Distribuição de Aplicativos APK (Sprint 2)
+  // 6. Catálogo e Distribuição de Aplicativos APK e XAPK
   app.get('/api/aplicativos', listar_catalogo_aplicativos);
   app.post('/api/aplicativos/upload', fazer_upload_aplicativo);
+  app.delete('/api/aplicativos/:nome_arquivo', remover_aplicativo_catalogo);
   app.post('/api/aplicativos/instalar', disparar_instalacao_catalogo);
 
   // 7. Provisionamento QR Code Android Enterprise

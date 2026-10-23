@@ -7,14 +7,17 @@ import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageInstaller
 import android.os.Build
+import android.os.Environment
 import android.util.Log
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.zip.ZipFile
 
 /**
- * Gestor responsável por realizar instalações e desinstalações silenciosas de APKs
+ * Gestor responsável por realizar instalações e desinstalações silenciosas de pacotes APK e XAPK
  * sem qualquer intervenção humana, utilizando as prerrogativas de Device Owner.
  */
 class GestorInstaladorSilencioso(private val contexto: Context) {
@@ -25,17 +28,29 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
     }
 
     /**
-     * Instala um pacote APK silenciosamente sem exigir confirmação do usuário.
-     * @param caminhoApk Caminho do arquivo APK no sistema de arquivos local.
+     * Instala um pacote (APK individual ou XAPK/Split APKs) silenciosamente sem exigir confirmação do usuário.
+     * @param caminhoPacote Caminho do arquivo APK ou XAPK no sistema de arquivos local.
      * @param comandoId Identificador do comando MQTT que disparou a instalação.
      */
-    fun instalar_aplicativo_silencioso(caminhoApk: String, comandoId: String? = null): Boolean {
-        val arquivo = File(caminhoApk)
+    fun instalar_aplicativo_silencioso(caminhoPacote: String, comandoId: String? = null): Boolean {
+        val arquivo = File(caminhoPacote)
         if (!arquivo.exists() || !arquivo.isFile) {
-            Log.e(TAG, "Arquivo APK não encontrado em: $caminhoApk")
+            Log.e(TAG, "Arquivo de pacote não encontrado em: $caminhoPacote")
             return false
         }
 
+        val ehXapk = arquivo.name.endsWith(".xapk", ignoreCase = true)
+        return if (ehXapk) {
+            instalar_xapk_silencioso(arquivo, comandoId)
+        } else {
+            instalar_apk_padrao_silencioso(arquivo, comandoId)
+        }
+    }
+
+    /**
+     * Instalação silenciosa de APK padrão independente.
+     */
+    private fun instalar_apk_padrao_silencioso(arquivo: File, comandoId: String? = null): Boolean {
         val instaladorPacotes = contexto.packageManager.packageInstaller
         val parametros = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         
@@ -66,10 +81,91 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
             sessao.commit(intentSender)
             sessao.close()
 
-            Log.i(TAG, "Sessão de instalação silenciosa submetida com sucesso! Sessão ID: $sessaoId, Comando ID: $comandoId")
+            Log.i(TAG, "Sessão APK silenciosa submetida com sucesso! Sessão ID: $sessaoId, Comando ID: $comandoId")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Falha na instalação silenciosa: ${e.message}", e)
+            Log.e(TAG, "Falha na instalação silenciosa APK: ${e.message}", e)
+            if (sessaoId != -1) {
+                try {
+                    instaladorPacotes.abandonSession(sessaoId)
+                } catch (ignored: Exception) {}
+            }
+            false
+        }
+    }
+
+    /**
+     * Instalação silenciosa de pacotes XAPK (arquivos compactados contendo múltiplos APKs split/bundle e OBBs).
+     */
+    private fun instalar_xapk_silencioso(arquivo: File, comandoId: String? = null): Boolean {
+        val instaladorPacotes = contexto.packageManager.packageInstaller
+        val parametros = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            parametros.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+        }
+
+        var sessaoId = -1
+        return try {
+            val zip = ZipFile(arquivo)
+            sessaoId = instaladorPacotes.createSession(parametros)
+            val sessao = instaladorPacotes.openSession(sessaoId)
+
+            var apksEncontrados = 0
+            val entries = zip.entries()
+
+            while (entries.hasMoreElements()) {
+                val entry = entries.nextElement()
+                val nome = entry.name
+
+                if (nome.endsWith(".apk", ignoreCase = true)) {
+                    val nomeSimples = File(nome).name
+                    val entrada = zip.getInputStream(entry)
+                    val saida = sessao.openWrite(nomeSimples, 0, entry.size)
+
+                    val buffer = ByteArray(65536)
+                    var bytesLidos: Int
+                    while (entrada.read(buffer).also { bytesLidos = it } != -1) {
+                        saida.write(buffer, 0, bytesLidos)
+                    }
+
+                    sessao.fsync(saida)
+                    entrada.close()
+                    saida.close()
+                    apksEncontrados++
+                    Log.i(TAG, "Submetido APK do pacote XAPK para a sessão: $nomeSimples (${entry.size} bytes)")
+                } else if (nome.endsWith(".obb", ignoreCase = true)) {
+                    try {
+                        val destinoObb = File(Environment.getExternalStorageDirectory(), nome)
+                        destinoObb.parentFile?.mkdirs()
+                        zip.getInputStream(entry).use { inStream ->
+                            FileOutputStream(destinoObb).use { outStream ->
+                                inStream.copyTo(outStream)
+                            }
+                        }
+                        Log.i(TAG, "Arquivo OBB do pacote XAPK extraído para: ${destinoObb.absolutePath}")
+                    } catch (eObb: Exception) {
+                        Log.w(TAG, "Aviso ao extrair OBB ($nome): ${eObb.message}")
+                    }
+                }
+            }
+            zip.close()
+
+            if (apksEncontrados == 0) {
+                Log.e(TAG, "Nenhum arquivo .apk encontrado dentro do pacote XAPK: ${arquivo.name}")
+                sessao.close()
+                instaladorPacotes.abandonSession(sessaoId)
+                return false
+            }
+
+            val intentSender = criar_intent_sender_callback(sessaoId, comandoId)
+            sessao.commit(intentSender)
+            sessao.close()
+
+            Log.i(TAG, "Sessão XAPK com $apksEncontrados APK(s) submetida com sucesso! Sessão ID: $sessaoId, Comando ID: $comandoId")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Falha na instalação silenciosa XAPK: ${e.message}", e)
             if (sessaoId != -1) {
                 try {
                     instaladorPacotes.abandonSession(sessaoId)
