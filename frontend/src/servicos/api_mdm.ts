@@ -287,22 +287,51 @@ export async function listar_catalogo_aplicativos_api(): Promise<{
 }
 
 /**
- * Realiza upload de um novo APK corporativo para o servidor.
+/**
+ * Realiza upload de um novo APK corporativo para o servidor com monitoramento de progresso real.
  */
-export async function fazer_upload_aplicativo_api(
-  arquivo: File
+export function fazer_upload_aplicativo_api(
+  arquivo: File,
+  onProgresso?: (porcentagem: number) => void
 ): Promise<{ sucesso: boolean; mensagem: string; aplicativo: any }> {
-  const formData = new FormData();
-  formData.append('arquivo', arquivo);
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const token = obter_token_armazenado();
 
-  const resposta = await fetchAutenticado(`${URL_BASE}/aplicativos/upload`, {
-    method: 'POST',
-    body: formData,
+    xhr.open('POST', `${URL_BASE}/aplicativos/upload`);
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+
+    if (xhr.upload && onProgresso) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const porcentagem = Math.round((e.loaded / e.total) * 100);
+          onProgresso(porcentagem);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      try {
+        const dados = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && dados.sucesso) {
+          resolve(dados);
+        } else {
+          reject(new Error(dados.mensagem || `Erro no upload (${xhr.status})`));
+        }
+      } catch (_) {
+        reject(new Error(`Falha no processamento da resposta do servidor: status ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Erro de conexão ao enviar o arquivo para o servidor.'));
+    xhr.ontimeout = () => reject(new Error('Tempo limite de upload esgotado pelo servidor.'));
+
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    xhr.send(formData);
   });
-  if (!resposta.ok) {
-    throw new Error('Falha ao enviar arquivo APK');
-  }
-  return await resposta.json();
 }
 
 /**

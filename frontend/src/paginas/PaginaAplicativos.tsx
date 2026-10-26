@@ -32,6 +32,7 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
   const [aplicativos, setAplicativos] = useState<ItemCatalogoApk[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [enviandoUpload, setEnviandoUpload] = useState<boolean>(false);
+  const [progressoUpload, setProgressoUpload] = useState<number | null>(null);
   const [removendo, setRemovendo] = useState<boolean>(false);
   const [mensagemStatus, setMensagemStatus] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
   const [dispositivoAlvo, setDispositivoAlvo] = useState<string>('todos');
@@ -82,10 +83,16 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
     }
 
     setEnviandoUpload(true);
-    setMensagemStatus(null);
+    setProgressoUpload(0);
+    setMensagemStatus({
+      tipo: 'sucesso',
+      texto: `Iniciando upload de ${arquivoSelecionado.name} (${(arquivoSelecionado.size / (1024 * 1024)).toFixed(1)} MB)...`,
+    });
 
     try {
-      const resp = await fazer_upload_aplicativo_api(arquivoSelecionado);
+      const resp = await fazer_upload_aplicativo_api(arquivoSelecionado, (p) => {
+        setProgressoUpload(p);
+      });
       setMensagemStatus({
         tipo: 'sucesso',
         texto: `✓ ${resp.mensagem}`,
@@ -98,6 +105,7 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
       });
     } finally {
       setEnviandoUpload(false);
+      setProgressoUpload(null);
       if (inputArquivoRef.current) inputArquivoRef.current.value = '';
     }
   }
@@ -225,7 +233,11 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
             }}
           >
             <UploadCloud size={16} />
-            {enviandoUpload ? 'Processando Upload...' : 'Fazer Upload (.apk / .xapk)'}
+            {enviandoUpload
+              ? progressoUpload !== null
+                ? `Enviando... ${progressoUpload}%`
+                : 'Processando Upload...'
+              : 'Fazer Upload (.apk / .xapk)'}
           </button>
 
           <input
