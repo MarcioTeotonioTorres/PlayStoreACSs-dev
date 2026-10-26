@@ -9,6 +9,10 @@ import android.content.pm.PackageInstaller
 import android.os.Build
 import android.os.Environment
 import android.util.Log
+import com.mdm.corporativo.servico.ServicoSegundoPlanoMdm
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -65,7 +69,9 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
             val sessao = instaladorPacotes.openSession(sessaoId)
 
             val entrada: InputStream = FileInputStream(arquivo)
-            val saida: OutputStream = sessao.openWrite("pacote_mdm", 0, arquivo.length())
+            // O nome do arquivo na sessão DEVE terminar com '.apk' para que o PackageManager do SO não o ignore!
+            // O padrão do Android para APK base de instalação completa é "base.apk"
+            val saida: OutputStream = sessao.openWrite("base.apk", 0, arquivo.length())
 
             val buffer = ByteArray(65536)
             var bytesLidos: Int
@@ -121,7 +127,8 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
                 if (nome.endsWith(".apk", ignoreCase = true)) {
                     val nomeSimples = File(nome).name
                     val entrada = zip.getInputStream(entry)
-                    val saida = sessao.openWrite(nomeSimples, 0, entry.size)
+                    val tamanhoBytes = if (entry.size > 0) entry.size else -1L
+                    val saida = sessao.openWrite(nomeSimples, 0, tamanhoBytes)
 
                     val buffer = ByteArray(65536)
                     var bytesLidos: Int
@@ -195,8 +202,9 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
      * Cria o IntentSender necessário para receber o status da operação do PackageInstaller.
      */
     private fun criar_intent_sender_callback(sessaoId: Int, comandoId: String? = null): IntentSender {
-        val intent = Intent(ACAO_RESULTADO_INSTALACAO).apply {
-            setPackage(contexto.packageName)
+        // PendingIntent explícito apontando diretamente para ReceptorResultadoInstalacao
+        val intent = Intent(contexto, ReceptorResultadoInstalacao::class.java).apply {
+            action = ACAO_RESULTADO_INSTALACAO
             putExtra("sessao_id", sessaoId)
             if (!comandoId.isNullOrEmpty()) {
                 putExtra("comando_id", comandoId)
@@ -213,49 +221,33 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
 }
 
 /**
- * Receptor de callback para o resultado da instalação de APK.
+ * Receptor de callback para o resultado da instalação de APK emitida pelo PackageInstaller do Android.
  */
 class ReceptorResultadoInstalacao : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val pendingResult = goAsync()
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         val mensagem = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
         val pacote = intent.getStringExtra(PackageInstaller.EXTRA_OTHER_PACKAGE_NAME)
         val comandoId = intent.getStringExtra("comando_id")
 
-        processar_resultado_instalacao(context, status, mensagem, pacote, comandoId)
-    }
+        Log.i("MDM_Instalador", "Callback de instalação recebido do SO Android: status=$status, pacote=$pacote, msg=$mensagem, comando=$comandoId")
 
-    fun processar_resultado_instalacao(
-        contexto: Context,
-        status: Int,
-        mensagem: String?,
-        pacote: String?,
-        comandoId: String?
-    ) {
-        when (status) {
-            PackageInstaller.STATUS_SUCCESS -> {
-                Log.i("MDM_Instalador", "Sucesso: Aplicativo instalado com êxito! Pacote: $pacote (Comando: $comandoId)")
+        // Notifica de forma assíncrona e segura via MQTT / HTTP sem violar regras de background service do Android 14/15
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                ServicoSegundoPlanoMdm.notificar_resultado_instalacao(
+                    context,
+                    status,
+                    mensagem,
+                    pacote,
+                    comandoId
+                )
+            } catch (t: Throwable) {
+                Log.e("MDM_Instalador", "Erro ao notificar resultado da instalação: ${t.message}", t)
+            } finally {
+                pendingResult.finish()
             }
-            PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                Log.w("MDM_Instalador", "Aviso: Ação do usuário requisitada inesperadamente.")
-            }
-            else -> {
-                Log.e("MDM_Instalador", "Falha na instalação ($status): $mensagem (Comando: $comandoId)")
-            }
-        }
-
-        // Repassa o resultado com comandoId para o serviço em segundo plano notificar o broker MQTT
-        try {
-            val intentServico = Intent(contexto, com.mdm.corporativo.servico.ServicoSegundoPlanoMdm::class.java).apply {
-                action = com.mdm.corporativo.servico.ServicoSegundoPlanoMdm.ACAO_RESULTADO_INSTALACAO_NOTIFICAR
-                putExtra("comando_id", comandoId)
-                putExtra("status", status)
-                putExtra("mensagem", mensagem)
-                putExtra("pacote", pacote)
-            }
-            contexto.startService(intentServico)
-        } catch (e: Exception) {
-            Log.e("MDM_Instalador", "Erro ao repassar status de instalação ao serviço MDM: ${e.message}", e)
         }
     }
 }

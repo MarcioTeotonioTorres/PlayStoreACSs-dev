@@ -107,7 +107,11 @@
         <!-- Receptor de Callback da Instalação Silenciosa de Pacotes -->
         <receiver
             android:name=".gestores.ReceptorResultadoInstalacao"
-            android:exported="false" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.mdm.corporativo.ACAO_RESULTADO_INSTALACAO" />
+            </intent-filter>
+        </receiver>
 
         <!-- Serviço em Segundo Plano Persistente para Telemetria e Comandos MQTT -->
         <service

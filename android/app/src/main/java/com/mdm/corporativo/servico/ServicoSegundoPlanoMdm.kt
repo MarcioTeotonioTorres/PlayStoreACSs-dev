@@ -41,6 +41,68 @@ class ServicoSegundoPlanoMdm : Service() {
         const val ACAO_FORCAR_SINCRONIZACAO = "com.mdm.corporativo.FORCAR_SINCRONIZACAO"
         const val ACAO_RESULTADO_INSTALACAO_NOTIFICAR = "com.mdm.corporativo.ACAO_RESULTADO_INSTALACAO_NOTIFICAR"
 
+        @Volatile
+        var instanciaAtiva: ServicoSegundoPlanoMdm? = null
+
+        /**
+         * Notifica o resultado final de instalação via MQTT e HTTP sem depender de startService em background.
+         */
+        fun notificar_resultado_instalacao(
+            contexto: Context,
+            status: Int,
+            mensagem: String?,
+            pacote: String?,
+            comandoId: String?
+        ) {
+            val sucesso = (status == android.content.pm.PackageInstaller.STATUS_SUCCESS)
+            val statusComando = if (sucesso) "executado" else "falha"
+            val descricao = if (sucesso) {
+                "Aplicativo ${pacote ?: "desconhecido"} instalado e confirmado com êxito pelo sistema operacional Android!"
+            } else {
+                "Falha na instalação ($status): ${mensagem ?: "Erro desconhecido durante validação/gravação do pacote pelo SO"}"
+            }
+
+            Log.i(TAG, "Notificando resultado de instalação: comando=$comandoId, status=$statusComando, msg=$descricao")
+
+            instanciaAtiva?.let { servico ->
+                servico.escopoServico.launch(Dispatchers.IO) {
+                    if (!comandoId.isNullOrEmpty() && servico::clienteMqtt.isInitialized) {
+                        servico.clienteMqtt.enviar_resposta_comando(comandoId, statusComando, descricao)
+                    }
+                    if (sucesso) {
+                        delay(1500)
+                        servico.enviar_telemetria_avulsa_agora()
+                    }
+                }
+            } ?: run {
+                // Fallback autônomo via HTTP direto caso o serviço tenha sido reciclado
+                if (!comandoId.isNullOrEmpty()) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val prefs = contexto.getSharedPreferences("telemetria_mdm", Context.MODE_PRIVATE)
+                            val servidorApi = prefs.getString("servidor_api", "https://mdmplaystoreacs.duckdns.org/api") ?: "https://mdmplaystoreacs.duckdns.org/api"
+                            val sn = GestorTelemetria(contexto).obter_numero_serie()
+                            val url = java.net.URL("$servidorApi/dispositivos/$sn/comandos/$comandoId/resposta")
+                            val conexao = url.openConnection() as java.net.HttpURLConnection
+                            conexao.requestMethod = "POST"
+                            conexao.setRequestProperty("Content-Type", "application/json")
+                            conexao.doOutput = true
+                            val jsonCorpo = org.json.JSONObject().apply {
+                                put("status", statusComando)
+                                put("mensagem", descricao)
+                            }
+                            conexao.outputStream.use { os ->
+                                os.write(jsonCorpo.toString().toByteArray())
+                            }
+                            conexao.responseCode
+                        } catch (t: Throwable) {
+                            Log.e(TAG, "Aviso no fallback HTTP de resposta de comando: ${t.message}")
+                        }
+                    }
+                }
+            }
+        }
+
         /**
          * Inicializa o serviço persistente de forma segura e compatível com todas as versões do Android.
          */
@@ -87,6 +149,7 @@ class ServicoSegundoPlanoMdm : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        instanciaAtiva = this
         Log.i(TAG, "Inicializando Serviço MDM Persistente...")
 
         try {
@@ -202,6 +265,9 @@ class ServicoSegundoPlanoMdm : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        if (instanciaAtiva == this) {
+            instanciaAtiva = null
+        }
         super.onDestroy()
         try {
             parar_ciclo_telemetria()
