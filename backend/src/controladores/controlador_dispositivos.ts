@@ -185,7 +185,7 @@ export async function obter_detalhes_dispositivo(
   try {
     const { id } = requisicao.params;
 
-    const sqlDispositivo = `SELECT * FROM dispositivos WHERE id = $1 OR numero_serie = $1;`;
+    const sqlDispositivo = `SELECT * FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
     const resDispositivo = await executar_consulta(sqlDispositivo, [id]);
 
     if (resDispositivo.rows.length === 0) {

@@ -233,11 +233,12 @@ export function configurar_rotas_api(app: FastifyInstance): void {
       const nomeBruto = requisicao.params.nomeArquivo;
       const nomeSeguro = path.basename(nomeBruto);
 
-      // Bloqueia qualquer tentativa de escape de diretório ou arquivo não-APK
-      if (nomeSeguro !== nomeBruto || !nomeSeguro.toLowerCase().endsWith('.apk')) {
+      // Bloqueia qualquer tentativa de escape de diretório ou arquivo não autorizado
+      const extensao = path.extname(nomeSeguro).toLowerCase();
+      if (nomeSeguro !== nomeBruto || (extensao !== '.apk' && extensao !== '.xapk')) {
         resposta.status(400).send({
           sucesso: false,
-          mensagem: 'Nome de arquivo inválido ou requisição de arquivo não autorizada.',
+          mensagem: 'Nome de arquivo inválido ou requisição de arquivo não autorizada. Permitidos apenas .apk e .xapk.',
         });
         return;
       }
@@ -255,7 +256,8 @@ export function configurar_rotas_api(app: FastifyInstance): void {
       for (const caminho of tentativas) {
         if (fs.existsSync(caminho) && fs.statSync(caminho).isFile()) {
           const stat = fs.statSync(caminho);
-          resposta.header('Content-Type', 'application/vnd.android.package-archive');
+          const tipoConteudo = extensao === '.xapk' ? 'application/octet-stream' : 'application/vnd.android.package-archive';
+          resposta.header('Content-Type', tipoConteudo);
           resposta.header('Content-Disposition', `attachment; filename="${nomeSeguro}"`);
           resposta.header('Content-Length', stat.size);
           return resposta.send(fs.createReadStream(caminho));
