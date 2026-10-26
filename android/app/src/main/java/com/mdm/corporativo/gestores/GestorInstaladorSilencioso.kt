@@ -9,6 +9,9 @@ import android.content.pm.PackageInstaller
 import android.os.Build
 import android.os.Environment
 import android.util.Log
+import android.app.admin.DevicePolicyManager
+import android.os.UserManager
+import com.mdm.corporativo.receptor.ReceptorAdministradorDispositivo
 import com.mdm.corporativo.servico.ServicoSegundoPlanoMdm
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,11 +35,29 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
     }
 
     /**
+     * Garante de forma defensiva que a restrição de SO DISALLOW_INSTALL_APPS esteja limpa,
+     * pois no Android 14/15 ela bloqueia PackageInstaller.createSession mesmo para o Device Owner.
+     */
+    private fun garantir_liberacao_instalador() {
+        try {
+            val dpm = contexto.getSystemService(DevicePolicyManager::class.java)
+            val admin = ReceptorAdministradorDispositivo.obter_componente_administrador(contexto)
+            if (dpm != null && dpm.isDeviceOwnerApp(contexto.packageName)) {
+                dpm.clearUserRestriction(admin, UserManager.DISALLOW_INSTALL_APPS)
+                Log.d(TAG, "Garantido: restrição DISALLOW_INSTALL_APPS limpa para permitir PackageInstaller.")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Aviso ao limpar restrição de instalação: ${e.message}")
+        }
+    }
+
+    /**
      * Instala um pacote (APK individual ou XAPK/Split APKs) silenciosamente sem exigir confirmação do usuário.
      * @param caminhoPacote Caminho do arquivo APK ou XAPK no sistema de arquivos local.
      * @param comandoId Identificador do comando MQTT que disparou a instalação.
      */
     fun instalar_aplicativo_silencioso(caminhoPacote: String, comandoId: String? = null): Boolean {
+        garantir_liberacao_instalador()
         val arquivo = File(caminhoPacote)
         if (!arquivo.exists() || !arquivo.isFile) {
             Log.e(TAG, "Arquivo de pacote não encontrado em: $caminhoPacote")
@@ -55,6 +76,7 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
      * Instalação silenciosa de APK padrão independente.
      */
     private fun instalar_apk_padrao_silencioso(arquivo: File, comandoId: String? = null): Boolean {
+        garantir_liberacao_instalador()
         val instaladorPacotes = contexto.packageManager.packageInstaller
         val parametros = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         
@@ -104,6 +126,7 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
      * Instalação silenciosa de pacotes XAPK (arquivos compactados contendo múltiplos APKs split/bundle e OBBs).
      */
     private fun instalar_xapk_silencioso(arquivo: File, comandoId: String? = null): Boolean {
+        garantir_liberacao_instalador()
         val instaladorPacotes = contexto.packageManager.packageInstaller
         val parametros = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         

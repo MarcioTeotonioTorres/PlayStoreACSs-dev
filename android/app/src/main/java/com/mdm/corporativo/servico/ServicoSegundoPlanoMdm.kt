@@ -172,6 +172,7 @@ class ServicoSegundoPlanoMdm : Service() {
         try {
             gestorPoliticas = GestorPoliticasDispositivo(this)
             gestorPoliticas.liberar_depuracao_adb()
+            gestorPoliticas.definir_bloqueio_instalacao_aplicativos(true)
             instaladorSilencioso = GestorInstaladorSilencioso(this)
             gestorTelemetria = GestorTelemetria(this)
 

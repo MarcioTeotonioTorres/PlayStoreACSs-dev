@@ -4,7 +4,7 @@ title Provisionamento Automático de Tablet MDM - PlayServiceACSs
 color 0A
 
 echo ===============================================================================
-echo     PROVISIONAMENTO AUTOMÁTICO ADB - MDM CORPORATIVO (v1.2.1)
+echo     PROVISIONAMENTO AUTOMÁTICO ADB - MDM CORPORATIVO (v1.2.2)
 echo     Perfil Estrito ACS: Chrome, e-SUS, WhatsApp, Agenda e Relogio
 echo ===============================================================================
 echo.
@@ -30,7 +30,7 @@ echo [1/6] Verificando conexao com o tablet...
 echo Conectado com sucesso!
 echo.
 
-echo [2/6] Instalando o agente MDM Corporativo v1.2.1...
+echo [2/6] Instalando o agente MDM Corporativo v1.2.2...
 %ADB% install -r "%~dp0backend\public\apk\mdm-dpc.apk"
 if %ERRORLEVEL% NEQ 0 (
     echo.
