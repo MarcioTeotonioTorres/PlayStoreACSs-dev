@@ -5,6 +5,7 @@ color 0A
 
 echo ===============================================================================
 echo     PROVISIONAMENTO AUTOMÁTICO ADB - MDM CORPORATIVO (v1.2.1)
+echo     Perfil Estrito ACS: Chrome, e-SUS, WhatsApp, Agenda e Relogio
 echo ===============================================================================
 echo.
 echo Requisitos antes de iniciar:
@@ -23,13 +24,13 @@ if not exist %ADB% (
     exit /b 1
 )
 
-echo [1/5] Verificando conexao com o tablet...
+echo [1/6] Verificando conexao com o tablet...
 %ADB% wait-for-device
 %ADB% devices
 echo Conectado com sucesso!
 echo.
 
-echo [2/5] Instalando o agente MDM Corporativo v1.2.1...
+echo [2/6] Instalando o agente MDM Corporativo v1.2.1...
 %ADB% install -r "%~dp0backend\public\apk\mdm-dpc.apk"
 if %ERRORLEVEL% NEQ 0 (
     echo.
@@ -41,7 +42,7 @@ if %ERRORLEVEL% NEQ 0 (
 echo APK instalado com sucesso!
 echo.
 
-echo [3/5] Promovendo o aplicativo a Device Owner (Proprietario do Dispositivo)...
+echo [3/6] Promovendo o aplicativo a Device Owner (Proprietario do Dispositivo)...
 %ADB% shell dpm set-device-owner com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo
 if %ERRORLEVEL% NEQ 0 (
     echo.
@@ -53,23 +54,83 @@ if %ERRORLEVEL% NEQ 0 (
 echo Device Owner ativado com sucesso!
 echo.
 
-echo [4/5] Otimizando bateria e liberando permissoes avancadas...
+echo [4/6] Otimizando bateria e liberando permissoes avancadas...
 %ADB% shell dumpsys deviceidle whitelist +com.mdm.corporativo > nul 2>&1
 %ADB% shell appops set com.mdm.corporativo GET_USAGE_STATS allow > nul 2>&1
 echo Permissoes de telemetria e bateria concluidas!
 echo.
 
-echo [5/5] Inicializando o agente MDM na tela do tablet...
+echo [5/6] Aplicando politica estrita de aplicativos autorizados...
+echo       Ocultando YouTube, Play Store, Jogos e bloatware de fabrica...
+
+set ADMIN=com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo
+
+:: 1. Ocultar bloatware, redes sociais, lojas e apps recreativos
+for %%P in (
+    com.google.android.youtube
+    com.android.vending
+    com.google.android.apps.photos
+    com.google.android.gm
+    com.google.android.apps.tachyon
+    com.google.android.videos
+    com.google.android.apps.docs
+    com.google.android.apps.youtube.music
+    com.google.android.googlequicksearchbox
+    com.google.android.apps.magazines
+    com.google.android.play.games
+    com.google.android.apps.podcasts
+    com.google.android.feedback
+    com.tcl.live
+    com.tcl.community
+    com.tcl.appstore
+    com.tcl.usercenter
+    com.tcl.browser
+    com.tcl.smartswitch
+    com.tcl.gamecenter
+    com.netflix.mediaclient
+    com.facebook.katana
+    com.facebook.services
+    com.facebook.system
+    com.instagram.android
+    com.zhiliaoapp.musically
+) do (
+    %ADB% shell dpm set-application-hidden %ADMIN% %%P true > nul 2>&1
+)
+
+:: 2. Assegurar que os aplicativos autorizados estejam 100%% liberados e visíveis
+for %%P in (
+    com.android.chrome
+    br.gov.saude.acs
+    br.gov.saude.ad2
+    com.whatsapp
+    com.whatsapp.w4b
+    com.google.android.calendar
+    com.android.calendar
+    com.tcl.calendar
+    com.google.android.deskclock
+    com.android.deskclock
+    com.tcl.deskclock
+    com.mdm.corporativo
+) do (
+    %ADB% shell dpm set-application-hidden %ADMIN% %%P false > nul 2>&1
+)
+
+echo Politica estrita aplicada com sucesso!
+echo Apenas Chrome, e-SUS, WhatsApp, Agenda e Relogio ficarao visiveis ao usuario.
+echo.
+
+echo [6/6] Inicializando o agente MDM na tela do tablet...
 %ADB% shell am start -n com.mdm.corporativo/.ui.AtividadeProvisionamentoPrincipal > nul 2>&1
 echo.
 
 echo ===============================================================================
 echo   PARABENS! TABLET PROVISIONADO COM SUCESSO!
 echo ===============================================================================
-echo   O tablet ja esta registrado como Device Owner e conectado a VPS.
+echo   O tablet ja esta configurado como Device Owner, blindado e conectado a VPS.
+echo   - Apps Bloqueados: YouTube, Loja Play Store, Fotos, Jogos, etc.
+echo   - Apps Permitidos: Google Chrome, e-SUS, WhatsApp, Agenda e Relogio.
+echo.
 echo   A partir de agora, o cabo USB NAO e mais necessario.
-echo   Todos os apps (e-SUS Territorio, e-SUS AD) e politicas podem ser
-echo   instalados e controlados remotamente pelo Painel Web.
 echo ===============================================================================
 echo.
 pause
