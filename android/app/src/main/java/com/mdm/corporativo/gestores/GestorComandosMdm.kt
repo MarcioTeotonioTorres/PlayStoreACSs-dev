@@ -181,6 +181,7 @@ class GestorComandosMdm(
 
                         val bloquearInstalacaoApps = parametros.optBoolean("bloquear_instalacao_apps", true)
                         val bloquearBluetooth = parametros.optBoolean("bloquear_bluetooth", false)
+                        val permitirResetFabrica = parametros.optBoolean("permitir_reset_fabrica", false)
 
                         val sucesso = gestorPoliticas.aplicar_politicas_sistema_completas(
                             listaPacotes, 
@@ -189,12 +190,13 @@ class GestorComandosMdm(
                             permitirCamera,
                             bloquearUsb,
                             bloquearInstalacaoApps,
-                            bloquearBluetooth
+                            bloquearBluetooth,
+                            permitirResetFabrica
                         )
                         clienteMqtt.enviar_resposta_comando(
                             comandoId,
                             if (sucesso) "executado" else "falha",
-                            "Políticas granulares aplicadas: ${listaPacotes.size} apps ocultos, APKs externos ${if (bloquearInstalacaoApps) "bloqueados" else "liberados"}, Bluetooth ${if (bloquearBluetooth) "bloqueado" else "liberado"}."
+                            "Políticas granulares aplicadas: ${listaPacotes.size} apps ocultos, APKs externos ${if (bloquearInstalacaoApps) "bloqueados" else "liberados"}, Bluetooth ${if (bloquearBluetooth) "bloqueado" else "liberado"}, Reset de Fábrica ${if (permitirResetFabrica) "liberado" else "bloqueado"}."
                         )
                     }
 

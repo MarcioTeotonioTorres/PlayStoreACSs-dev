@@ -12,6 +12,7 @@ import {
   Smartphone,
   Zap,
   FolderOpen,
+  Download,
 } from 'lucide-react';
 
 export const PaginaProvisionamento: React.FC = () => {
@@ -26,7 +27,9 @@ export const PaginaProvisionamento: React.FC = () => {
   }
 
   const comandoVerificar = 'adb devices';
-  const comandoInstalar = 'adb install -r ./backend/public/apk/mdm-dpc.apk';
+  const comandoScriptAutomatico = '.\\provisionar_novo_tablet.bat';
+  const comandoInstalarProjeto = 'adb install -r backend\\public\\apk\\mdm-dpc.apk';
+  const comandoInstalarBaixado = 'adb install -r mdm-dpc.apk';
   const comandoPromover = 'adb shell dpm set-device-owner com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo';
   const comandoBateria = 'adb shell dumpsys deviceidle whitelist +com.mdm.corporativo';
   const comandoUso = 'adb shell appops set com.mdm.corporativo GET_USAGE_STATS allow';
@@ -136,22 +139,19 @@ export const PaginaProvisionamento: React.FC = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', lineHeight: '1.6' }}>
             <p style={{ color: 'var(--texto-secundario)' }}>
-              O pacote APK oficial compilado para produção fica localizado na pasta de distribuição do projeto:
+              O pacote APK oficial compilado para produção fica disponível diretamente para download ou no repositório:
             </p>
 
-            <div
-              className="texto-mono"
-              style={{
-                background: 'var(--fundo-base)',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--borda-suave)',
-                color: '#93c5fd',
-                fontSize: '11px',
-                wordBreak: 'break-all',
-              }}
-            >
-              backend/public/apk/mdm-dpc.apk
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <a
+                href="/apk/mdm-dpc.apk"
+                download="mdm-dpc.apk"
+                className="btn btn-primario"
+                style={{ padding: '8px 14px', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Download size={14} /> Baixar mdm-dpc.apk
+              </a>
+              <span style={{ fontSize: '11px', color: 'var(--texto-secundario)' }}>ou no projeto: <code>backend\public\apk\mdm-dpc.apk</code></span>
             </div>
 
             <div
@@ -189,6 +189,45 @@ export const PaginaProvisionamento: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
           <Terminal size={24} color="#10b981" />
           <h3 style={{ fontSize: '18px', fontWeight: 700 }}>3. Sequência de Comandos ADB (Terminal Windows)</h3>
+        </div>
+
+        {/* Banner Método Automatizado 1-Clique */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Zap size={18} color="#34d399" />
+              <strong style={{ color: '#34d399', fontSize: '14px' }}>Método 1: Provisionamento Automático em 1 Clique (Recomendado)</strong>
+            </div>
+            <button
+              className="btn btn-primario"
+              style={{ fontSize: '11px', padding: '4px 10px', background: '#10b981', borderColor: '#10b981' }}
+              onClick={() => copiarParaTransferencia(comandoScriptAutomatico, 'scriptAuto')}
+            >
+              {copiadoId === 'scriptAuto' ? <><Check size={12} color="#fff" /> Copiado!</> : <><Copy size={12} /> Copiar</>}
+            </button>
+          </div>
+          <p style={{ fontSize: '12px', color: '#e2e8f0', margin: 0 }}>
+            Se você está na pasta do projeto no computador, basta executar este script no terminal (ou dar dois cliques nele no Windows). Ele instala o APK, ativa o Device Owner, concede permissões e oculta bloatware automaticamente:
+          </p>
+          <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '8px 12px', borderRadius: '6px', color: '#34d399', fontSize: '13px', margin: 0 }}>
+            {comandoScriptAutomatico}
+          </pre>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <Terminal size={18} color="#94a3b8" />
+          <strong style={{ fontSize: '14px', color: '#cbd5e1' }}>Método 2: Comandos Manuais Passo a Passo</strong>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -238,7 +277,7 @@ export const PaginaProvisionamento: React.FC = () => {
               <button
                 className="btn btn-secundario"
                 style={{ fontSize: '11px', padding: '4px 10px' }}
-                onClick={() => copiarParaTransferencia(comandoInstalar, 'passoB')}
+                onClick={() => copiarParaTransferencia(comandoInstalarProjeto, 'passoB')}
               >
                 {copiadoId === 'passoB' ? (
                   <>
@@ -251,9 +290,28 @@ export const PaginaProvisionamento: React.FC = () => {
                 )}
               </button>
             </div>
-            <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '10px 14px', borderRadius: '6px', color: '#93c5fd', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-              {comandoInstalar}
+
+            <p style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '4px' }}>
+              <strong>Na pasta do projeto Windows:</strong>
+            </p>
+            <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '10px 14px', borderRadius: '6px', color: '#93c5fd', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginBottom: '10px' }}>
+              {comandoInstalarProjeto}
             </pre>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span style={{ fontSize: '12px', color: '#cbd5e1' }}><strong>Ou se você baixou o APK avulso pelo botão acima:</strong></span>
+              <button
+                className="btn btn-secundario"
+                style={{ fontSize: '10px', padding: '2px 8px' }}
+                onClick={() => copiarParaTransferencia(comandoInstalarBaixado, 'passoBaixado')}
+              >
+                {copiadoId === 'passoBaixado' ? <><Check size={10} color="#34d399" /> Copiado!</> : <><Copy size={10} /> Copiar</>}
+              </button>
+            </div>
+            <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '8px 12px', borderRadius: '6px', color: '#93c5fd', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+              {comandoInstalarBaixado}
+            </pre>
+
             <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', marginTop: '6px' }}>
               Retorno esperado no terminal: <strong style={{ color: '#34d399' }}>Success</strong>. O parâmetro <code>-r</code> reinstala e preserva os dados se já houver uma versão anterior.
             </p>

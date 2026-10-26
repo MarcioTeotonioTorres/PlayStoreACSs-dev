@@ -380,10 +380,10 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
         return try {
             if (!verificar_se_e_device_owner()) return false
             if (bloquear) {
-                // Proíbe instalação a partir de fontes desconhecidas (arquivos APK locais, navegadores, bluetooth)
+                // Proíbe instalação a partir de fontes desconhecidas (arquivos APK locais, navegadores, arquivos recebidos por USB/Bluetooth)
                 gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES)
-                // Proíbe instalação de aplicativos pelo usuário (lojas alternativas, sideload, etc.)
-                gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_APPS)
+                // Garante que o PackageInstaller do Device Owner nunca seja bloqueado por DISALLOW_INSTALL_APPS
+                gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_APPS)
             } else {
                 gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES)
                 gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_INSTALL_APPS)
@@ -442,10 +442,14 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
         permitirCamera: Boolean,
         bloquearUsb: Boolean,
         bloquearInstalacaoApps: Boolean = true,
-        bloquearBluetooth: Boolean = false
+        bloquearBluetooth: Boolean = false,
+        permitirResetFabrica: Boolean = false
     ): Boolean {
         return try {
             aplicar_politicas_sistema()
+
+            // Define o bloqueio/liberação do reset de fábrica conforme a política
+            definir_bloqueio_reset_fabrica(!permitirResetFabrica)
 
             // Lista de aplicativos comuns do MDM que devem ser restaurados se não estiverem na lista de ocultos
             val aplicativosComuns = listOf(
