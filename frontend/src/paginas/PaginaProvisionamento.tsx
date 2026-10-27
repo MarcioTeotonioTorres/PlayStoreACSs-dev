@@ -34,15 +34,31 @@ export const PaginaProvisionamento: React.FC = () => {
   const comandoBateria = 'adb shell dumpsys deviceidle whitelist +com.mdm.corporativo';
   const comandoUso = 'adb shell appops set com.mdm.corporativo GET_USAGE_STATS allow';
   const comandoCompilar = 'cd android && .\\gradlew assembleRelease';
+  const comandoBloatwareExemplo = 'adb shell dpm set-application-hidden com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo com.google.android.youtube true';
 
   return (
     <div className="pagina-conteudo">
       {/* Cabeçalho da Página */}
       <div className="pagina-cabecalho">
         <div>
-          <h2 className="pagina-titulo">Instalação e Provisionamento via ADB (Device Owner)</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <h2 className="pagina-titulo" style={{ margin: 0 }}>Instalação e Provisionamento via ADB (Device Owner)</h2>
+            <span
+              style={{
+                background: 'rgba(16, 185, 129, 0.2)',
+                color: '#34d399',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 700,
+              }}
+            >
+              Versão Estável v1.2.3
+            </span>
+          </div>
           <p className="pagina-subtitulo">
-            Guia completo e passo a passo para registrar os tablets corporativos como Proprietário do Dispositivo (Device Owner) via conexão USB.
+            Guia completo e passo a passo para registrar os tablets corporativos como Proprietário do Dispositivo (Device Owner) via conexão USB. Totalmente compatível com Android 8 até <strong>Android 15 (API 35)</strong>.
           </p>
         </div>
       </div>
@@ -416,6 +432,39 @@ export const PaginaProvisionamento: React.FC = () => {
             </p>
           </div>
 
+          {/* Passo F */}
+          <div style={{ background: 'var(--fundo-elevado)', padding: '16px 20px', borderRadius: '10px', border: '1px solid var(--borda-suave)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ background: 'var(--primaria)', color: '#fff', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
+                  F
+                </span>
+                <strong style={{ fontSize: '14px', color: '#fff' }}>Ocultação de Bloatware & Perfil Estrito ACS (Opcional se usar o script)</strong>
+              </div>
+              <button
+                className="btn btn-secundario"
+                style={{ fontSize: '11px', padding: '4px 10px' }}
+                onClick={() => copiarParaTransferencia(comandoBloatwareExemplo, 'passoF')}
+              >
+                {copiadoId === 'passoF' ? (
+                  <>
+                    <Check size={12} color="#34d399" /> Copiado!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} /> Copiar
+                  </>
+                )}
+              </button>
+            </div>
+            <pre className="texto-mono" style={{ background: 'var(--fundo-base)', padding: '10px 14px', borderRadius: '6px', color: '#93c5fd', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+              {comandoBloatwareExemplo}
+            </pre>
+            <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', marginTop: '6px' }}>
+              💡 <em>O script automático <code>.\provisionar_novo_tablet.bat</code> já oculta mais de 25 apps recreativos de fábrica (YouTube, Play Store, Fotos, Jogos) e assegura que os aplicativos autorizados de saúde e trabalho (Chrome, e-SUS, WhatsApp, Agenda, Relógio) fiquem 100% liberados e visíveis na gaveta.</em>
+            </p>
+          </div>
+
         </div>
       </div>
 
@@ -449,7 +498,26 @@ export const PaginaProvisionamento: React.FC = () => {
           </div>
 
           <div style={{ background: 'var(--fundo-elevado)', padding: '16px', borderRadius: '8px', border: '1px solid var(--borda-suave)' }}>
+            <h5 style={{ color: '#fbbf24', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
+              Instalação Remota: "INSTALL_FAILED_MISSING_SPLIT" (ex: e-SUS Território)
+            </h5>
+            <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', lineHeight: '1.5' }}>
+              <strong>Causa:</strong> O arquivo <code>.apk</code> enviado é apenas a fatia base de um App Bundle do Google Play e não contém os recursos de idioma e densidade de tela.<br />
+              <strong>Solução:</strong> Faça o upload do aplicativo no formato completo <strong>.xapk</strong> na aba <em>Catálogo de Aplicativos</em>. Nosso instalador silencioso descompacta e injeta todos os splits simultaneamente no Android.
+            </p>
+          </div>
+
+          <div style={{ background: 'var(--fundo-elevado)', padding: '16px', borderRadius: '8px', border: '1px solid var(--borda-suave)' }}>
             <h5 style={{ color: '#38bdf8', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
+              Compatibilidade Total com Android 15 (TCL 8493A)
+            </h5>
+            <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', lineHeight: '1.5' }}>
+              Na versão <strong>v1.2.3</strong>, o agente MDM possui a permissão <code>QUERY_ALL_PACKAGES</code> e rotina automática de desbloqueio de visibilidade. Aplicativos externos (como WhatsApp e e-SUS) aparecem imediatamente na gaveta e são reportados em tempo real na telemetria.
+            </p>
+          </div>
+
+          <div style={{ background: 'var(--fundo-elevado)', padding: '16px', borderRadius: '8px', border: '1px solid var(--borda-suave)' }}>
+            <h5 style={{ color: '#34d399', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
               Como validar se deu certo no tablet?
             </h5>
             <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', lineHeight: '1.5' }}>
@@ -460,7 +528,7 @@ export const PaginaProvisionamento: React.FC = () => {
 
           <div style={{ background: 'var(--fundo-elevado)', padding: '16px', borderRadius: '8px', border: '1px solid var(--borda-suave)' }}>
             <h5 style={{ color: '#a78bfa', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
-              Instalação Silenciosa dos demais APKs
+              Instalação Silenciosa dos demais APKs e XAPKs
             </h5>
             <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', lineHeight: '1.5' }}>
               Após o Passo C, você <strong>não precisa mais do cabo USB</strong> para instalar outros apps corporativos. Basta ir na aba <strong>Catálogo de Apps</strong> deste painel e clicar em "Instalar na Frota". O DPC instala em segundo plano sem confirmação do usuário.

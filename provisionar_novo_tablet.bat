@@ -31,10 +31,20 @@ echo Conectado com sucesso!
 echo.
 
 echo [2/6] Instalando o agente MDM Corporativo v1.2.3...
-%ADB% install -r "%~dp0backend\public\apk\mdm-dpc.apk"
+set APK_ALVO="%~dp0backend\public\apk\mdm-dpc.apk"
+if not exist %APK_ALVO% (
+    if exist "%~dp0apk\mdm-dpc.apk" (
+        set APK_ALVO="%~dp0apk\mdm-dpc.apk"
+    ) else if exist "%~dp0mdm-dpc.apk" (
+        set APK_ALVO="%~dp0mdm-dpc.apk"
+    )
+)
+
+%ADB% install -r %APK_ALVO%
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERRO] Falha ao instalar o APK mdm-dpc.apk.
+    echo Caminho testado: %APK_ALVO%
     echo Verifique se a tela do tablet esta desbloqueada e se aceitou a depuracao USB.
     pause
     exit /b 1
