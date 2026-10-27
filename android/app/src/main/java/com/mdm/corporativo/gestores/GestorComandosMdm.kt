@@ -277,36 +277,88 @@ class GestorComandosMdm(
     }
 
     /**
-     * Realiza o download seguro do APK para um arquivo local temporário.
+     * Realiza o download seguro e resiliente do APK/XAPK para um arquivo local temporário.
+     * Suporta arquivos grandes (150MB+), conexões lentas (timeout de 5min) e redirecionamentos HTTP/HTTPS.
      */
     fun baixar_apk_remoto(urlApk: String, destinoLocal: String): Boolean {
-        return try {
-            val url = URL(urlApk)
-            val conexao = url.openConnection() as HttpURLConnection
-            conexao.connectTimeout = 15000
-            conexao.readTimeout = 30000
-            conexao.requestMethod = "GET"
-            conexao.connect()
+        var urlAtual = urlApk.trim()
+        var redirecionamentos = 0
+        val maxRedirecionamentos = 5
 
-            if (conexao.responseCode != HttpURLConnection.HTTP_OK) {
-                Log.e(TAG, "Falha no download do APK. Código HTTP: ${conexao.responseCode}")
+        while (redirecionamentos < maxRedirecionamentos) {
+            try {
+                // Higieniza a URL caso contenha espaços ou caracteres não-ASCII
+                val uriValida = try {
+                    val rawUri = java.net.URI(urlAtual)
+                    if (rawUri.toASCIIString() != urlAtual) rawUri.toASCIIString() else urlAtual
+                } catch (_: Exception) {
+                    urlAtual.replace(" ", "%20")
+                }
+
+                val url = URL(uriValida)
+                val conexao = url.openConnection() as HttpURLConnection
+                conexao.instanceFollowRedirects = true
+                conexao.connectTimeout = 30000 // 30s para handshake
+                conexao.readTimeout = 300000   // 5 minutos para pacotes pesados (ex: WhatsApp 147MB, e-SUS 80MB)
+                conexao.requestMethod = "GET"
+                conexao.setRequestProperty("User-Agent", "MDM-Corporativo-DPC/1.2.2")
+                conexao.connect()
+
+                val codigoHttp = conexao.responseCode
+                Log.d(TAG, "Download APK: HTTP $codigoHttp de $uriValida")
+
+                // Trata redirecionamentos 301, 302, 303, 307, 308
+                if (codigoHttp in 301..308 && codigoHttp != 304 && codigoHttp != 306) {
+                    val novaUrl = conexao.getHeaderField("Location")
+                    conexao.disconnect()
+                    if (!novaUrl.isNullOrEmpty()) {
+                        urlAtual = if (novaUrl.startsWith("http://") || novaUrl.startsWith("https://")) {
+                            novaUrl
+                        } else {
+                            val base = URL(uriValida)
+                            URL(base, novaUrl).toString()
+                        }
+                        redirecionamentos++
+                        Log.i(TAG, "Seguindo redirecionamento HTTP $codigoHttp para: $urlAtual")
+                        continue
+                    }
+                }
+
+                if (codigoHttp != HttpURLConnection.HTTP_OK) {
+                    Log.e(TAG, "Falha no download do pacote. Código HTTP retornado: $codigoHttp")
+                    conexao.disconnect()
+                    return false
+                }
+
+                val totalBytes = conexao.contentLengthLong
+                Log.i(TAG, "Iniciando download do pacote (${if (totalBytes > 0) "${totalBytes / (1024 * 1024)} MB" else "tamanho desconhecido"})...")
+
+                val entrada = conexao.inputStream
+                val arquivoDestino = File(destinoLocal)
+                arquivoDestino.parentFile?.mkdirs()
+                val saida = FileOutputStream(arquivoDestino)
+                val buffer = ByteArray(65536) // Buffer de 64KB (8x mais rápido)
+                var bytesLidos: Int
+                var totalGravado = 0L
+
+                while (entrada.read(buffer).also { bytesLidos = it } != -1) {
+                    saida.write(buffer, 0, bytesLidos)
+                    totalGravado += bytesLidos
+                }
+                saida.flush()
+                saida.close()
+                entrada.close()
+                conexao.disconnect()
+
+                Log.i(TAG, "Download concluído com êxito! Total gravado em disco: $totalGravado bytes em $destinoLocal")
+                return true
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro durante download do APK ($urlAtual): ${e.message}", e)
                 return false
             }
-
-            val entrada = conexao.inputStream
-            val saida = FileOutputStream(destinoLocal)
-            val buffer = ByteArray(8192)
-            var bytesLidos: Int
-            while (entrada.read(buffer).also { bytesLidos = it } != -1) {
-                saida.write(buffer, 0, bytesLidos)
-            }
-            saida.flush()
-            saida.close()
-            entrada.close()
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Erro durante download do APK: ${e.message}", e)
-            false
         }
+
+        Log.e(TAG, "Excedido limite de redirecionamentos para a URL: $urlApk")
+        return false
     }
 }

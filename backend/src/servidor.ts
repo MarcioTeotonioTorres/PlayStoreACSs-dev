@@ -15,6 +15,7 @@ import {
   receber_telemetria_http,
   receber_resposta_comando_http,
   remover_dispositivo,
+  consultar_status_comando,
 } from './controladores/controlador_dispositivos';
 import {
   despachar_comando_dispositivo,
@@ -188,9 +189,10 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.post('/api/telemetria', receber_telemetria_http);
   app.post('/api/dispositivos/:numero_serie/comandos/:comando_id/resposta', receber_resposta_comando_http);
 
-  // 4. Despacho de comandos individuais e em lote
+  // 4. Despacho e consulta de comandos individuais e em lote
   app.post('/api/comandos/despachar', despachar_comando_dispositivo);
   app.post('/api/comandos/lote', despachar_comando_em_lote);
+  app.get('/api/comandos/:id', consultar_status_comando);
 
   // 5. Políticas de Acesso e Restrições (Sprint 2)
   app.get('/api/politicas', obter_politicas_frota);

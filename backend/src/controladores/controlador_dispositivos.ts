@@ -449,3 +449,33 @@ export async function remover_dispositivo(
     resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao remover dispositivo do inventário.' });
   }
 }
+
+/**
+ * Consulta o status atual e a resposta do tablet para um comando específico.
+ */
+export async function consultar_status_comando(
+  requisicao: FastifyRequest<{ Params: { id: string } }>,
+  resposta: FastifyReply
+): Promise<void> {
+  try {
+    const { id } = requisicao.params;
+    const res = await executar_consulta(
+      `SELECT c.id, c.tipo_comando, c.status, c.resposta, c.criado_em, c.executado_em, d.numero_serie, d.modelo
+       FROM comandos c
+       LEFT JOIN dispositivos d ON d.id = c.dispositivo_id
+       WHERE c.id = $1 LIMIT 1;`,
+      [id]
+    );
+
+    if (res.rows.length === 0) {
+      resposta.status(404).send({ sucesso: false, mensagem: 'Comando não localizado.' });
+      return;
+    }
+
+    resposta.status(200).send({ sucesso: true, comando: res.rows[0] });
+  } catch (erro) {
+    console.error('Erro em consultar_status_comando:', erro);
+    resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao consultar status do comando.' });
+  }
+}
+

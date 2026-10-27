@@ -385,3 +385,29 @@ export async function remover_dispositivo_api(
   }
   return await resposta.json();
 }
+
+/**
+ * Consulta o status em tempo real de um comando despachado para a frota ou tablet.
+ */
+export async function consultar_status_comando_api(
+  comandoId: string
+): Promise<{
+  sucesso: boolean;
+  comando: {
+    id: string;
+    tipo_comando: string;
+    status: 'pendente' | 'enviado' | 'processando' | 'executado' | 'falha' | 'rejeitado';
+    resposta?: { status: string; mensagem: string };
+    criado_em: string;
+    executado_em?: string;
+    numero_serie?: string;
+    modelo?: string;
+  };
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/comandos/${comandoId}`);
+  if (!resposta.ok) {
+    throw new Error('Falha ao consultar status do comando.');
+  }
+  return await resposta.json();
+}
+

@@ -20,6 +20,7 @@ import {
   fazer_upload_aplicativo_api,
   remover_aplicativo_catalogo_api,
   disparar_instalacao_catalogo_api,
+  consultar_status_comando_api,
   ItemCatalogoApk,
   DispositivoItem,
 } from '../servicos/api_mdm';
@@ -34,7 +35,7 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
   const [enviandoUpload, setEnviandoUpload] = useState<boolean>(false);
   const [progressoUpload, setProgressoUpload] = useState<number | null>(null);
   const [removendo, setRemovendo] = useState<boolean>(false);
-  const [mensagemStatus, setMensagemStatus] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
+  const [mensagemStatus, setMensagemStatus] = useState<{ tipo: 'sucesso' | 'erro' | 'info'; texto: string } | null>(null);
   const [dispositivoAlvo, setDispositivoAlvo] = useState<string>('todos');
 
   // Filtros e busca
@@ -149,9 +150,52 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
     try {
       const resp = await disparar_instalacao_catalogo_api(nomeArquivo, dispositivoAlvo);
       setMensagemStatus({
-        tipo: 'sucesso',
-        texto: `✓ ${resp.mensagem}`,
+        tipo: 'info',
+        texto: `⏳ Ordem despachada com sucesso! Aguardando o tablet iniciar o download e processamento...`,
       });
+
+      // Rastreia em tempo real por até 90 segundos a resposta do tablet
+      if (resp.comando_id) {
+        const cmdId = resp.comando_id;
+        const inicio = Date.now();
+        const intervalo = setInterval(async () => {
+          try {
+            if (Date.now() - inicio > 90000) {
+              clearInterval(intervalo);
+              return;
+            }
+            const infoCmd = await consultar_status_comando_api(cmdId);
+            const cmd = infoCmd.comando;
+            if (cmd) {
+              if (cmd.status === 'processando') {
+                setMensagemStatus({
+                  tipo: 'info',
+                  texto: `⏳ Tablet conectado: ${cmd.resposta?.mensagem || 'Baixando pacote e gravando sessão no SO Android...'}`,
+                });
+              } else if (cmd.status === 'executado') {
+                clearInterval(intervalo);
+                setMensagemStatus({
+                  tipo: 'sucesso',
+                  texto: `✓ SUCESSO: ${cmd.resposta?.mensagem || 'Aplicativo instalado com êxito no tablet!'}`,
+                });
+              } else if (cmd.status === 'falha' || cmd.status === 'rejeitado') {
+                clearInterval(intervalo);
+                const detalhe = cmd.resposta?.mensagem || 'Falha no processamento pelo tablet.';
+                let dicaAjuda = '';
+                if (detalhe.includes('INSTALL_FAILED_MISSING_SPLIT')) {
+                  dicaAjuda = ' — DICA: Este APK é um Split APK incompleto do Google Play (falta a fatia de densidade/idioma). Faça o upload do pacote completo .XAPK do aplicativo para instalar com sucesso.';
+                } else if (detalhe.includes('INSTALL_FAILED_USER_RESTRICTED') || detalhe.includes('DISALLOW_INSTALL_APPS')) {
+                  dicaAjuda = ' — DICA: As políticas do tablet estão bloqueando instalação. Acesse a aba Políticas e desative temporariamente o bloqueio de APKs.';
+                }
+                setMensagemStatus({
+                  tipo: 'erro',
+                  texto: `❌ FALHA NO TABLET: ${detalhe}${dicaAjuda}`,
+                });
+              }
+            }
+          } catch (_) {}
+        }, 3000);
+      }
     } catch (erro: any) {
       setMensagemStatus({
         tipo: 'erro',
@@ -250,19 +294,28 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
         </div>
       </div>
 
-      {/* Banner de Status / Feedback */}
+      {/* Banner de Status / Feedback em Tempo Real */}
       {mensagemStatus && (
         <div
           style={{
             background:
               mensagemStatus.tipo === 'sucesso'
                 ? 'rgba(16, 185, 129, 0.12)'
-                : 'rgba(239, 68, 68, 0.12)',
-            color: mensagemStatus.tipo === 'sucesso' ? '#34d399' : '#f87171',
+                : mensagemStatus.tipo === 'info'
+                ? 'rgba(59, 130, 246, 0.15)'
+                : 'rgba(239, 68, 68, 0.15)',
+            color:
+              mensagemStatus.tipo === 'sucesso'
+                ? '#34d399'
+                : mensagemStatus.tipo === 'info'
+                ? '#93c5fd'
+                : '#fca5a5',
             border: `1px solid ${
               mensagemStatus.tipo === 'sucesso'
-                ? 'rgba(16, 185, 129, 0.3)'
-                : 'rgba(239, 68, 68, 0.3)'
+                ? 'rgba(16, 185, 129, 0.4)'
+                : mensagemStatus.tipo === 'info'
+                ? 'rgba(59, 130, 246, 0.4)'
+                : 'rgba(239, 68, 68, 0.4)'
             }`,
             padding: '14px 18px',
             borderRadius: '10px',
@@ -273,9 +326,15 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '12px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
           }}
         >
-          <span>{mensagemStatus.texto}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {mensagemStatus.tipo === 'info' && <RefreshCw size={18} className="spin" color="#60a5fa" />}
+            {mensagemStatus.tipo === 'sucesso' && <Check size={18} color="#34d399" />}
+            {mensagemStatus.tipo === 'erro' && <AlertTriangle size={18} color="#f87171" />}
+            <span style={{ lineHeight: '1.4' }}>{mensagemStatus.texto}</span>
+          </div>
           <button
             onClick={() => setMensagemStatus(null)}
             style={{
@@ -291,6 +350,28 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
           </button>
         </div>
       )}
+
+      {/* Orientação Operacional: Split APKs e e-SUS Território (.xapk) */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: '10px',
+          padding: '14px 18px',
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '14px',
+        }}
+      >
+        <div style={{ background: 'rgba(59, 130, 246, 0.2)', padding: '8px', borderRadius: '8px', color: '#60a5fa' }}>
+          <Info size={20} />
+        </div>
+        <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
+          <strong style={{ color: '#93c5fd' }}>Importante sobre Aplicativos do Google Play (ex: e-SUS Território):</strong>{' '}
+          Aplicativos modernos utilizam a tecnologia <em>Android App Bundle (Split APKs)</em>. Ao extrair ou obter o <strong>e-SUS Território</strong> (ou WhatsApp) de repositórios externos (APKPure, APKMirror), faça o upload do arquivo completo <strong>.xapk</strong>. Arquivos <em>.apk</em> que contêm somente a fatia base falharão no instalador do tablet com o erro <code>INSTALL_FAILED_MISSING_SPLIT</code>. Nosso sistema MDM descompacta o <strong>.xapk</strong> e injeta todas as fatias de densidade e idioma automaticamente na sessão de instalação do Android.
+        </div>
+      </div>
 
       {/* Grid de Métricas de Armazenamento e Compatibilidade */}
       <div

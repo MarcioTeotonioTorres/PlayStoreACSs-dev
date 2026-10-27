@@ -35,8 +35,8 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
     }
 
     /**
-     * Garante de forma defensiva que a restrição de SO DISALLOW_INSTALL_APPS esteja limpa,
-     * pois no Android 14/15 ela bloqueia PackageInstaller.createSession mesmo para o Device Owner.
+     * Garante de forma defensiva que restrições de SO (DISALLOW_INSTALL_APPS e DISALLOW_INSTALL_UNKNOWN_SOURCES)
+     * estejam limpas no momento do commit da sessão para não barrar o PackageInstaller.
      */
     private fun garantir_liberacao_instalador() {
         try {
@@ -44,7 +44,8 @@ class GestorInstaladorSilencioso(private val contexto: Context) {
             val admin = ReceptorAdministradorDispositivo.obter_componente_administrador(contexto)
             if (dpm != null && dpm.isDeviceOwnerApp(contexto.packageName)) {
                 dpm.clearUserRestriction(admin, UserManager.DISALLOW_INSTALL_APPS)
-                Log.d(TAG, "Garantido: restrição DISALLOW_INSTALL_APPS limpa para permitir PackageInstaller.")
+                dpm.clearUserRestriction(admin, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES)
+                Log.d(TAG, "Garantido: restrições DISALLOW_INSTALL_APPS e DISALLOW_INSTALL_UNKNOWN_SOURCES limpas para PackageInstaller.")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Aviso ao limpar restrição de instalação: ${e.message}")
@@ -251,10 +252,28 @@ class ReceptorResultadoInstalacao : BroadcastReceiver() {
         val pendingResult = goAsync()
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         val mensagem = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-        val pacote = intent.getStringExtra(PackageInstaller.EXTRA_OTHER_PACKAGE_NAME)
+        val pacote = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME)
+            ?: intent.getStringExtra(PackageInstaller.EXTRA_OTHER_PACKAGE_NAME)
         val comandoId = intent.getStringExtra("comando_id")
 
         Log.i("MDM_Instalador", "Callback de instalação recebido do SO Android: status=$status, pacote=$pacote, msg=$mensagem, comando=$comandoId")
+
+        // Se a instalação obteve êxito total, desoculta e desuspende o pacote imediatamente para aparecer na gaveta
+        if (status == PackageInstaller.STATUS_SUCCESS && !pacote.isNullOrEmpty()) {
+            try {
+                val dpm = context.getSystemService(DevicePolicyManager::class.java)
+                val admin = ReceptorAdministradorDispositivo.obter_componente_administrador(context)
+                if (dpm != null && dpm.isDeviceOwnerApp(context.packageName)) {
+                    dpm.setApplicationHidden(admin, pacote, false)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        dpm.setPackagesSuspended(admin, arrayOf(pacote), false)
+                    }
+                    Log.i("MDM_Instalador", "Aplicativo recém-instalado '$pacote' liberado e visível na gaveta de apps!")
+                }
+            } catch (tUnhide: Throwable) {
+                Log.w("MDM_Instalador", "Aviso ao liberar visibilidade do app $pacote: ${tUnhide.message}")
+            }
+        }
 
         // Notifica de forma assíncrona e segura via MQTT / HTTP sem violar regras de background service do Android 14/15
         CoroutineScope(Dispatchers.IO).launch {

@@ -37,6 +37,28 @@ class ClienteMqttSeguro(
     private val topicoStatus = "mdm/dispositivos/$numeroSerie/status"
     private val topicoRespostaComando = "mdm/dispositivos/$numeroSerie/comandos/resposta"
 
+    private val callbackMdm = object : MqttCallbackExtended {
+        override fun connectComplete(reconnect: Boolean, serverURI: String?) {
+            Log.i(TAG, "Conexão MQTT estabelecida com sucesso! Reconexão: $reconnect | URI: $serverURI")
+            assinar_topico_comandos()
+            publicar_status_conexao(true)
+        }
+
+        override fun connectionLost(cause: Throwable?) {
+            Log.w(TAG, "Conexão MQTT perdida: ${cause?.message}")
+        }
+
+        override fun messageArrived(topic: String?, message: MqttMessage?) {
+            if ((topic == topicoComandos || topic == "mdm/frota/todos/comandos") && message != null) {
+                val payload = String(message.payload)
+                Log.i(TAG, "Comando recebido no tópico $topic: $payload")
+                aoReceberComando(payload)
+            }
+        }
+
+        override fun deliveryComplete(token: IMqttDeliveryToken?) {}
+    }
+
     /**
      * Inicializa a instância do cliente MQTT com persistência em memória.
      */
@@ -46,28 +68,7 @@ class ClienteMqttSeguro(
             val serverUri = "$protocolo://$brokerHost:$brokerPort"
             val clientId = "tablet_$numeroSerie"
             clienteMqtt = MqttClient(serverUri, clientId, MemoryPersistence())
-
-            clienteMqtt?.setCallback(object : MqttCallbackExtended {
-                override fun connectComplete(reconnect: Boolean, serverURI: String?) {
-                    Log.i(TAG, "Conexão MQTT estabelecida com sucesso! Reconexão: $reconnect")
-                    assinar_topico_comandos()
-                    publicar_status_conexao(true)
-                }
-
-                override fun connectionLost(cause: Throwable?) {
-                    Log.w(TAG, "Conexão MQTT perdida: ${cause?.message}")
-                }
-
-                override fun messageArrived(topic: String?, message: MqttMessage?) {
-                    if ((topic == topicoComandos || topic == "mdm/frota/todos/comandos") && message != null) {
-                        val payload = String(message.payload)
-                        Log.i(TAG, "Comando recebido no tópico $topic: $payload")
-                        aoReceberComando(payload)
-                    }
-                }
-
-                override fun deliveryComplete(token: IMqttDeliveryToken?) {}
-            })
+            clienteMqtt?.setCallback(callbackMdm)
         } catch (e: Exception) {
             Log.e(TAG, "Falha ao inicializar cliente MQTT: ${e.message}", e)
         }
@@ -116,15 +117,17 @@ class ClienteMqttSeguro(
                 if (brokerPort != 1883) {
                     Log.w(TAG, "Falha na porta $brokerPort. Tentando fallback imediato em tcp://$brokerHost:1883...")
                     val fallbackUri = "tcp://$brokerHost:1883"
-                    clienteMqtt = MqttClient(fallbackUri, "tablet_$numeroSerie", MemoryPersistence())
+                    val clienteFallback = MqttClient(fallbackUri, "tablet_$numeroSerie", MemoryPersistence())
+                    clienteFallback.setCallback(callbackMdm)
                     val fallbackOpcoes = MqttConnectOptions().apply {
                         isAutomaticReconnect = true
                         connectionTimeout = 8
                         keepAliveInterval = 30
                     }
-                    clienteMqtt?.connect(fallbackOpcoes)
+                    clienteFallback.connect(fallbackOpcoes)
+                    clienteMqtt = clienteFallback
                     assinar_topico_comandos()
-                    Log.i(TAG, "Conectado via fallback TCP na porta 1883!")
+                    Log.i(TAG, "Conectado via fallback TCP na porta 1883 com callback de comandos ativo!")
                 } else {
                     throw connErr
                 }

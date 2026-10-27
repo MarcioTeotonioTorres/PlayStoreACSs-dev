@@ -65,7 +65,7 @@ export async function listar_catalogo_aplicativos(
           tamanho_bytes: stats.size,
           tamanho_mb: (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
           checksum_sha256: checksum,
-          url_download: `${protocolo}://${host}/apk/${arquivo}`,
+          url_download: `${protocolo}://${host}/apk/${encodeURI(arquivo)}`,
           data_modificacao: stats.mtime.toISOString(),
         });
       }
@@ -241,7 +241,7 @@ export async function disparar_instalacao_catalogo(
     // Usa HTTP se: for localhost OU se a porta explícita não for 443 (sem SSL)
     const usaHttps = !host.includes('localhost') && !host.includes(':') && process.env.HTTPS_PORT === '443';
     const protocolo = usaHttps ? 'https' : 'http';
-    const urlDownload = `${protocolo}://${host}/apk/${nomeSeguro}`;
+    const urlDownload = `${protocolo}://${host}/apk/${encodeURI(nomeSeguro)}`;
 
     const comandoId = crypto.randomUUID();
     const payloadComando = {
