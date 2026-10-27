@@ -455,7 +455,30 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             val aplicativosComuns = listOf(
                 "com.google.android.youtube",
                 "com.android.vending",
-                "com.google.android.apps.photos"
+                "com.google.android.apps.photos",
+                "com.google.android.gm",
+                "com.google.android.apps.tachyon",
+                "com.google.android.videos",
+                "com.google.android.apps.docs",
+                "com.google.android.apps.youtube.music",
+                "com.google.android.googlequicksearchbox",
+                "com.google.android.apps.magazines",
+                "com.google.android.play.games",
+                "com.google.android.apps.podcasts",
+                "com.google.android.feedback",
+                "com.tcl.live",
+                "com.tcl.community",
+                "com.tcl.appstore",
+                "com.tcl.usercenter",
+                "com.tcl.browser",
+                "com.tcl.smartswitch",
+                "com.tcl.gamecenter",
+                "com.netflix.mediaclient",
+                "com.facebook.katana",
+                "com.facebook.services",
+                "com.facebook.system",
+                "com.instagram.android",
+                "com.zhiliaoapp.musically"
             )
 
             // Restaura apps comuns que NÃO estão na lista de ocultos
