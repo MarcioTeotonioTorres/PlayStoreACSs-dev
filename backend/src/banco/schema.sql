@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS politicas (
     bloquear_bluetooth BOOLEAN NOT NULL DEFAULT TRUE,
     modo_quiosque_app VARCHAR(255) DEFAULT NULL,
     habilitar_modo_quiosque BOOLEAN NOT NULL DEFAULT FALSE,
-    pacotes_ocultos JSONB NOT NULL DEFAULT '["com.google.android.youtube", "com.android.vending", "com.sec.android.app.samsungapps", "com.google.android.apps.photos"]'::jsonb,
+    pacotes_ocultos JSONB NOT NULL DEFAULT '["com.google.android.youtube","com.android.vending","com.google.android.apps.photos","com.google.android.gm","com.google.android.apps.tachyon","com.google.android.videos","com.google.android.apps.docs","com.google.android.apps.youtube.music","com.google.android.googlequicksearchbox","com.google.android.apps.magazines","com.google.android.play.games","com.google.android.apps.podcasts","com.google.android.feedback","com.tcl.live","com.tcl.community","com.tcl.appstore","com.tcl.usercenter","com.tcl.browser","com.tcl.smartswitch","com.tcl.gamecenter","com.netflix.mediaclient","com.facebook.katana","com.facebook.services","com.facebook.system","com.instagram.android","com.zhiliaoapp.musically"]'::jsonb,
     urls_permitidas JSONB NOT NULL DEFAULT '["portal.empresa.com.br", "*.empresa.com.br", "sistema.empresa.com.br"]'::jsonb,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS politicas (
 
 -- Migrações seguras idempotentes caso a tabela já exista
 ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Inserção de política inicial
 INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, bloquear_instalacao_apps, bloquear_bluetooth, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas)
@@ -36,9 +36,9 @@ VALUES (
     TRUE,
     FALSE,
     TRUE,
-    TRUE,
     FALSE,
-    '["com.google.android.youtube", "com.android.vending", "com.sec.android.app.samsungapps", "com.google.android.apps.photos"]'::jsonb,
+    FALSE,
+    '["com.google.android.youtube","com.android.vending","com.google.android.apps.photos","com.google.android.gm","com.google.android.apps.tachyon","com.google.android.videos","com.google.android.apps.docs","com.google.android.apps.youtube.music","com.google.android.googlequicksearchbox","com.google.android.apps.magazines","com.google.android.play.games","com.google.android.apps.podcasts","com.google.android.feedback","com.tcl.live","com.tcl.community","com.tcl.appstore","com.tcl.usercenter","com.tcl.browser","com.tcl.smartswitch","com.tcl.gamecenter","com.netflix.mediaclient","com.facebook.katana","com.facebook.services","com.facebook.system","com.instagram.android","com.zhiliaoapp.musically"]'::jsonb,
     '["portal.empresa.com.br", "*.empresa.com.br", "sistema.empresa.com.br"]'::jsonb
 )
 ON CONFLICT DO NOTHING;
@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS dispositivos (
     memoria_ram_livre_mb BIGINT DEFAULT 0,
     armazenamento_livre_mb BIGINT DEFAULT 0,
     politica_id UUID REFERENCES politicas(id) ON DELETE SET NULL,
+    politica_personalizada JSONB DEFAULT NULL,
     ultimo_contato TIMESTAMPTZ DEFAULT NOW(),
     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()

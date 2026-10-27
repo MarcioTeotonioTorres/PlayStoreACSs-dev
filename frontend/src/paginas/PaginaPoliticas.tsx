@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import {
   obter_politicas_api,
+  obter_politicas_dispositivo_api,
   salvar_politicas_frota_api,
   salvar_politicas_dispositivo_api,
   DadosPolitica,
@@ -298,8 +299,35 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
   ];
 
   useEffect(() => {
-    carregar_politicas_sistema();
-  }, []);
+    if (dispositivoAlvo === 'todos') {
+      carregar_politicas_sistema();
+    } else {
+      carregar_politicas_dispositivo(dispositivoAlvo);
+    }
+  }, [dispositivoAlvo]);
+
+  async function carregar_politicas_dispositivo(id: string) {
+    setCarregando(true);
+    try {
+      const resp = await obter_politicas_dispositivo_api(id);
+      if (resp.politica) {
+        const pacotesSeguros = (resp.politica.pacotes_ocultos || []).filter(
+          (p: string) => !PACOTES_VITAIS_IMUNES.includes(p) && !p.startsWith('com.android.providers.')
+        );
+        setPolitica({
+          ...resp.politica,
+          bloquear_instalacao_apps: resp.politica.bloquear_instalacao_apps ?? true,
+          bloquear_bluetooth: resp.politica.bloquear_bluetooth ?? false,
+          pacotes_ocultos: pacotesSeguros,
+          urls_permitidas: resp.politica.urls_permitidas || [],
+        });
+      }
+    } catch (erro) {
+      console.error('Erro ao carregar diretrizes específicas do dispositivo:', erro);
+    } finally {
+      setCarregando(false);
+    }
+  }
 
   async function carregar_politicas_sistema() {
     setCarregando(true);

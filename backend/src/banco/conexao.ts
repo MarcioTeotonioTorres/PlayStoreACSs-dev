@@ -23,6 +23,7 @@ interface DispositivoSimulado {
   memoria_ram_livre_mb: number;
   armazenamento_livre_mb: number;
   ultimo_contato: string;
+  politica_personalizada?: any;
   aplicativos_instalados?: Array<{
     pacote: string;
     nome: string;
@@ -30,6 +31,51 @@ interface DispositivoSimulado {
     versao_codigo: number;
   }>;
 }
+
+let politicaSimuladaMemoria: any = {
+  nome: 'Política Padrão Frota',
+  permitir_camera: true,
+  bloquear_usb: true,
+  permitir_reset_fabrica: false,
+  bloquear_instalacao_apps: true,
+  bloquear_bluetooth: false,
+  modo_quiosque_app: null,
+  habilitar_modo_quiosque: false,
+  pacotes_ocultos: [
+    'com.google.android.youtube',
+    'com.android.vending',
+    'com.google.android.apps.photos',
+    'com.google.android.gm',
+    'com.google.android.apps.tachyon',
+    'com.google.android.videos',
+    'com.google.android.apps.docs',
+    'com.google.android.apps.youtube.music',
+    'com.google.android.googlequicksearchbox',
+    'com.google.android.apps.magazines',
+    'com.google.android.play.games',
+    'com.google.android.apps.podcasts',
+    'com.google.android.feedback',
+    'com.tcl.live',
+    'com.tcl.community',
+    'com.tcl.appstore',
+    'com.tcl.usercenter',
+    'com.tcl.browser',
+    'com.tcl.smartswitch',
+    'com.tcl.gamecenter',
+    'com.netflix.mediaclient',
+    'com.facebook.katana',
+    'com.facebook.services',
+    'com.facebook.system',
+    'com.instagram.android',
+    'com.zhiliaoapp.musically',
+  ],
+  urls_permitidas: [
+    'portal.empresa.com.br',
+    '*.empresa.com.br',
+    'sistema.empresa.com.br',
+  ],
+  atualizado_em: new Date().toISOString(),
+};
 
 interface UsuarioSimulado {
   id: string;
@@ -306,6 +352,60 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     };
   }
 
+  // 4.1 Consulta de Políticas da Frota
+  if (sqlLimpo.includes('FROM POLITICAS')) {
+    return {
+      rows: [politicaSimuladaMemoria as unknown as T],
+      command: 'SELECT',
+      rowCount: 1,
+      oid: 0,
+      fields: [],
+    };
+  }
+
+  // 4.2 Inserção / Atualização de Políticas Globais
+  if (sqlLimpo.startsWith('INSERT INTO POLITICAS')) {
+    if (parametros.length >= 8) {
+      politicaSimuladaMemoria = {
+        ...politicaSimuladaMemoria,
+        permitir_camera: parametros[0],
+        bloquear_usb: parametros[1],
+        permitir_reset_fabrica: parametros[2],
+        bloquear_instalacao_apps: parametros[3],
+        bloquear_bluetooth: parametros[4],
+        modo_quiosque_app: parametros[5],
+        habilitar_modo_quiosque: parametros[6],
+        pacotes_ocultos: typeof parametros[7] === 'string' ? JSON.parse(parametros[7]) : parametros[7],
+        urls_permitidas: typeof parametros[8] === 'string' ? JSON.parse(parametros[8]) : parametros[8],
+        atualizado_em: new Date().toISOString(),
+      };
+    }
+    return {
+      rows: [politicaSimuladaMemoria as unknown as T],
+      command: 'INSERT',
+      rowCount: 1,
+      oid: 0,
+      fields: [],
+    };
+  }
+
+  // 4.3 Atualização de Política Personalizada de Tablet Específico
+  if (sqlLimpo.startsWith('UPDATE DISPOSITIVOS SET POLITICA_PERSONALIZADA')) {
+    const polData = typeof parametros[0] === 'string' ? JSON.parse(parametros[0]) : parametros[0];
+    const alvo = (parametros[1] || '').toString().trim().toUpperCase();
+    const disp = dispositivosMemoria.find((d) => d.id === alvo || d.numero_serie.toUpperCase() === alvo);
+    if (disp) {
+      disp.politica_personalizada = polData;
+    }
+    return {
+      rows: [] as T[],
+      command: 'UPDATE',
+      rowCount: 1,
+      oid: 0,
+      fields: [],
+    };
+  }
+
   // 5. Inserção de Comandos
   if (sqlLimpo.startsWith('INSERT INTO COMANDOS')) {
     const id = crypto.randomUUID();
@@ -481,6 +581,7 @@ export async function executar_migracoes_banco(): Promise<void> {
     // 2. Colunas atualizadas da frota
     await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS tempo_ocioso_minutos INT DEFAULT 0;`).catch(() => {});
     await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS aplicativos_instalados JSONB DEFAULT '[]'::jsonb;`).catch(() => {});
+    await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS politica_personalizada JSONB DEFAULT NULL;`).catch(() => {});
     await poolInstancia.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;`).catch(() => {});
     await poolInstancia.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;`).catch(() => {});
 

@@ -327,21 +327,47 @@ export async function receber_telemetria_http(
     const { processar_mensagem_telemetria } = await import('../servicos/servico_mqtt');
     await processar_mensagem_telemetria(snNormalizado, dados);
 
-    // 1. Obtém as políticas ativas da frota para sincronização direta via HTTP
+    // 1. Obtém as diretrizes ativas: prioriza política personalizada do dispositivo, se houver
     let politicaAtiva: any = null;
     try {
-      const resPol = await executar_consulta(`
-        SELECT permitir_camera, bloquear_usb, permitir_reset_fabrica,
-               bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app,
-               habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas
-        FROM politicas
-        ORDER BY atualizado_em DESC
-        LIMIT 1;
-      `);
-      if (resPol.rows.length > 0) {
-        politicaAtiva = resPol.rows[0];
+      const resDispPol = await executar_consulta(
+        `SELECT politica_personalizada FROM dispositivos WHERE numero_serie = $1 LIMIT 1;`,
+        [snNormalizado]
+      );
+      if (resDispPol.rows.length > 0 && resDispPol.rows[0].politica_personalizada) {
+        politicaAtiva = typeof resDispPol.rows[0].politica_personalizada === 'string'
+          ? JSON.parse(resDispPol.rows[0].politica_personalizada)
+          : resDispPol.rows[0].politica_personalizada;
       }
     } catch (_) {}
+
+    if (!politicaAtiva) {
+      try {
+        const { politicasDispositivosMemoria } = await import('./controlador_politicas');
+        if (politicasDispositivosMemoria.has(snNormalizado)) {
+          politicaAtiva = politicasDispositivosMemoria.get(snNormalizado);
+        }
+      } catch (_) {}
+    }
+
+    if (!politicaAtiva) {
+      try {
+        const resPol = await executar_consulta(`
+          SELECT permitir_camera, bloquear_usb, permitir_reset_fabrica,
+                 bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app,
+                 habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas
+          FROM politicas
+          ORDER BY atualizado_em DESC
+          LIMIT 1;
+        `);
+        if (resPol.rows.length > 0) {
+          politicaAtiva = resPol.rows[0];
+        } else {
+          const { politicasMemoria } = await import('./controlador_politicas');
+          politicaAtiva = politicasMemoria;
+        }
+      } catch (_) {}
+    }
 
     // 2. Obtém comandos pendentes na fila para este dispositivo
     let comandosPendentes: any[] = [];

@@ -26,6 +26,7 @@ import {
   obter_politicas_frota,
   atualizar_politicas_globais_frota,
   atualizar_politicas_dispositivo,
+  obter_politicas_dispositivo,
 } from './controladores/controlador_politicas';
 import {
   listar_catalogo_aplicativos,
@@ -199,6 +200,7 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   // 5. Políticas de Acesso e Restrições (Sprint 2)
   app.get('/api/politicas', obter_politicas_frota);
   app.put('/api/politicas', atualizar_politicas_globais_frota);
+  app.get('/api/politicas/dispositivo/:id', obter_politicas_dispositivo);
   app.put('/api/politicas/dispositivo/:id', atualizar_politicas_dispositivo);
 
   // 6. Catálogo e Distribuição de Aplicativos APK e XAPK

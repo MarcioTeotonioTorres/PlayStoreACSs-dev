@@ -451,44 +451,7 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // Define o bloqueio/liberação do reset de fábrica conforme a política
             definir_bloqueio_reset_fabrica(!permitirResetFabrica)
 
-            // Lista de aplicativos comuns do MDM que devem ser restaurados se não estiverem na lista de ocultos
-            val aplicativosComuns = listOf(
-                "com.google.android.youtube",
-                "com.android.vending",
-                "com.google.android.apps.photos",
-                "com.google.android.gm",
-                "com.google.android.apps.tachyon",
-                "com.google.android.videos",
-                "com.google.android.apps.docs",
-                "com.google.android.apps.youtube.music",
-                "com.google.android.googlequicksearchbox",
-                "com.google.android.apps.magazines",
-                "com.google.android.play.games",
-                "com.google.android.apps.podcasts",
-                "com.google.android.feedback",
-                "com.tcl.live",
-                "com.tcl.community",
-                "com.tcl.appstore",
-                "com.tcl.usercenter",
-                "com.tcl.browser",
-                "com.tcl.smartswitch",
-                "com.tcl.gamecenter",
-                "com.netflix.mediaclient",
-                "com.facebook.katana",
-                "com.facebook.services",
-                "com.facebook.system",
-                "com.instagram.android",
-                "com.zhiliaoapp.musically"
-            )
-
-            // Restaura apps comuns que NÃO estão na lista de ocultos
-            for (app in aplicativosComuns) {
-                if (!pacotesOcultos.contains(app)) {
-                    restaurar_aplicativo_sistema(app)
-                }
-            }
-
-            // Restaura todos os apps que o backend enviou explicitamente na lista de liberados (para apps customizados)
+            // Restaura APENAS os pacotes que foram explicitamente liberados pelo administrador
             for (pacoteLiberado in pacotesLiberados) {
                 restaurar_aplicativo_sistema(pacoteLiberado)
             }

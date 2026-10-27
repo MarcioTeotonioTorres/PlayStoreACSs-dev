@@ -272,6 +272,19 @@ export async function salvar_politicas_dispositivo_api(
 }
 
 /**
+ * Consulta as políticas específicas configuradas para um tablet individual.
+ */
+export async function obter_politicas_dispositivo_api(
+  dispositivoId: string
+): Promise<{ sucesso: boolean; politica: DadosPolitica; personalizada?: boolean }> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/politicas/dispositivo/${dispositivoId}`);
+  if (!resposta.ok) {
+    throw new Error('Falha ao obter políticas do dispositivo');
+  }
+  return await resposta.json();
+}
+
+/**
  * Retorna os pacotes APK disponíveis no catálogo do servidor.
  */
 export async function listar_catalogo_aplicativos_api(): Promise<{

@@ -49,7 +49,9 @@ export function filtrarPacotesSeguros(pacotes?: string[]): string[] {
 }
 
 // Armazenamento em memória das políticas caso o PostgreSQL local não esteja conectado
-let politicasMemoria: PoliticaDTO = {
+export const politicasDispositivosMemoria = new Map<string, any>();
+
+export let politicasMemoria: PoliticaDTO = {
   nome: 'Política Padrão da Frota',
   permitir_camera: true,
   bloquear_usb: true,
@@ -270,13 +272,86 @@ export async function atualizar_politicas_dispositivo(
 
     await despachar_comando_mqtt(numeroSerie, payloadComando);
 
+    // 1. Persiste a diretriz específica deste tablet no banco de dados
+    try {
+      await executar_consulta(
+        `UPDATE dispositivos SET politica_personalizada = $1::jsonb, atualizado_em = NOW() WHERE id::text = $2 OR numero_serie = $2;`,
+        [JSON.stringify(payloadComando.parametros), id]
+      );
+    } catch (dbErr) {
+      console.warn('Aviso: Falha ao persistir diretrizes do tablet no banco de dados:', dbErr);
+    }
+
+    // 2. Persiste em memória para fallback resiliente
+    politicasDispositivosMemoria.set(numeroSerie.toUpperCase(), payloadComando.parametros);
+    politicasDispositivosMemoria.set(id, payloadComando.parametros);
+
     resposta.status(200).send({
       sucesso: true,
-      mensagem: `Diretrizes enviadas via MQTT para o tablet ${numeroSerie}.`,
+      mensagem: `Diretrizes salvas e enviadas via MQTT para o tablet ${numeroSerie}.`,
       comando_id: comandoId,
+      politica: payloadComando.parametros,
     });
   } catch (erro) {
     console.error('Erro em atualizar_politicas_dispositivo:', erro);
     resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao despachar política para o dispositivo.' });
+  }
+}
+
+/**
+ * Consulta as diretrizes específicas atribuídas a um tablet (ou retorna a geral se não houver customização).
+ */
+export async function obter_politicas_dispositivo(
+  requisicao: FastifyRequest<{ Params: { id: string } }>,
+  resposta: FastifyReply
+): Promise<void> {
+  try {
+    const { id } = requisicao.params;
+    const sqlDisp = `SELECT id, numero_serie, politica_personalizada FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
+    const resDisp = await executar_consulta(sqlDisp, [id]);
+
+    let politicaDisp: any = null;
+    let personalizada = false;
+    const numeroSerie = resDisp.rows.length > 0 ? resDisp.rows[0].numero_serie : id;
+
+    if (resDisp.rows.length > 0 && resDisp.rows[0].politica_personalizada) {
+      politicaDisp = typeof resDisp.rows[0].politica_personalizada === 'string'
+        ? JSON.parse(resDisp.rows[0].politica_personalizada)
+        : resDisp.rows[0].politica_personalizada;
+      personalizada = true;
+    } else if (politicasDispositivosMemoria.has(numeroSerie.toUpperCase()) || politicasDispositivosMemoria.has(id)) {
+      politicaDisp = politicasDispositivosMemoria.get(numeroSerie.toUpperCase()) || politicasDispositivosMemoria.get(id);
+      personalizada = true;
+    }
+
+    if (!politicaDisp) {
+      const resGeral = await executar_consulta(`
+        SELECT id, nome, permitir_camera, bloquear_usb, permitir_reset_fabrica,
+               bloquear_instalacao_apps, bloquear_bluetooth,
+               modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em
+        FROM politicas
+        ORDER BY atualizado_em DESC
+        LIMIT 1;
+      `);
+      politicaDisp = resGeral.rows.length > 0 ? resGeral.rows[0] : politicasMemoria;
+      personalizada = false;
+    }
+
+    if (politicaDisp && politicaDisp.pacotes_ocultos) {
+      politicaDisp.pacotes_ocultos = filtrarPacotesSeguros(politicaDisp.pacotes_ocultos);
+    }
+
+    resposta.status(200).send({
+      sucesso: true,
+      politica: politicaDisp,
+      personalizada,
+    });
+  } catch (erro) {
+    console.error('Erro em obter_politicas_dispositivo:', erro);
+    resposta.status(200).send({
+      sucesso: true,
+      politica: politicasMemoria,
+      personalizada: false,
+    });
   }
 }
