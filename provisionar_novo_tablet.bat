@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 > nul
-title Provisionamento Automático de Tablet MDM - PlayServiceACSs
+title Provisionamento Automatico de Tablet MDM - PlayServiceACSs
 color 0A
 
 echo ===============================================================================
-echo     PROVISIONAMENTO AUTOMÁTICO ADB - MDM CORPORATIVO (v1.2.3)
+echo     PROVISIONAMENTO AUTOMATICO ADB - MDM CORPORATIVO (v1.2.3)
 echo     Perfil Estrito ACS: Chrome, e-SUS, WhatsApp, Agenda e Relogio
 echo ===============================================================================
 echo.
@@ -15,14 +15,54 @@ echo   3. Tablet conectado ao computador via cabo USB e tela desbloqueada.
 echo ===============================================================================
 echo.
 
-set ADB="%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+set ADB=
+if exist "%~dp0adb.exe" (
+    set ADB="%~dp0adb.exe"
+) else if exist "C:\platform-tools\adb.exe" (
+    set ADB="C:\platform-tools\adb.exe"
+) else if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
+    set ADB="%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+) else (
+    where adb.exe >nul 2>&1
+    if %ERRORLEVEL% EQU 0 (
+        set ADB=adb
+    )
+)
 
-if not exist %ADB% (
-    echo [ERRO] adb.exe nao foi localizado no caminho do Android SDK:
-    echo        %ADB%
+if "%ADB%"=="" (
+    echo [ERRO] O executavel adb.exe nao foi encontrado!
+    echo Certifique-se de que o Android platform-tools esta em C:\platform-tools ou no PATH.
     pause
     exit /b 1
 )
+
+echo ADB detectado: %ADB%
+echo.
+
+set APK_ALVO=
+if exist "%~dp0mdm-dpc.apk" (
+    set APK_ALVO="%~dp0mdm-dpc.apk"
+) else if exist "%~dp0backend\public\apk\mdm-dpc.apk" (
+    set APK_ALVO="%~dp0backend\public\apk\mdm-dpc.apk"
+) else if exist "%~dp0apk\mdm-dpc.apk" (
+    set APK_ALVO="%~dp0apk\mdm-dpc.apk"
+) else if exist "C:\platform-tools\mdm-dpc.apk" (
+    set APK_ALVO="C:\platform-tools\mdm-dpc.apk"
+) else if exist "C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\backend\public\apk\mdm-dpc.apk" (
+    set APK_ALVO="C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\backend\public\apk\mdm-dpc.apk"
+) else if exist "C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\producao\apk\mdm-dpc.apk" (
+    set APK_ALVO="C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\producao\apk\mdm-dpc.apk"
+)
+
+if "%APK_ALVO%"=="" (
+    echo [ERRO] O arquivo mdm-dpc.apk nao foi encontrado!
+    echo Copie o arquivo mdm-dpc.apk para a mesma pasta deste script ou para C:\platform-tools.
+    pause
+    exit /b 1
+)
+
+echo APK detectado: %APK_ALVO%
+echo.
 
 echo [1/6] Verificando conexao com o tablet...
 %ADB% wait-for-device
@@ -31,15 +71,6 @@ echo Conectado com sucesso!
 echo.
 
 echo [2/6] Instalando o agente MDM Corporativo v1.2.3...
-set APK_ALVO="%~dp0backend\public\apk\mdm-dpc.apk"
-if not exist %APK_ALVO% (
-    if exist "%~dp0apk\mdm-dpc.apk" (
-        set APK_ALVO="%~dp0apk\mdm-dpc.apk"
-    ) else if exist "%~dp0mdm-dpc.apk" (
-        set APK_ALVO="%~dp0mdm-dpc.apk"
-    )
-)
-
 %ADB% install -r %APK_ALVO%
 if %ERRORLEVEL% NEQ 0 (
     echo.
@@ -75,7 +106,7 @@ echo       Ocultando YouTube, Play Store, Jogos e bloatware de fabrica...
 
 set ADMIN=com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo
 
-:: 1. Ocultar bloatware, redes sociais, lojas e apps recreativos
+REM 1. Ocultar bloatware, redes sociais, lojas e apps recreativos
 for %%P in (
     com.google.android.youtube
     com.android.vending
@@ -107,7 +138,7 @@ for %%P in (
     %ADB% shell dpm set-application-hidden %ADMIN% %%P true > nul 2>&1
 )
 
-:: 2. Assegurar que os aplicativos autorizados estejam 100%% liberados e visíveis
+REM 2. Assegurar que os aplicativos autorizados estejam 100%% liberados e visiveis
 for %%P in (
     com.android.chrome
     br.gov.saude.acs
