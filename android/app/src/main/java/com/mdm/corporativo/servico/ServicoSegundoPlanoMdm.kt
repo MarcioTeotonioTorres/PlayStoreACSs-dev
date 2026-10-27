@@ -37,7 +37,7 @@ class ServicoSegundoPlanoMdm : Service() {
         private const val TAG = "MDM_ServicoSegundoPlano"
         private const val ID_NOTIFICACAO = 1001
         private const val ID_CANAL = "canal_mdm_servico_permanente"
-        private const val INTERVALO_TELEMETRIA_MS = 30000L // 30 segundos
+        private const val INTERVALO_TELEMETRIA_MS = 86_400_000L // 24 horas (economiza recursos da VPS e bateria)
         const val ACAO_FORCAR_SINCRONIZACAO = "com.mdm.corporativo.FORCAR_SINCRONIZACAO"
         const val ACAO_RESULTADO_INSTALACAO_NOTIFICAR = "com.mdm.corporativo.ACAO_RESULTADO_INSTALACAO_NOTIFICAR"
 

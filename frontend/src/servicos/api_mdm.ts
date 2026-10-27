@@ -411,3 +411,21 @@ export async function consultar_status_comando_api(
   return await resposta.json();
 }
 
+/**
+ * Solicita a transmissão imediata de telemetria para todos os tablets conectados via MQTT.
+ */
+export async function solicitar_sincronizacao_frota_api(): Promise<{ sucesso: boolean; mensagem: string }> {
+  try {
+    const resposta = await fetchAutenticado(`${URL_BASE}/dispositivos/sincronizar`, {
+      method: 'POST',
+    });
+    if (!resposta.ok) {
+      return { sucesso: false, mensagem: 'Falha ao solicitar telemetria' };
+    }
+    return await resposta.json();
+  } catch {
+    return { sucesso: false, mensagem: 'Falha de comunicação com o servidor' };
+  }
+}
+
+

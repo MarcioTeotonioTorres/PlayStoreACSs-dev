@@ -183,12 +183,12 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
   // 1. Resumo da Frota com Métricas Detalhadas de Ociosidade
   if (sqlLimpo.includes('COUNT(*)::INT AS TOTAL_DISPOSITIVOS')) {
     const agora = Date.now();
-    const conectados = dispositivosMemoria.filter((d) => (agora - new Date(d.ultimo_contato).getTime()) <= 180000).length;
+    const conectados = dispositivosMemoria.filter((d) => d.status_conexao === 'conectado' && (agora - new Date(d.ultimo_contato).getTime()) <= 90000000).length;
     const bateriaCritica = dispositivosMemoria.filter((d) => d.bateria <= 20).length;
     const sinalFraco = dispositivosMemoria.filter((d) => d.sinal_wifi_rssi < -75).length;
     const emUsoAtivo = dispositivosMemoria.filter((d) => {
       const ms = agora - new Date(d.ultimo_contato).getTime();
-      return ms <= 180000 && d.app_foco && !d.app_foco.includes('Repouso') && (d.tempo_ocioso_minutos || 0) < 5;
+      return ms <= 90000000 && d.app_foco && !d.app_foco.includes('Repouso') && (d.tempo_ocioso_minutos || 0) < 5;
     }).length;
 
     const ociososModerados = dispositivosMemoria.filter((d) => {

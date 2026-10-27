@@ -12,12 +12,12 @@ export async function obter_resumo_frota(
     const sqlMetricas = `
       SELECT
         COUNT(*)::int AS total_dispositivos,
-        COUNT(*) FILTER (WHERE ultimo_contato >= NOW() - INTERVAL '3 minutes')::int AS conectados,
-        COUNT(*) FILTER (WHERE ultimo_contato < NOW() - INTERVAL '3 minutes' OR ultimo_contato IS NULL)::int AS desconectados,
+        COUNT(*) FILTER (WHERE status_conexao = 'conectado' AND ultimo_contato >= NOW() - INTERVAL '25 hours')::int AS conectados,
+        COUNT(*) FILTER (WHERE status_conexao = 'desconectado' OR ultimo_contato < NOW() - INTERVAL '25 hours' OR ultimo_contato IS NULL)::int AS desconectados,
         COUNT(*) FILTER (WHERE bateria <= 20)::int AS bateria_critica,
         COUNT(*) FILTER (WHERE sinal_wifi_rssi < -75)::int AS sinal_wifi_fraco,
         COUNT(*) FILTER (
-          WHERE ultimo_contato >= NOW() - INTERVAL '3 minutes'
+          WHERE status_conexao = 'conectado' AND ultimo_contato >= NOW() - INTERVAL '25 hours'
             AND app_foco IS NOT NULL
             AND app_foco NOT IN ('Sistema / Área de Trabalho', 'Tela Bloqueada / Repouso')
             AND COALESCE(tempo_ocioso_minutos, 0) < 5
@@ -27,12 +27,12 @@ export async function obter_resumo_frota(
              OR (ultimo_contato < NOW() - INTERVAL '2 hours' AND ultimo_contato >= NOW() - INTERVAL '24 hours')
         )::int AS ociosos_moderados,
         COUNT(*) FILTER (
-          WHERE (ultimo_contato < NOW() - INTERVAL '24 hours' OR ultimo_contato IS NULL)
+          WHERE (ultimo_contato < NOW() - INTERVAL '25 hours' OR ultimo_contato IS NULL)
              OR (tempo_ocioso_minutos >= 1440)
         )::int AS ociosos_criticos,
         ROUND(AVG(
           CASE
-            WHEN ultimo_contato < NOW() - INTERVAL '3 minutes' THEN
+            WHEN ultimo_contato < NOW() - INTERVAL '25 hours' THEN
               COALESCE(tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - ultimo_contato)) / 60))::int
             ELSE
               COALESCE(tempo_ocioso_minutos, 0)
@@ -133,13 +133,13 @@ export async function listar_dispositivos(
         SELECT
           id, numero_serie, modelo, versao_so,
           CASE
-            WHEN ultimo_contato >= NOW() - INTERVAL '3 minutes' THEN 'conectado'
+            WHEN status_conexao = 'conectado' AND ultimo_contato >= NOW() - INTERVAL '25 hours' THEN 'conectado'
             ELSE 'desconectado'
           END AS status_conexao,
           bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
           app_foco,
           CASE
-            WHEN ultimo_contato < NOW() - INTERVAL '3 minutes' THEN
+            WHEN ultimo_contato < NOW() - INTERVAL '25 hours' THEN
               COALESCE(tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - ultimo_contato)) / 60))::int
             ELSE
               COALESCE(tempo_ocioso_minutos, 0)
@@ -478,4 +478,29 @@ export async function consultar_status_comando(
     resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao consultar status do comando.' });
   }
 }
+
+/**
+ * Despacha ordem remota via MQTT solicitando a transmissão imediata de telemetria para todos os tablets conectados.
+ */
+export async function sincronizar_telemetria_frota(
+  _requisicao: FastifyRequest,
+  resposta: FastifyReply
+): Promise<void> {
+  try {
+    const { despachar_comando_mqtt } = await import('../servicos/servico_mqtt');
+    await despachar_comando_mqtt('todos', {
+      id: crypto.randomUUID(),
+      tipo_comando: 'solicitar_telemetria',
+      parametros: {},
+    });
+    resposta.status(200).send({
+      sucesso: true,
+      mensagem: 'Solicitação de telemetria imediata despachada com sucesso para a frota.',
+    });
+  } catch (erro) {
+    console.error('Erro em sincronizar_telemetria_frota:', erro);
+    resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao despachar solicitação de telemetria.' });
+  }
+}
+
 

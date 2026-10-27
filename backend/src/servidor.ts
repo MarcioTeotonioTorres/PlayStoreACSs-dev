@@ -16,6 +16,7 @@ import {
   receber_resposta_comando_http,
   remover_dispositivo,
   consultar_status_comando,
+  sincronizar_telemetria_frota,
 } from './controladores/controlador_dispositivos';
 import {
   despachar_comando_dispositivo,
@@ -187,6 +188,7 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.post('/api/dispositivos', cadastrar_dispositivo_manual);
   app.delete('/api/dispositivos/:id', remover_dispositivo);
   app.post('/api/telemetria', receber_telemetria_http);
+  app.post('/api/dispositivos/sincronizar', sincronizar_telemetria_frota);
   app.post('/api/dispositivos/:numero_serie/comandos/:comando_id/resposta', receber_resposta_comando_http);
 
   // 4. Despacho e consulta de comandos individuais e em lote

@@ -265,6 +265,16 @@ class GestorComandosMdm(
                         )
                     }
 
+                    "solicitar_telemetria", "atualizar_telemetria", "sincronizar_telemetria" -> {
+                        com.mdm.corporativo.servico.ServicoSegundoPlanoMdm.instanciaAtiva?.enviar_telemetria_avulsa_agora()
+                            ?: com.mdm.corporativo.servico.ServicoSegundoPlanoMdm.forcar_sincronizacao_imediata(contexto)
+                        clienteMqtt.enviar_resposta_comando(
+                            comandoId,
+                            "executado",
+                            "Telemetria atualizada e enviada sob demanda com sucesso."
+                        )
+                    }
+
                     else -> {
                         Log.w(TAG, "Comando desconhecido: $tipoComando")
                         clienteMqtt.enviar_resposta_comando(comandoId, "rejeitado", "Tipo de comando desconhecido: $tipoComando")

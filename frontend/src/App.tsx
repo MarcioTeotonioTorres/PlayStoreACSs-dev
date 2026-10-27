@@ -16,6 +16,7 @@ import {
   listar_dispositivos_api,
   despachar_comando_api,
   remover_dispositivo_api,
+  solicitar_sincronizacao_frota_api,
   MetricasFrotaResposta,
   DispositivoItem,
 } from './servicos/api_mdm';
@@ -68,17 +69,26 @@ const PainelMdmLayout: React.FC = () => {
   useEffect(() => {
     carregar_dados_sistema();
 
-    // Sincronização periódica da telemetria a cada 10 segundos
+    // Sincronização periódica da telemetria a cada 24 horas (economiza recursos da VPS)
+    const INTERVALO_POLLING_24H_MS = 24 * 60 * 60 * 1000;
     const intervalo = setInterval(() => {
-      carregar_dados_sistema(false);
-    }, 10000);
+      carregar_dados_sistema(false, false);
+    }, INTERVALO_POLLING_24H_MS);
 
     return () => clearInterval(intervalo);
   }, []);
 
-  async function carregar_dados_sistema(exibirLoader = true) {
+  async function carregar_dados_sistema(exibirLoader = true, solicitarFrota = false) {
     if (exibirLoader) setCarregando(true);
     try {
+      if (solicitarFrota) {
+        // Dispara solicitação imediata via MQTT para que tablets conectados transmitam dados em tempo real
+        solicitar_sincronizacao_frota_api().catch(() => {});
+        // Breve re-fetch após 1.5s para capturar o retorno atualizado dos tablets
+        setTimeout(() => {
+          carregar_dados_sistema(false, false);
+        }, 1500);
+      }
       const [resMetricas, resDispositivos] = await Promise.all([
         obter_resumo_frota_api(),
         listar_dispositivos_api(),
@@ -164,7 +174,7 @@ const PainelMdmLayout: React.FC = () => {
                 metricas={metricas}
                 dispositivos={dispositivos}
                 carregando={carregando}
-                aoAtualizar={() => carregar_dados_sistema(true)}
+                aoAtualizar={() => carregar_dados_sistema(true, true)}
                 aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
                 aoAbrirComandosLote={() => setModalLoteVisivel(true)}
                 aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
@@ -181,7 +191,7 @@ const PainelMdmLayout: React.FC = () => {
               <PaginaDispositivos
                 dispositivos={dispositivos}
                 carregando={carregando}
-                aoAtualizar={() => carregar_dados_sistema(true)}
+                aoAtualizar={() => carregar_dados_sistema(true, true)}
                 aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
                 aoAbrirComandosLote={() => setModalLoteVisivel(true)}
                 aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
