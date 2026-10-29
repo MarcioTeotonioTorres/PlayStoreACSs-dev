@@ -8,6 +8,7 @@ import { PaginaDispositivos } from './paginas/PaginaDispositivos';
 import { PaginaAplicativos } from './paginas/PaginaAplicativos';
 import { PaginaPoliticas } from './paginas/PaginaPoliticas';
 import { PaginaProvisionamento } from './paginas/PaginaProvisionamento';
+import { PaginaUsuariosTablets } from './paginas/PaginaUsuariosTablets';
 import { ModalComandos } from './componentes/ModalComandos';
 import { ModalAdicionarDispositivo } from './componentes/ModalAdicionarDispositivo';
 import { PainelComandosLote } from './componentes/PainelComandosLote';
@@ -200,6 +201,11 @@ const PainelMdmLayout: React.FC = () => {
                 aoRemoverDispositivo={ao_remover_dispositivo}
               />
             }
+          />
+
+          <Route
+            path="/usuarios"
+            element={<PaginaUsuariosTablets dispositivos={dispositivos} />}
           />
 
           <Route

@@ -29,6 +29,21 @@ import {
   obter_politicas_dispositivo,
 } from './controladores/controlador_politicas';
 import {
+  listar_perfis_provisionamento,
+  obter_perfil_provisionamento,
+  criar_perfil_provisionamento,
+  atualizar_perfil_provisionamento,
+  remover_perfil_provisionamento,
+  aplicar_perfil_provisionamento,
+} from './controladores/controlador_perfis';
+import {
+  listar_usuarios_tablets,
+  obter_usuario_tablet,
+  cadastrar_usuario_tablet,
+  atualizar_usuario_tablet,
+  remover_usuario_tablet,
+} from './controladores/controlador_usuarios_tablets';
+import {
   listar_catalogo_aplicativos,
   fazer_upload_aplicativo,
   remover_aplicativo_catalogo,
@@ -202,6 +217,21 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.put('/api/politicas', atualizar_politicas_globais_frota);
   app.get('/api/politicas/dispositivo/:id', obter_politicas_dispositivo);
   app.put('/api/politicas/dispositivo/:id', atualizar_politicas_dispositivo);
+
+  // 5.1 Perfis de Provisionamento e Configurações de Restrições Salvas
+  app.get('/api/perfis', listar_perfis_provisionamento);
+  app.get('/api/perfis/:id', obter_perfil_provisionamento);
+  app.post('/api/perfis', criar_perfil_provisionamento);
+  app.put('/api/perfis/:id', atualizar_perfil_provisionamento);
+  app.delete('/api/perfis/:id', remover_perfil_provisionamento);
+  app.post('/api/perfis/:id/aplicar', aplicar_perfil_provisionamento);
+
+  // 5.2 Cadastro de Usuários dos Tablets (Agentes / Responsáveis)
+  app.get('/api/usuarios-tablets', listar_usuarios_tablets);
+  app.get('/api/usuarios-tablets/:id', obter_usuario_tablet);
+  app.post('/api/usuarios-tablets', cadastrar_usuario_tablet);
+  app.put('/api/usuarios-tablets/:id', atualizar_usuario_tablet);
+  app.delete('/api/usuarios-tablets/:id', remover_usuario_tablet);
 
   // 6. Catálogo e Distribuição de Aplicativos APK e XAPK
   app.get('/api/aplicativos', listar_catalogo_aplicativos);

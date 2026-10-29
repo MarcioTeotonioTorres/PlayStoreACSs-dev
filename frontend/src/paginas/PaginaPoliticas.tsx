@@ -18,15 +18,26 @@ import {
   RotateCcw,
   Smartphone,
   Info,
+  BookmarkPlus,
+  Layers,
+  Sparkles,
+  Send,
+  Download,
+  ListFilter,
 } from 'lucide-react';
 import {
   obter_politicas_api,
   obter_politicas_dispositivo_api,
   salvar_politicas_frota_api,
   salvar_politicas_dispositivo_api,
+  listar_perfis_api,
+  aplicar_perfil_api,
   DadosPolitica,
   DispositivoItem,
+  PerfilProvisionamentoItem,
 } from '../servicos/api_mdm';
+import { ModalSalvarPerfil } from '../componentes/ModalSalvarPerfil';
+import { ModalGerenciarPerfis } from '../componentes/ModalGerenciarPerfis';
 
 interface PropriedadesPaginaPoliticas {
   dispositivos: DispositivoItem[];
@@ -258,6 +269,13 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
   const [novoPacote, setNovoPacote] = useState<string>('');
   const [dispositivoAlvo, setDispositivoAlvo] = useState<string>('todos');
 
+  // Estados de Perfis de Provisionamento
+  const [perfis, setPerfis] = useState<PerfilProvisionamentoItem[]>([]);
+  const [perfilSelecionadoId, setPerfilSelecionadoId] = useState<string>('');
+  const [modalSalvarVisivel, setModalSalvarVisivel] = useState<boolean>(false);
+  const [modalGerenciarVisivel, setModalGerenciarVisivel] = useState<boolean>(false);
+  const [aplicandoPerfil, setAplicandoPerfil] = useState<boolean>(false);
+
   // Filtros de busca e categoria no catálogo de apps
   const [termoBusca, setTermoBusca] = useState<string>('');
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('todas');
@@ -298,6 +316,22 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
     { nome: 'MDM Corporativo', pacote: 'com.mdm.corporativo', desc: 'Agente de gestão e telemetria', icone: '🛡️' },
   ];
 
+  async function carregar_lista_perfis() {
+    try {
+      const resp = await listar_perfis_api();
+      if (resp.perfis && resp.perfis.length > 0) {
+        setPerfis(resp.perfis);
+        setPerfilSelecionadoId((atual) => atual || resp.perfis[0].id);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar perfis de provisionamento:', e);
+    }
+  }
+
+  useEffect(() => {
+    carregar_lista_perfis();
+  }, []);
+
   useEffect(() => {
     if (dispositivoAlvo === 'todos') {
       carregar_politicas_sistema();
@@ -305,6 +339,62 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
       carregar_politicas_dispositivo(dispositivoAlvo);
     }
   }, [dispositivoAlvo]);
+
+  function ao_carregar_perfil_no_editor(perfil: PerfilProvisionamentoItem) {
+    const pacotesSeguros = (perfil.pacotes_ocultos || []).filter(
+      (p: string) => !PACOTES_VITAIS_IMUNES.includes(p) && !p.startsWith('com.android.providers.')
+    );
+
+    setPolitica({
+      nome: perfil.nome,
+      permitir_camera: perfil.permitir_camera,
+      bloquear_usb: perfil.bloquear_usb,
+      permitir_reset_fabrica: perfil.permitir_reset_fabrica,
+      bloquear_instalacao_apps: perfil.bloquear_instalacao_apps,
+      bloquear_bluetooth: perfil.bloquear_bluetooth,
+      modo_quiosque_app: perfil.modo_quiosque_app || '',
+      habilitar_modo_quiosque: perfil.habilitar_modo_quiosque,
+      pacotes_ocultos: pacotesSeguros,
+      urls_permitidas: perfil.urls_permitidas || [],
+    });
+
+    setPerfilSelecionadoId(perfil.id);
+    setMensagemSucesso(`✓ Perfil "${perfil.nome}" carregado no formulário! Revise os parâmetros abaixo e clique em "Salvar e Aplicar Políticas" para propagar.`);
+    setTimeout(() => {
+      setMensagemSucesso('');
+    }, 5000);
+  }
+
+  async function ao_aplicar_perfil_direto(perfilId: string, alvo: 'todos' | 'dispositivo') {
+    const perfil = perfis.find((p) => p.id === perfilId);
+    if (!perfil) return;
+
+    const isFrota = alvo === 'todos';
+    const confirmMsg = isFrota
+      ? `Deseja realmente aplicar o perfil "${perfil.nome}" a TODOS os 250 tablets da frota corporativa agora?`
+      : `Deseja aplicar o perfil "${perfil.nome}" ao tablet selecionado agora?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setAplicandoPerfil(true);
+    setMensagemSucesso('');
+    try {
+      const resp = await aplicar_perfil_api(
+        perfil.id,
+        isFrota ? 'todos' : 'dispositivo',
+        isFrota ? undefined : dispositivoAlvo
+      );
+      setMensagemSucesso(`✓ ${resp.mensagem}`);
+      ao_carregar_perfil_no_editor(perfil);
+      setTimeout(() => {
+        setMensagemSucesso('');
+      }, 5000);
+    } catch (err: any) {
+      alert(`Falha ao aplicar perfil: ${err.message || 'Erro de comunicação com o servidor.'}`);
+    } finally {
+      setAplicandoPerfil(false);
+    }
+  }
 
   async function carregar_politicas_dispositivo(id: string) {
     setCarregando(true);
@@ -477,6 +567,11 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
     politica.pacotes_ocultos.includes(app.pacote)
   ).length;
 
+  // Perfil atualmente selecionado
+  const perfilSelecionado = useMemo(() => {
+    return perfis.find((p) => p.id === perfilSelecionadoId) || null;
+  }, [perfis, perfilSelecionadoId]);
+
   return (
     <div className="pagina-conteudo">
       {/* Cabeçalho da Página */}
@@ -520,6 +615,208 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
           {mensagemSucesso}
         </div>
       )}
+
+      {/* SEÇÃO 0: PERFIS DE PROVISIONAMENTO E TEMPLATES DE RESTRIÇÃO */}
+      <div
+        className="card-metrica"
+        style={{
+          marginBottom: '24px',
+          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          borderRadius: '14px',
+          padding: '20px 24px',
+          boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.3)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '10px',
+                background: 'rgba(59, 130, 246, 0.15)',
+                color: '#60a5fa',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Layers size={22} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
+                  Perfis de Provisionamento e Restrições Salvas
+                </h3>
+                <span
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    color: '#93c5fd',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {perfis.length} perfis configurados
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', margin: '2px 0 0 0' }}>
+                Carregue ou aplique configurações salvas com 1 clique diretamente na frota ou em um tablet específico
+              </p>
+            </div>
+          </div>
+
+          {/* Botões de Ação do Topo de Perfis */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-secundario"
+              onClick={() => setModalSalvarVisivel(true)}
+              style={{ fontSize: '12px', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Salva as diretrizes atualmente visíveis no formulário como um novo perfil"
+            >
+              <BookmarkPlus size={14} color="#60a5fa" />
+              Salvar como Novo Perfil
+            </button>
+            <button
+              className="btn btn-secundario"
+              onClick={() => setModalGerenciarVisivel(true)}
+              style={{ fontSize: '12px', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Abre a central completa de gerenciamento de perfis"
+            >
+              <ListFilter size={14} color="#34d399" />
+              Gerenciar Perfis ({perfis.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Barra de Seleção e Aplicação Rápida */}
+        <div
+          style={{
+            background: 'var(--fundo-base)',
+            border: '1px solid var(--borda-suave)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap' }}>
+              Selecionar Perfil:
+            </label>
+            <select
+              value={perfilSelecionadoId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setPerfilSelecionadoId(id);
+                const p = perfis.find((item) => item.id === id);
+                if (p) ao_carregar_perfil_no_editor(p);
+              }}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'var(--fundo-elevado)',
+                border: '1px solid var(--borda-suave)',
+                color: 'white',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              {perfis.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.eh_padrao ? '⭐ ' : '📌 '} {p.nome} {p.eh_padrao ? '(Template Padrão)' : '(Personalizado)'}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {perfilSelecionado && (
+              <button
+                className="btn btn-secundario"
+                onClick={() => ao_carregar_perfil_no_editor(perfilSelecionado)}
+                style={{ fontSize: '12px', padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                title="Recarrega as configurações deste perfil no formulário"
+              >
+                <Download size={13} />
+                Carregar no Editor
+              </button>
+            )}
+
+            <button
+              className="btn btn-primario"
+              onClick={() => ao_aplicar_perfil_direto(perfilSelecionadoId, 'todos')}
+              disabled={aplicandoPerfil || !perfilSelecionadoId}
+              style={{ fontSize: '12px', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Aplica este perfil de provisionamento imediatamente a todos os 250 tablets"
+            >
+              <Send size={13} />
+              {aplicandoPerfil ? 'Aplicando...' : 'Aplicar na Frota (250 Tablets)'}
+            </button>
+
+            {dispositivoAlvo !== 'todos' && (
+              <button
+                className="btn btn-primario"
+                onClick={() => ao_aplicar_perfil_direto(perfilSelecionadoId, 'dispositivo')}
+                disabled={aplicandoPerfil || !perfilSelecionadoId}
+                style={{
+                  fontSize: '12px',
+                  padding: '7px 14px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+                title="Aplica este perfil estritamente ao tablet selecionado no escopo abaixo"
+              >
+                <Smartphone size={13} />
+                {aplicandoPerfil ? 'Aplicando...' : 'Aplicar no Tablet Selecionado'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Resumo do Perfil Selecionado */}
+        {perfilSelecionado && (
+          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--texto-secundario)' }}>
+            <span style={{ color: '#fff', fontWeight: 600 }}>Diretrizes do Perfil:</span>
+            <span style={{ color: (perfilSelecionado.pacotes_ocultos || []).length > 0 ? '#f87171' : '#34d399' }}>
+              🔒 {(perfilSelecionado.pacotes_ocultos || []).length} Apps Bloqueados
+            </span>
+            <span>•</span>
+            <span style={{ color: perfilSelecionado.bloquear_usb ? '#34d399' : '#94a3b8' }}>
+              USB: {perfilSelecionado.bloquear_usb ? 'Bloqueado' : 'Liberado'}
+            </span>
+            <span>•</span>
+            <span style={{ color: perfilSelecionado.bloquear_bluetooth ? '#f87171' : '#60a5fa' }}>
+              Bluetooth: {perfilSelecionado.bloquear_bluetooth ? 'Bloqueado' : 'Liberado'}
+            </span>
+            <span>•</span>
+            <span style={{ color: perfilSelecionado.bloquear_instalacao_apps ? '#34d399' : '#94a3b8' }}>
+              Instalação APKs: {perfilSelecionado.bloquear_instalacao_apps ? 'Bloqueada' : 'Liberada'}
+            </span>
+            <span>•</span>
+            <span style={{ color: '#34d399' }}>
+              🌐 {(perfilSelecionado.urls_permitidas || []).length} URLs Liberadas
+            </span>
+            {perfilSelecionado.habilitar_modo_quiosque && (
+              <>
+                <span>•</span>
+                <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                  📱 Modo Quiosque: {perfilSelecionado.modo_quiosque_app || 'ACS'}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Banner de Como Funciona a Restauração no Tablet */}
       <div
@@ -1109,6 +1406,33 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
           </div>
         </div>
       </div>
+
+      {/* Modais de Perfis de Provisionamento */}
+      <ModalSalvarPerfil
+        visivel={modalSalvarVisivel}
+        politicaAtual={politica}
+        aoFechar={() => setModalSalvarVisivel(false)}
+        aoSalvarSucesso={(novoPerfil) => {
+          setPerfis((antigos) => [novoPerfil, ...antigos]);
+          setPerfilSelecionadoId(novoPerfil.id);
+          setMensagemSucesso(`✓ Perfil "${novoPerfil.nome}" salvo com sucesso e pronto para aplicação!`);
+          setTimeout(() => setMensagemSucesso(''), 5000);
+        }}
+      />
+
+      <ModalGerenciarPerfis
+        visivel={modalGerenciarVisivel}
+        perfis={perfis}
+        dispositivos={dispositivos}
+        aoFechar={() => setModalGerenciarVisivel(false)}
+        aoCarregarNoEditor={ao_carregar_perfil_no_editor}
+        aoPerfilAplicado={(msg) => {
+          setMensagemSucesso(`✓ ${msg}`);
+          setTimeout(() => setMensagemSucesso(''), 5000);
+          carregar_politicas_sistema();
+        }}
+        aoRecarregarPerfis={carregar_lista_perfis}
+      />
     </div>
   );
 };

@@ -9,6 +9,7 @@ import {
   Shield,
   LogOut,
   User,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../contextos/ContextoAutenticacao';
 
@@ -26,6 +27,7 @@ export const BarraLateral: React.FC<PropriedadesBarraLateral> = ({
   const itensNavegacao = [
     { caminho: '/', rotulo: 'Dashboard', icone: LayoutDashboard },
     { caminho: '/dispositivos', rotulo: 'Dispositivos', icone: Tablet },
+    { caminho: '/usuarios', rotulo: 'Usuários dos Tablets', icone: Users },
     { caminho: '/aplicativos', rotulo: 'Catálogo de Apps', icone: Package },
     { caminho: '/politicas', rotulo: 'Políticas & Restrições', icone: ShieldCheck },
     { caminho: '/provisionamento', rotulo: 'Instalação via ADB', icone: QrCode },

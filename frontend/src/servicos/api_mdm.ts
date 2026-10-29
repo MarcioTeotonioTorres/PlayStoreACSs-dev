@@ -284,6 +284,255 @@ export async function obter_politicas_dispositivo_api(
   return await resposta.json();
 }
 
+export interface PerfilProvisionamentoItem {
+  id: string;
+  nome: string;
+  descricao?: string;
+  eh_padrao?: boolean;
+  permitir_camera: boolean;
+  bloquear_usb: boolean;
+  permitir_reset_fabrica: boolean;
+  bloquear_instalacao_apps: boolean;
+  bloquear_bluetooth: boolean;
+  modo_quiosque_app?: string | null;
+  habilitar_modo_quiosque: boolean;
+  pacotes_ocultos: string[];
+  urls_permitidas: string[];
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
+/**
+ * Lista todos os perfis de provisionamento e conjuntos de restrições salvos.
+ */
+export async function listar_perfis_api(): Promise<{
+  sucesso: boolean;
+  total: number;
+  perfis: PerfilProvisionamentoItem[];
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/perfis`);
+  if (!resposta.ok) {
+    throw new Error('Falha ao listar perfis de provisionamento');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Obtém os detalhes de um perfil de provisionamento específico.
+ */
+export async function obter_perfil_api(id: string): Promise<{
+  sucesso: boolean;
+  perfil: PerfilProvisionamentoItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/perfis/${id}`);
+  if (!resposta.ok) {
+    throw new Error('Falha ao consultar perfil');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Cria e salva um novo perfil de provisionamento personalizado.
+ */
+export async function criar_perfil_api(
+  dados: Partial<PerfilProvisionamentoItem>
+): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  perfil: PerfilProvisionamentoItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/perfis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados),
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao salvar novo perfil');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Atualiza um perfil de provisionamento personalizado existente.
+ */
+export async function atualizar_perfil_api(
+  id: string,
+  dados: Partial<PerfilProvisionamentoItem>
+): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  perfil: PerfilProvisionamentoItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/perfis/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados),
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao atualizar perfil');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Remove um perfil de provisionamento personalizado.
+ */
+export async function remover_perfil_api(id: string): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/perfis/${id}`, {
+    method: 'DELETE',
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao remover perfil');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Aplica um perfil de provisionamento instantaneamente a um tablet individual ou a toda a frota.
+ */
+export async function aplicar_perfil_api(
+  id: string,
+  alvo: 'todos' | 'dispositivo',
+  dispositivo_id?: string
+): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  alvo: string;
+  dispositivo_id?: string;
+  perfil: PerfilProvisionamentoItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/perfis/${id}/aplicar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alvo, dispositivo_id }),
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao aplicar perfil');
+  }
+  return await resposta.json();
+}
+
+export interface UsuarioTabletItem {
+  id: string;
+  nome_completo: string;
+  email: string;
+  telefone: string;
+  dispositivo_id: string | null;
+  dispositivo_numero_serie?: string | null;
+  dispositivo_modelo?: string | null;
+  dispositivo_status?: 'conectado' | 'desconectado' | null;
+  dispositivo_bateria?: number | null;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+/**
+ * Consulta a listagem de usuários responsáveis pelos tablets corporativos.
+ */
+export async function listar_usuarios_tablets_api(busca?: string): Promise<{
+  sucesso: boolean;
+  total: number;
+  usuarios: UsuarioTabletItem[];
+}> {
+  const query = busca ? `?busca=${encodeURIComponent(busca)}` : '';
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-tablets${query}`);
+  if (!resposta.ok) {
+    throw new Error('Falha ao listar usuários dos tablets');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Consulta os detalhes de um usuário de tablet específico pelo ID.
+ */
+export async function obter_usuario_tablet_api(id: string): Promise<{
+  sucesso: boolean;
+  usuario: UsuarioTabletItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-tablets/${id}`);
+  if (!resposta.ok) {
+    throw new Error('Falha ao consultar usuário do tablet');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Cadastra um novo usuário e vincula ao tablet da frota.
+ */
+export async function cadastrar_usuario_tablet_api(dados: {
+  nome_completo: string;
+  email: string;
+  telefone: string;
+  dispositivo_id?: string | null;
+}): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  usuario: UsuarioTabletItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-tablets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados),
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao cadastrar usuário');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Atualiza os dados de um usuário e/ou seu tablet vinculado.
+ */
+export async function atualizar_usuario_tablet_api(
+  id: string,
+  dados: {
+    nome_completo?: string;
+    email?: string;
+    telefone?: string;
+    dispositivo_id?: string | null;
+  }
+): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  usuario: UsuarioTabletItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-tablets/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados),
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao atualizar usuário');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Remove o cadastro de um usuário de tablet.
+ */
+export async function remover_usuario_tablet_api(id: string): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-tablets/${id}`, {
+    method: 'DELETE',
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao remover usuário');
+  }
+  return await resposta.json();
+}
+
 /**
  * Retorna os pacotes APK disponíveis no catálogo do servidor.
  */

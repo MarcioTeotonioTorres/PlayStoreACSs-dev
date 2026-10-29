@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
-import { X, Lock, RotateCcw, ShieldAlert, Download, Camera, Usb, AppWindow } from 'lucide-react';
-import { DispositivoItem } from '../servicos/api_mdm';
+import React, { useState, useEffect } from 'react';
+import { X, Lock, RotateCcw, ShieldAlert, Download, Camera, Usb, AppWindow, Layers } from 'lucide-react';
+import {
+  DispositivoItem,
+  PerfilProvisionamentoItem,
+  listar_perfis_api,
+  aplicar_perfil_api,
+} from '../servicos/api_mdm';
 
 interface PropriedadesModal {
   dispositivo: DispositivoItem | null;
@@ -22,8 +27,23 @@ export const ModalComandos: React.FC<PropriedadesModal> = ({
   const [tipoComando, setTipoComando] = useState<string>('bloquear_tela_imediata');
   const [pacoteQuiosque, setPacoteQuiosque] = useState<string>('com.empresa.operacao');
   const [urlApk, setUrlApk] = useState<string>('');
+  const [perfis, setPerfis] = useState<PerfilProvisionamentoItem[]>([]);
+  const [perfilId, setPerfilId] = useState<string>('');
   const [enviando, setEnviando] = useState<boolean>(false);
   const [mensagemSucesso, setMensagemSucesso] = useState<string>('');
+
+  useEffect(() => {
+    async function carregarPerfis() {
+      try {
+        const resp = await listar_perfis_api();
+        if (resp.perfis && resp.perfis.length > 0) {
+          setPerfis(resp.perfis);
+          setPerfilId((atual) => atual || resp.perfis[0].id);
+        }
+      } catch (e) {}
+    }
+    carregarPerfis();
+  }, []);
 
   async function executar_comando_escolhido() {
     if (!dispositivo) return;
@@ -31,6 +51,27 @@ export const ModalComandos: React.FC<PropriedadesModal> = ({
     setMensagemSucesso('');
 
     let parametros: Record<string, any> = {};
+
+    if (tipoComando === 'aplicar_perfil') {
+      if (!perfilId) {
+        alert('Selecione um perfil de provisionamento.');
+        setEnviando(false);
+        return;
+      }
+      try {
+        const resp = await aplicar_perfil_api(perfilId, 'dispositivo', dispositivo.id);
+        setMensagemSucesso(resp.mensagem || 'Perfil aplicado com sucesso ao dispositivo!');
+        setTimeout(() => {
+          setMensagemSucesso('');
+          aoFechar();
+        }, 1500);
+      } catch (e: any) {
+        alert(`Falha ao aplicar perfil: ${e.message || 'Erro inesperado'}`);
+      } finally {
+        setEnviando(false);
+      }
+      return;
+    }
 
     if (tipoComando === 'modo_quiosque') {
       parametros = { pacote_app: pacoteQuiosque, habilitar: true };
@@ -134,6 +175,7 @@ export const ModalComandos: React.FC<PropriedadesModal> = ({
               marginBottom: '18px',
             }}
           >
+            <option value="aplicar_perfil">📋 Aplicar Perfil de Provisionamento Salvo</option>
             <option value="bloquear_tela_imediata">🔒 Bloquear Tela Imediatamente</option>
             <option value="reiniciar_aparelho">🔄 Reiniciar Tablet</option>
             <option value="bloquear_bluetooth">📡 Desativar e Bloquear Bluetooth (Impede Envio/Recebimento)</option>
@@ -148,6 +190,51 @@ export const ModalComandos: React.FC<PropriedadesModal> = ({
             <option value="instalar_aplicativo_silencioso">📦 Instalar APK Silenciosamente</option>
             <option value="limpar_dados_dispositivo">⚠️ Limpeza Remota de Dados (Wipe Total)</option>
           </select>
+
+          {/* Campo condicional para perfil de provisionamento */}
+          {tipoComando === 'aplicar_perfil' && (
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--texto-secundario)', marginBottom: '6px' }}>
+                Selecione o Perfil de Restrições Salvo:
+              </label>
+              <select
+                value={perfilId}
+                onChange={(e) => setPerfilId(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: 'var(--fundo-base)',
+                  border: '1px solid var(--borda-suave)',
+                  color: 'white',
+                  fontSize: '13px',
+                }}
+              >
+                {perfis.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.eh_padrao ? '⭐ ' : '📌 '} {p.nome}
+                  </option>
+                ))}
+              </select>
+
+              {perfis.find((p) => p.id === perfilId) && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: 'var(--fundo-elevado)',
+                    border: '1px solid var(--borda-suave)',
+                    fontSize: '11px',
+                    color: 'var(--texto-secundario)',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  {perfis.find((p) => p.id === perfilId)?.descricao || 'Configuração completa de diretrizes corporativas.'}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Campo condicional para modo quiosque */}
           {tipoComando === 'modo_quiosque' && (

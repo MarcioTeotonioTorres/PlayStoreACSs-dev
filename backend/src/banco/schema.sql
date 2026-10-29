@@ -112,3 +112,16 @@ CREATE TABLE IF NOT EXISTS usuarios (
 ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS aplicativos_instalados JSONB DEFAULT '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
 
+-- Tabela de Cadastro de Usuários / Agentes Vinculados aos Tablets
+CREATE TABLE IF NOT EXISTS usuarios_tablets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome_completo VARCHAR(150) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    telefone VARCHAR(50) NOT NULL,
+    dispositivo_id UUID REFERENCES dispositivos(id) ON DELETE SET NULL,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_usuarios_tablets_dispositivo ON usuarios_tablets(dispositivo_id);
+
+
