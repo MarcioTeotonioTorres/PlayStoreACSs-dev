@@ -158,7 +158,7 @@ export async function listar_dispositivos(
         LEFT JOIN perfis_provisionamento pp ON d.perfil_ativo_id = pp.id
       )
       SELECT
-        id, numero_serie, modelo, versao_so,
+        id, numero_serie, modelo, versao_so, versao_so AS versao_android,
         status_conexao, bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
         app_foco, tempo_ocioso_calculado AS tempo_ocioso_minutos,
         memoria_ram_livre_mb, armazenamento_livre_mb,

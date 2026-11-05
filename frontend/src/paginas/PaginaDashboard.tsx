@@ -137,6 +137,17 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
     return { texto: `${d}d sem contato`, critico: true, emUso: false };
   }
 
+  function formatarVersaoAndroid(versaoBruta?: string): string {
+    if (!versaoBruta || versaoBruta.trim() === '' || versaoBruta === 'Android') {
+      return 'Android 13';
+    }
+    const limpa = versaoBruta.trim();
+    if (limpa.toLowerCase().startsWith('android')) {
+      return limpa;
+    }
+    return `Android ${limpa}`;
+  }
+
   // Filtragem Dinâmica
   const dispositivosFiltrados = useMemo(() => {
     return dispositivos.filter((d) => {
@@ -628,7 +639,7 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
                                 SN: {disp.numero_serie}
                               </span>
                               <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>
-                                Android {disp.versao_android || '12/13'}
+                                {formatarVersaoAndroid(disp.versao_so || disp.versao_android)}
                               </span>
                             </div>
                           </div>
