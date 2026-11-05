@@ -103,9 +103,9 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
   }).length;
 
   /**
-   * Formatação elegante de ociosidade
+   * Formatação elegante de ociosidade e tempo sem contato
    */
-  function formatarOciosidade(minutos?: number, ultimoContato?: string): {
+  function formatarOciosidade(minutos?: number, ultimoContato?: string, online?: boolean): {
     texto: string;
     critico: boolean;
     emUso: boolean;
@@ -115,6 +115,12 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
       const ms = Date.now() - new Date(ultimoContato).getTime();
       const minSemContato = Math.floor(ms / 60000);
       if (minSemContato > 3) min = Math.max(min, minSemContato);
+    }
+
+    if (!online) {
+      if (min < 60) return { texto: `${min} min`, critico: false, emUso: false };
+      if (min < 1440) return { texto: `${Math.round(min / 60)}h`, critico: false, emUso: false };
+      return { texto: `${Math.floor(min / 1440)}d`, critico: true, emUso: false };
     }
 
     if (min <= 1) {
@@ -577,7 +583,7 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
                 dispositivosFiltrados.map((disp) => {
                   const online = disp.status_conexao === 'conectado';
                   const temUsuario = Boolean(disp.usuario_nome);
-                  const ocioso = formatarOciosidade(disp.tempo_ocioso_minutos, disp.ultimo_contato);
+                  const ocioso = formatarOciosidade(disp.tempo_ocioso_minutos, disp.ultimo_contato, online);
 
                   return (
                     <tr
@@ -748,37 +754,58 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
 
                       {/* Coluna 5: App Ativo em Foco e Ociosidade */}
                       <td style={{ padding: '14px 20px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
-                            {disp.aplicativo_ativo || 'e-SUS Território'}
+                        {online ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
+                              {disp.app_foco || disp.aplicativo_ativo || 'Área de Trabalho'}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '11px',
+                                color: ocioso.critico ? '#f87171' : ocioso.emUso ? '#34d399' : '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <Clock size={11} />
+                              <span>{ocioso.texto}</span>
+                            </div>
                           </div>
-                          <div
-                            style={{
-                              fontSize: '11px',
-                              color: ocioso.critico ? '#f87171' : ocioso.emUso ? '#34d399' : '#94a3b8',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <Clock size={11} />
-                            <span>{ocioso.texto}</span>
-                            {ocioso.critico && (
-                              <span
-                                style={{
-                                  background: 'rgba(239, 68, 68, 0.2)',
-                                  color: '#f87171',
-                                  fontSize: '9px',
-                                  fontWeight: 700,
-                                  padding: '1px 4px',
-                                  borderRadius: '3px',
-                                }}
-                              >
-                                CRÍTICO
-                              </span>
-                            )}
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>
+                              Aparelho Desligado
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '11px',
+                                color: ocioso.critico ? '#f87171' : '#64748b',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                              title={disp.app_foco ? `Último app registrado antes de desligar: ${disp.app_foco}` : undefined}
+                            >
+                              <Clock size={11} />
+                              <span>Sem sinal há: {ocioso.texto}</span>
+                              {ocioso.critico && (
+                                <span
+                                  style={{
+                                    background: 'rgba(239, 68, 68, 0.2)',
+                                    color: '#f87171',
+                                    fontSize: '9px',
+                                    fontWeight: 700,
+                                    padding: '1px 4px',
+                                    borderRadius: '3px',
+                                  }}
+                                >
+                                  CRÍTICO
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </td>
 
                       {/* Coluna 6: Ações (Supervisor = Somente Leitura | Admin = Ações Remotas) */}

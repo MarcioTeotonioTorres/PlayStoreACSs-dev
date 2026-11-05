@@ -265,8 +265,10 @@ export const ModalDetalhesDispositivo: React.FC<PropriedadesModalDetalhes> = ({
 
               <div>
                 <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>Aplicativo Ativo em Foco:</span>
-                <span style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 600 }}>
-                  {dispositivo.aplicativo_ativo || 'e-SUS Território'}
+                <span style={{ fontSize: '13px', color: online ? '#38bdf8' : '#94a3b8', fontWeight: 600 }}>
+                  {online
+                    ? (dispositivo.app_foco || dispositivo.aplicativo_ativo || 'Área de Trabalho')
+                    : (dispositivo.app_foco ? `Desligado (Último app registrado: ${dispositivo.app_foco})` : 'Aparelho Desligado / Offline')}
                 </span>
               </div>
 
