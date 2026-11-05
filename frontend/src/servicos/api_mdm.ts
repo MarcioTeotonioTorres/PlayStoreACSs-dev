@@ -33,6 +33,11 @@ export interface DispositivoItem {
   status_conexao: 'conectado' | 'desconectado';
   bateria: number;
   esta_carregando: boolean;
+  carregando?: boolean;
+  endereco_ip?: string;
+  versao_android?: string;
+  versao_agente?: string;
+  aplicativo_ativo?: string;
   sinal_wifi_rssi: number;
   ssid_wifi: string;
   app_foco: string;
@@ -41,6 +46,14 @@ export interface DispositivoItem {
   ultimo_contato: string;
   tempo_ocioso_minutos?: number;
   aplicativos_instalados?: AplicativoInstaladoItem[];
+  perfil_ativo_id?: string | null;
+  perfil_ativo_nome?: string | null;
+  perfil_ativo_em?: string | null;
+  usuario_nome?: string | null;
+  usuario_unidade_basica?: string | null;
+  usuario_telefone?: string | null;
+  usuario_cpf?: string | null;
+  usuario_email?: string | null;
 }
 
 export interface RespostaListagemDispositivos {
@@ -422,6 +435,8 @@ export async function aplicar_perfil_api(
 export interface UsuarioTabletItem {
   id: string;
   nome_completo: string;
+  unidade_basica?: string | null;
+  cpf?: string | null;
   email: string;
   telefone: string;
   dispositivo_id: string | null;
@@ -468,6 +483,8 @@ export async function obter_usuario_tablet_api(id: string): Promise<{
  */
 export async function cadastrar_usuario_tablet_api(dados: {
   nome_completo: string;
+  unidade_basica?: string | null;
+  cpf?: string | null;
   email: string;
   telefone: string;
   dispositivo_id?: string | null;
@@ -495,6 +512,8 @@ export async function atualizar_usuario_tablet_api(
   id: string,
   dados: {
     nome_completo?: string;
+    unidade_basica?: string | null;
+    cpf?: string | null;
     email?: string;
     telefone?: string;
     dispositivo_id?: string | null;
@@ -529,6 +548,124 @@ export async function remover_usuario_tablet_api(id: string): Promise<{
   if (!resposta.ok) {
     const err = await resposta.json().catch(() => ({}));
     throw new Error(err.mensagem || 'Falha ao remover usuário');
+  }
+  return await resposta.json();
+}
+
+// =========================================================================
+// MÓDULO: GESTÃO DE USUÁRIOS DO SISTEMA (RBAC: ADM VS SUPERVISOR)
+// =========================================================================
+
+export interface UsuarioSistemaItem {
+  id: string;
+  nome: string;
+  email: string;
+  perfil: 'adm' | 'supervisor';
+  ativo: boolean;
+  ultimo_login?: string | null;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
+/**
+ * Lista todos os operadores do sistema (Admins e Supervisores).
+ */
+export async function listar_usuarios_sistema_api(): Promise<{
+  sucesso: boolean;
+  total: number;
+  usuarios: UsuarioSistemaItem[];
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-sistema`);
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao listar usuários do sistema.');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Obtém os detalhes de um operador específico pelo ID.
+ */
+export async function obter_usuario_sistema_api(id: string): Promise<{
+  sucesso: boolean;
+  usuario: UsuarioSistemaItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-sistema/${id}`);
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao consultar usuário do sistema.');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Cadastra um novo operador no sistema com perfil 'adm' ou 'supervisor'.
+ */
+export async function cadastrar_usuario_sistema_api(dados: {
+  nome: string;
+  email: string;
+  senha: string;
+  perfil: 'adm' | 'supervisor';
+  ativo?: boolean;
+}): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  usuario: UsuarioSistemaItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-sistema`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados),
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao cadastrar usuário do sistema.');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Atualiza os dados de um operador do sistema.
+ */
+export async function atualizar_usuario_sistema_api(
+  id: string,
+  dados: {
+    nome?: string;
+    email?: string;
+    perfil?: 'adm' | 'supervisor';
+    ativo?: boolean;
+    nova_senha?: string;
+  }
+): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  usuario: UsuarioSistemaItem;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-sistema/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados),
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao atualizar usuário do sistema.');
+  }
+  return await resposta.json();
+}
+
+/**
+ * Remove um operador do sistema.
+ */
+export async function remover_usuario_sistema_api(id: string): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+}> {
+  const resposta = await fetchAutenticado(`${URL_BASE}/usuarios-sistema/${id}`, {
+    method: 'DELETE',
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.mensagem || 'Falha ao remover usuário do sistema.');
   }
   return await resposta.json();
 }

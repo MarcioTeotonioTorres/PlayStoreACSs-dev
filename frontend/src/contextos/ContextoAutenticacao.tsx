@@ -12,6 +12,8 @@ import {
 interface ContextoAutenticacaoTipo {
   usuario: UsuarioAutenticado | null;
   estaAutenticado: boolean;
+  ehAdmin: boolean;
+  ehSupervisor: boolean;
   carregando: boolean;
   login: (email: string, senha: string) => Promise<RespostaLogin>;
   logout: () => void;
@@ -20,6 +22,8 @@ interface ContextoAutenticacaoTipo {
 const ContextoAutenticacao = createContext<ContextoAutenticacaoTipo>({
   usuario: null,
   estaAutenticado: false,
+  ehAdmin: false,
+  ehSupervisor: false,
   carregando: true,
   login: async () => ({ sucesso: false, mensagem: '' }),
   logout: () => {},
@@ -62,11 +66,17 @@ export const ProvedorAutenticacao: React.FC<{ children: React.ReactNode }> = ({ 
     window.location.href = '/login';
   }
 
+  const perfilLimpo = (usuario?.perfil || '').toLowerCase();
+  const ehSupervisor = perfilLimpo === 'supervisor' || perfilLimpo === 'operador';
+  const ehAdmin = !ehSupervisor && (perfilLimpo === 'adm' || perfilLimpo === 'admin' || !!usuario);
+
   return (
     <ContextoAutenticacao.Provider
       value={{
         usuario,
         estaAutenticado: !!usuario,
+        ehAdmin,
+        ehSupervisor,
         carregando,
         login,
         logout,

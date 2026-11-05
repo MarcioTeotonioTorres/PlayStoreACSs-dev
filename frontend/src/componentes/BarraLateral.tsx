@@ -10,6 +10,7 @@ import {
   LogOut,
   User,
   Users,
+  UserCog,
 } from 'lucide-react';
 import { useAuth } from '../contextos/ContextoAutenticacao';
 
@@ -22,16 +23,20 @@ export const BarraLateral: React.FC<PropriedadesBarraLateral> = ({
   totalTablets = 250,
   onlineTablets = 0,
 }) => {
-  const { usuario, logout } = useAuth();
+  const { usuario, logout, ehSupervisor } = useAuth();
 
-  const itensNavegacao = [
-    { caminho: '/', rotulo: 'Dashboard', icone: LayoutDashboard },
-    { caminho: '/dispositivos', rotulo: 'Dispositivos', icone: Tablet },
-    { caminho: '/usuarios', rotulo: 'Usuários dos Tablets', icone: Users },
-    { caminho: '/aplicativos', rotulo: 'Catálogo de Apps', icone: Package },
-    { caminho: '/politicas', rotulo: 'Políticas & Restrições', icone: ShieldCheck },
-    { caminho: '/provisionamento', rotulo: 'Instalação via ADB', icone: QrCode },
-  ];
+  // Para o perfil supervisor, o acesso é estritamente limitado ao Dashboard para monitoramento
+  const itensNavegacao = ehSupervisor
+    ? [{ caminho: '/', rotulo: 'Dashboard', icone: LayoutDashboard }]
+    : [
+        { caminho: '/', rotulo: 'Dashboard', icone: LayoutDashboard },
+        { caminho: '/dispositivos', rotulo: 'Dispositivos', icone: Tablet },
+        { caminho: '/usuarios', rotulo: 'Usuários dos Tablets', icone: Users },
+        { caminho: '/aplicativos', rotulo: 'Catálogo de Apps', icone: Package },
+        { caminho: '/politicas', rotulo: 'Políticas & Restrições', icone: ShieldCheck },
+        { caminho: '/provisionamento', rotulo: 'Instalação via ADB', icone: QrCode },
+        { caminho: '/usuarios-sistema', rotulo: 'Usuários do Sistema', icone: UserCog },
+      ];
 
   function aoClicarSair() {
     if (confirm('Deseja realmente encerrar sua sessão no painel MDM?')) {
@@ -104,15 +109,37 @@ export const BarraLateral: React.FC<PropriedadesBarraLateral> = ({
             <div style={{ minWidth: 0, overflow: 'hidden' }}>
               <div
                 style={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#f8fafc',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}
               >
-                {usuario?.nome || 'Operador TI'}
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#f8fafc',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {usuario?.nome || (ehSupervisor ? 'Supervisor' : 'Administrador')}
+                </span>
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    textTransform: 'uppercase',
+                    background: ehSupervisor ? 'rgba(234, 179, 8, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                    color: ehSupervisor ? '#facc15' : '#60a5fa',
+                    border: `1px solid ${ehSupervisor ? 'rgba(234, 179, 8, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+                  }}
+                >
+                  {ehSupervisor ? 'Supervisor' : 'Adm'}
+                </span>
               </div>
               <div
                 style={{

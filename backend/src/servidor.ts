@@ -44,6 +44,13 @@ import {
   remover_usuario_tablet,
 } from './controladores/controlador_usuarios_tablets';
 import {
+  listar_usuarios_sistema,
+  obter_usuario_sistema,
+  criar_usuario_sistema,
+  atualizar_usuario_sistema,
+  remover_usuario_sistema,
+} from './controladores/controlador_usuarios_sistema';
+import {
   listar_catalogo_aplicativos,
   fazer_upload_aplicativo,
   remover_aplicativo_catalogo,
@@ -182,10 +189,63 @@ export function configurar_rotas_api(app: FastifyInstance): void {
     }
   });
 
+  // Middleware estrito de permissão RBAC para operações exclusivas de 'adm'
+  // Supervisores têm acesso unicamente para visualização e monitoramento da frota
+  const rotasExclusivasAdm = [
+    { metodo: 'POST', prefixo: '/api/dispositivos' },
+    { metodo: 'DELETE', prefixo: '/api/dispositivos' },
+    { metodo: 'POST', prefixo: '/api/comandos' },
+    { metodo: 'PUT', prefixo: '/api/politicas' },
+    { metodo: 'POST', prefixo: '/api/perfis' },
+    { metodo: 'PUT', prefixo: '/api/perfis' },
+    { metodo: 'DELETE', prefixo: '/api/perfis' },
+    { metodo: 'POST', prefixo: '/api/usuarios-tablets' },
+    { metodo: 'PUT', prefixo: '/api/usuarios-tablets' },
+    { metodo: 'DELETE', prefixo: '/api/usuarios-tablets' },
+    { metodo: 'GET', prefixo: '/api/usuarios-sistema' },
+    { metodo: 'POST', prefixo: '/api/usuarios-sistema' },
+    { metodo: 'PUT', prefixo: '/api/usuarios-sistema' },
+    { metodo: 'DELETE', prefixo: '/api/usuarios-sistema' },
+    { metodo: 'POST', prefixo: '/api/aplicativos' },
+    { metodo: 'DELETE', prefixo: '/api/aplicativos' },
+  ];
+
+  app.addHook('preHandler', async (requisicao, resposta) => {
+    const url = requisicao.raw.url || '';
+    const metodo = requisicao.method.toUpperCase();
+
+    // Sincronização periódica da frota é permitida para atualização sob demanda no dashboard
+    if (url.startsWith('/api/dispositivos/sincronizar') && metodo === 'POST') {
+      return;
+    }
+
+    const ehExclusiva = rotasExclusivasAdm.some(
+      (r) => r.metodo === metodo && url.startsWith(r.prefixo)
+    );
+
+    if (ehExclusiva) {
+      const usuario = (requisicao as any).usuario;
+      const perfil = usuario?.perfil === 'admin' ? 'adm' : usuario?.perfil;
+      if (perfil !== 'adm') {
+        resposta.status(403).send({
+          sucesso: false,
+          mensagem: 'Acesso restrito: Supervisores possuem acesso apenas para monitoramento e não podem executar esta ação.',
+        });
+      }
+    }
+  });
+
   // 0. Rotas de Autenticação e Gestão de Operadores
   app.post('/api/auth/login', login_usuario);
   app.get('/api/auth/perfil', obter_perfil_usuario);
   app.post('/api/auth/senha', alterar_senha_usuario);
+
+  // 0.1 Gestão de Usuários do Sistema (Exclusivo para Admins)
+  app.get('/api/usuarios-sistema', listar_usuarios_sistema);
+  app.get('/api/usuarios-sistema/:id', obter_usuario_sistema);
+  app.post('/api/usuarios-sistema', criar_usuario_sistema);
+  app.put('/api/usuarios-sistema/:id', atualizar_usuario_sistema);
+  app.delete('/api/usuarios-sistema/:id', remover_usuario_sistema);
 
   // 1. Verificação de saúde da aplicação
   app.get('/api/saude', async () => ({
@@ -207,18 +267,18 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.post('/api/dispositivos/sincronizar', sincronizar_telemetria_frota);
   app.post('/api/dispositivos/:numero_serie/comandos/:comando_id/resposta', receber_resposta_comando_http);
 
-  // 4. Despacho e consulta de comandos individuais e em lote
+  // 4. Despacho e consulta de comandos individuais e em lote (Exclusivo Adm)
   app.post('/api/comandos/despachar', despachar_comando_dispositivo);
   app.post('/api/comandos/lote', despachar_comando_em_lote);
   app.get('/api/comandos/:id', consultar_status_comando);
 
-  // 5. Políticas de Acesso e Restrições (Sprint 2)
+  // 5. Políticas de Acesso e Restrições (Sprint 2 - Exclusivo Adm)
   app.get('/api/politicas', obter_politicas_frota);
   app.put('/api/politicas', atualizar_politicas_globais_frota);
   app.get('/api/politicas/dispositivo/:id', obter_politicas_dispositivo);
   app.put('/api/politicas/dispositivo/:id', atualizar_politicas_dispositivo);
 
-  // 5.1 Perfis de Provisionamento e Configurações de Restrições Salvas
+  // 5.1 Perfis de Provisionamento e Configurações de Restrições Salvas (Exclusivo Adm)
   app.get('/api/perfis', listar_perfis_provisionamento);
   app.get('/api/perfis/:id', obter_perfil_provisionamento);
   app.post('/api/perfis', criar_perfil_provisionamento);
@@ -226,14 +286,14 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.delete('/api/perfis/:id', remover_perfil_provisionamento);
   app.post('/api/perfis/:id/aplicar', aplicar_perfil_provisionamento);
 
-  // 5.2 Cadastro de Usuários dos Tablets (Agentes / Responsáveis)
+  // 5.2 Cadastro de Usuários dos Tablets (Agentes / Responsáveis - Exclusivo Adm)
   app.get('/api/usuarios-tablets', listar_usuarios_tablets);
   app.get('/api/usuarios-tablets/:id', obter_usuario_tablet);
   app.post('/api/usuarios-tablets', cadastrar_usuario_tablet);
   app.put('/api/usuarios-tablets/:id', atualizar_usuario_tablet);
   app.delete('/api/usuarios-tablets/:id', remover_usuario_tablet);
 
-  // 6. Catálogo e Distribuição de Aplicativos APK e XAPK
+  // 6. Catálogo e Distribuição de Aplicativos APK e XAPK (Exclusivo Adm)
   app.get('/api/aplicativos', listar_catalogo_aplicativos);
   app.post('/api/aplicativos/upload', fazer_upload_aplicativo);
   app.delete('/api/aplicativos/:nome_arquivo', remover_aplicativo_catalogo);

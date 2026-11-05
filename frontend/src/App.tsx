@@ -9,6 +9,7 @@ import { PaginaAplicativos } from './paginas/PaginaAplicativos';
 import { PaginaPoliticas } from './paginas/PaginaPoliticas';
 import { PaginaProvisionamento } from './paginas/PaginaProvisionamento';
 import { PaginaUsuariosTablets } from './paginas/PaginaUsuariosTablets';
+import { PaginaUsuariosSistema } from './paginas/PaginaUsuariosSistema';
 import { ModalComandos } from './componentes/ModalComandos';
 import { ModalAdicionarDispositivo } from './componentes/ModalAdicionarDispositivo';
 import { PainelComandosLote } from './componentes/PainelComandosLote';
@@ -55,9 +56,28 @@ const RotaProtegida: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 };
 
 /**
+ * Guarda de rota exclusiva para Perfil Administrador.
+ * Redireciona usuários com perfil 'supervisor' diretamente para a raiz '/' (Dashboard).
+ */
+const RotaExclusivaAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { ehSupervisor, carregando } = useAuth();
+
+  if (carregando) {
+    return null;
+  }
+
+  if (ehSupervisor) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+/**
  * Layout principal do painel MDM com barra lateral e sincronização de telemetria.
  */
 const PainelMdmLayout: React.FC = () => {
+  const { ehSupervisor, ehAdmin } = useAuth();
   const [metricas, setMetricas] = useState<MetricasFrotaResposta['metricas'] | null>(null);
   const [dispositivos, setDispositivos] = useState<DispositivoItem[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -82,7 +102,7 @@ const PainelMdmLayout: React.FC = () => {
   async function carregar_dados_sistema(exibirLoader = true, solicitarFrota = false) {
     if (exibirLoader) setCarregando(true);
     try {
-      if (solicitarFrota) {
+      if (solicitarFrota && ehAdmin) {
         // Dispara solicitação imediata via MQTT para que tablets conectados transmitam dados em tempo real
         solicitar_sincronizacao_frota_api().catch(() => {});
         // Breve re-fetch após 1.5s para capturar o retorno atualizado dos tablets
@@ -104,6 +124,7 @@ const PainelMdmLayout: React.FC = () => {
   }
 
   async function ao_bloquear_dispositivo_rapido(disp: DispositivoItem) {
+    if (ehSupervisor) return;
     try {
       await despachar_comando_api(disp.id, 'bloquear_tela_imediata');
       alert(`Comando de bloqueio enviado para o tablet ${disp.modelo} (SN: ${disp.numero_serie})`);
@@ -114,6 +135,7 @@ const PainelMdmLayout: React.FC = () => {
   }
 
   async function ao_reiniciar_dispositivo_rapido(disp: DispositivoItem) {
+    if (ehSupervisor) return;
     if (confirm(`Deseja reiniciar remotamente o tablet ${disp.modelo} (${disp.numero_serie})?`)) {
       try {
         await despachar_comando_api(disp.id, 'reiniciar_aparelho');
@@ -126,6 +148,7 @@ const PainelMdmLayout: React.FC = () => {
   }
 
   function ao_abrir_modal_comandos(disp: DispositivoItem) {
+    if (ehSupervisor) return;
     setDispositivoSelecionado(disp);
   }
 
@@ -138,11 +161,13 @@ const PainelMdmLayout: React.FC = () => {
     tipoComando: string,
     parametros: Record<string, any>
   ) {
+    if (ehSupervisor) return;
     await despachar_comando_api(dispositivoId, tipoComando, parametros);
     carregar_dados_sistema(false);
   }
 
   async function ao_remover_dispositivo(disp: DispositivoItem) {
+    if (ehSupervisor) return;
     const confirmar = confirm(
       `⚠️ ATENÇÃO: Remover permanentemente o tablet da frota?\n\nModelo: ${disp.modelo}\nSN: ${disp.numero_serie}\n\nEsta ação remove o dispositivo e todo seu histórico de telemetria e comandos. Não pode ser desfeita.`
     );
@@ -168,6 +193,7 @@ const PainelMdmLayout: React.FC = () => {
       {/* Área Principal de Conteúdo */}
       <main className="conteudo-principal">
         <Routes>
+          {/* Dashboard Acessível a Todos (Supervisor e Admin) com visual adaptativo */}
           <Route
             path="/"
             element={
@@ -186,66 +212,98 @@ const PainelMdmLayout: React.FC = () => {
             }
           />
 
+          {/* Rotas Exclusivas para Perfil Administrador (Supervisor é redirecionado para /) */}
           <Route
             path="/dispositivos"
             element={
-              <PaginaDispositivos
-                dispositivos={dispositivos}
-                carregando={carregando}
-                aoAtualizar={() => carregar_dados_sistema(true, true)}
-                aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
-                aoAbrirComandosLote={() => setModalLoteVisivel(true)}
-                aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
-                aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
-                aoAbrirComandosCompletos={ao_abrir_modal_comandos}
-                aoRemoverDispositivo={ao_remover_dispositivo}
-              />
+              <RotaExclusivaAdmin>
+                <PaginaDispositivos
+                  dispositivos={dispositivos}
+                  carregando={carregando}
+                  aoAtualizar={() => carregar_dados_sistema(true, true)}
+                  aoAbrirAdicionar={() => setModalAdicionarVisivel(true)}
+                  aoAbrirComandosLote={() => setModalLoteVisivel(true)}
+                  aoBloquearDispositivo={ao_bloquear_dispositivo_rapido}
+                  aoReiniciarDispositivo={ao_reiniciar_dispositivo_rapido}
+                  aoAbrirComandosCompletos={ao_abrir_modal_comandos}
+                  aoRemoverDispositivo={ao_remover_dispositivo}
+                />
+              </RotaExclusivaAdmin>
             }
           />
 
           <Route
             path="/usuarios"
-            element={<PaginaUsuariosTablets dispositivos={dispositivos} />}
+            element={
+              <RotaExclusivaAdmin>
+                <PaginaUsuariosTablets dispositivos={dispositivos} />
+              </RotaExclusivaAdmin>
+            }
           />
 
           <Route
             path="/aplicativos"
-            element={<PaginaAplicativos dispositivos={dispositivos} />}
+            element={
+              <RotaExclusivaAdmin>
+                <PaginaAplicativos dispositivos={dispositivos} />
+              </RotaExclusivaAdmin>
+            }
           />
 
           <Route
             path="/politicas"
-            element={<PaginaPoliticas dispositivos={dispositivos} />}
+            element={
+              <RotaExclusivaAdmin>
+                <PaginaPoliticas dispositivos={dispositivos} />
+              </RotaExclusivaAdmin>
+            }
           />
 
           <Route
             path="/provisionamento"
-            element={<PaginaProvisionamento />}
+            element={
+              <RotaExclusivaAdmin>
+                <PaginaProvisionamento />
+              </RotaExclusivaAdmin>
+            }
+          />
+
+          <Route
+            path="/usuarios-sistema"
+            element={
+              <RotaExclusivaAdmin>
+                <PaginaUsuariosSistema />
+              </RotaExclusivaAdmin>
+            }
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
-      {/* Modais Globais */}
-      <ModalComandos
-        dispositivo={dispositivoSelecionado}
-        aoFechar={ao_fechar_modal_comandos}
-        aoEnviarComando={ao_enviar_comando_individual}
-      />
+      {/* Modais Globais de Comandos e Cadastro (Apenas para Administrador) */}
+      {ehAdmin && (
+        <>
+          <ModalComandos
+            dispositivo={dispositivoSelecionado}
+            aoFechar={ao_fechar_modal_comandos}
+            aoEnviarComando={ao_enviar_comando_individual}
+          />
 
-      <ModalAdicionarDispositivo
-        visivel={modalAdicionarVisivel}
-        aoFechar={() => setModalAdicionarVisivel(false)}
-        aoSucesso={() => carregar_dados_sistema(false)}
-      />
+          <ModalAdicionarDispositivo
+            visivel={modalAdicionarVisivel}
+            aoFechar={() => setModalAdicionarVisivel(false)}
+            aoSucesso={() => carregar_dados_sistema(false)}
+          />
 
-      <PainelComandosLote
-        visivel={modalLoteVisivel}
-        totalConectados={metricas?.conectados || 0}
-        aoFechar={() => setModalLoteVisivel(false)}
-        aoConcluirComandoLote={() => carregar_dados_sistema(false)}
-      />
+          <PainelComandosLote
+            visivel={modalLoteVisivel}
+            totalConectados={metricas?.conectados || 0}
+            aoFechar={() => setModalLoteVisivel(false)}
+            aoConcluirComandoLote={() => carregar_dados_sistema(false)}
+          />
+        </>
+      )}
     </div>
   );
 };

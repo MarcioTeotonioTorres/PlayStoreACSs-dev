@@ -451,7 +451,7 @@ export async function aplicar_perfil_provisionamento(
         urls_permitidas: perfil.urls_permitidas,
       });
 
-      // Atualiza a tabela politicas no PostgreSQL
+      // Atualiza a tabela politicas e perfil ativo no PostgreSQL
       try {
         await executar_consulta('DELETE FROM politicas;');
         const sqlInsert = `
@@ -470,6 +470,7 @@ export async function aplicar_perfil_provisionamento(
           JSON.stringify(pacotesSeguros),
           JSON.stringify(perfil.urls_permitidas),
         ]);
+        await executar_consulta('UPDATE dispositivos SET perfil_ativo_id = $1, perfil_ativo_em = NOW();', [perfil.id]);
       } catch (errDb) {
         console.warn('Fallback: Erro ao persistir nova política global da frota no BD:', errDb);
       }
@@ -557,11 +558,11 @@ export async function aplicar_perfil_provisionamento(
     // Despacha via MQTT
     await despachar_comando_mqtt(numeroSerie, payloadComando);
 
-    // Persiste diretriz personalizada do tablet
+    // Persiste diretriz personalizada e perfil ativo do tablet
     try {
       await executar_consulta(
-        `UPDATE dispositivos SET politica_personalizada = $1::jsonb, atualizado_em = NOW() WHERE id::text = $2 OR numero_serie = $2;`,
-        [JSON.stringify(payloadComando.parametros), dispositivo_id]
+        `UPDATE dispositivos SET politica_personalizada = $1::jsonb, perfil_ativo_id = $2, perfil_ativo_em = NOW(), atualizado_em = NOW() WHERE id::text = $3 OR numero_serie = $3;`,
+        [JSON.stringify(payloadComando.parametros), perfil.id, dispositivo_id]
       );
     } catch (dbErr) {
       console.warn('Aviso: Falha ao persistir perfil no tablet no banco:', dbErr);

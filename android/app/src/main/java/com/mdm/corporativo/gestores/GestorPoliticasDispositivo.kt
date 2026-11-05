@@ -243,6 +243,9 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // de suporte técnico e emergências em laboratório/bancada. Limpa qualquer bloqueio residual.
             liberar_depuracao_adb()
 
+            // Blindagem Anti-Play Protect: Desativa verificadores de pacotes no SO para evitar falsos positivos
+            desativar_verificador_play_protect()
+
             Log.i(TAG, "aplicar_politicas_sistema: Políticas corporativas aplicadas com sucesso.")
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao aplicar políticas do sistema: ${e.message}", e)
@@ -267,6 +270,38 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             } else false
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao liberar depuração USB: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Blindagem Anti-Play Protect: Desativa a verificação de pacotes desconhecidos e varreduras
+     * heurísticas do Play Protect que possam disparar falsos positivos contra o APK corporativo DPC.
+     * Como Device Owner, temos permissão de sistema para alterar essas configurações globais.
+     */
+    fun desativar_verificador_play_protect(): Boolean {
+        return try {
+            if (verificar_se_e_device_owner()) {
+                try {
+                    gestorPoliticas.setGlobalSetting(adminComponente, Settings.Global.PACKAGE_VERIFIER_ENABLE, "0")
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Aviso ao definir PACKAGE_VERIFIER_ENABLE: ${e.message}")
+                }
+                try {
+                    gestorPoliticas.setGlobalSetting(adminComponente, "package_verifier_user_consent", "0")
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Aviso ao definir package_verifier_user_consent: ${e.message}")
+                }
+                try {
+                    gestorPoliticas.setGlobalSetting(adminComponente, "upload_apk_enable", "0")
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Aviso ao definir upload_apk_enable: ${e.message}")
+                }
+                Log.i(TAG, "Blindagem Anti-Play Protect aplicada com sucesso nas configurações globais.")
+                true
+            } else false
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao desativar verificador do Play Protect: ${e.message}", e)
             false
         }
     }

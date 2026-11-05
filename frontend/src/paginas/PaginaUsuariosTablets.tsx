@@ -13,10 +13,11 @@ import {
   CheckCircle,
   AlertCircle,
   Smartphone,
-  Check,
   ShieldCheck,
-  Battery,
-  Wifi,
+  Building,
+  CreditCard,
+  Printer,
+  FileText,
 } from 'lucide-react';
 import {
   UsuarioTabletItem,
@@ -25,6 +26,7 @@ import {
   remover_usuario_tablet_api,
 } from '../servicos/api_mdm';
 import { ModalUsuarioTablet } from '../componentes/ModalUsuarioTablet';
+import { ModalTermoResponsabilidade } from '../componentes/ModalTermoResponsabilidade';
 
 interface PropriedadesPaginaUsuariosTablets {
   dispositivos: DispositivoItem[];
@@ -39,10 +41,13 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
   const [filtroVinculo, setFiltroVinculo] = useState<'todos' | 'com_tablet' | 'sem_tablet'>('todos');
   const [mensagemSucesso, setMensagemSucesso] = useState<string>('');
 
-  // Estados do Modal de Criação / Edição
+  // Estados dos Modais
   const [modalVisivel, setModalVisivel] = useState<boolean>(false);
   const [usuarioEmEdicao, setUsuarioEmEdicao] = useState<UsuarioTabletItem | null>(null);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+
+  // Modal do Termo de Responsabilidade
+  const [usuarioParaTermo, setUsuarioParaTermo] = useState<UsuarioTabletItem | null>(null);
 
   useEffect(() => {
     carregarUsuarios();
@@ -68,6 +73,10 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
   function aoAbrirEdicao(user: UsuarioTabletItem) {
     setUsuarioEmEdicao(user);
     setModalVisivel(true);
+  }
+
+  function aoAbrirTermo(user: UsuarioTabletItem) {
+    setUsuarioParaTermo(user);
   }
 
   async function aoExcluir(user: UsuarioTabletItem) {
@@ -101,6 +110,8 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
       const termo = busca.toLowerCase();
       const matchBusca =
         user.nome_completo.toLowerCase().includes(termo) ||
+        (user.unidade_basica && user.unidade_basica.toLowerCase().includes(termo)) ||
+        (user.cpf && user.cpf.toLowerCase().includes(termo)) ||
         user.email.toLowerCase().includes(termo) ||
         user.telefone.toLowerCase().includes(termo) ||
         (user.dispositivo_numero_serie && user.dispositivo_numero_serie.toLowerCase().includes(termo)) ||
@@ -123,6 +134,12 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
   const tabletsDisponiveis = Math.max(0, dispositivos.length - usuariosComTablet);
   const taxaAlocacao = dispositivos.length > 0 ? Math.round((usuariosComTablet / dispositivos.length) * 100) : 0;
 
+  // Localiza dispositivo associado ao usuário para o termo
+  const dispositivoDoTermo = useMemo(() => {
+    if (!usuarioParaTermo || !usuarioParaTermo.dispositivo_id) return null;
+    return dispositivos.find((d) => d.id === usuarioParaTermo.dispositivo_id) || null;
+  }, [usuarioParaTermo, dispositivos]);
+
   return (
     <div className="pagina-conteudo">
       {/* Cabeçalho da Página */}
@@ -141,11 +158,11 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
                 fontWeight: 700,
               }}
             >
-              CRUD Completo
+              Gestão de Frota & Termos
             </span>
           </div>
           <p className="pagina-subtitulo">
-            Controle de alocação de equipamentos: cadastre o nome completo, e-mail e telefone de cada responsável por tablet corporativo
+            Controle de alocação de equipamentos: cadastre nome, unidade básica (USF/UBS), CPF, telefone, e-mail e emita o Termo de Entrega Oficial para assinatura
           </p>
         </div>
 
@@ -208,7 +225,7 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
             <Tablet size={22} />
           </div>
           <div>
-            <div className="card-metrica-rotulo">Tablets Atribuídos a Usuários</div>
+            <div className="card-metrica-rotulo">Tablets com Agentes (Termo Emitido)</div>
             <div className="card-metrica-valor">{usuariosComTablet}</div>
           </div>
         </div>
@@ -218,7 +235,7 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
             <Smartphone size={22} />
           </div>
           <div>
-            <div className="card-metrica-rotulo">Tablets em Estoque (Sem Vínculo)</div>
+            <div className="card-metrica-rotulo">Tablets Livres em Estoque</div>
             <div className="card-metrica-valor">{tabletsDisponiveis}</div>
           </div>
         </div>
@@ -237,13 +254,13 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
       {/* Barra de Filtros e Busca */}
       <div className="card-tabela" style={{ padding: '16px 20px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '280px' }}>
             <Search size={15} style={{ position: 'absolute', left: '12px', top: '11px', color: '#94a3b8' }} />
             <input
               type="text"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nome, e-mail, telefone ou serial do tablet..."
+              placeholder="Buscar por nome, unidade básica, CPF, telefone ou serial do tablet..."
               style={{
                 width: '100%',
                 padding: '9px 12px 9px 36px',
@@ -284,12 +301,12 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--borda-suave)', background: 'var(--fundo-elevado)', color: 'var(--texto-secundario)' }}>
-                <th style={{ padding: '14px 20px', fontWeight: 600 }}>Usuário / Responsável</th>
-                <th style={{ padding: '14px 20px', fontWeight: 600 }}>E-mail de Contato</th>
-                <th style={{ padding: '14px 20px', fontWeight: 600 }}>Telefone</th>
+                <th style={{ padding: '14px 20px', fontWeight: 600 }}>Agente / Servidor</th>
+                <th style={{ padding: '14px 20px', fontWeight: 600 }}>Unidade Básica (USF / UBS)</th>
+                <th style={{ padding: '14px 20px', fontWeight: 600 }}>CPF</th>
+                <th style={{ padding: '14px 20px', fontWeight: 600 }}>Contatos</th>
                 <th style={{ padding: '14px 20px', fontWeight: 600 }}>Tablet Vinculado</th>
-                <th style={{ padding: '14px 20px', fontWeight: 600 }}>Data do Cadastro</th>
-                <th style={{ padding: '14px 20px', fontWeight: 600, textAlign: 'right' }}>Ações</th>
+                <th style={{ padding: '14px 20px', fontWeight: 600, textAlign: 'right' }}>Ações & Termo</th>
               </tr>
             </thead>
             <tbody>
@@ -345,46 +362,65 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
                             <div style={{ fontWeight: 600, color: '#fff', fontSize: '14px' }}>
                               {user.nome_completo}
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--texto-fraco)' }}>
-                              ID: {user.id.slice(0, 8)}...
+                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                              Agente Comunitário de Saúde
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* E-mail */}
+                      {/* Unidade Básica */}
                       <td style={{ padding: '14px 20px' }}>
-                        <a
-                          href={`mailto:${user.email}`}
-                          style={{
-                            color: '#93c5fd',
-                            textDecoration: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                          }}
-                        >
-                          <Mail size={13} color="#60a5fa" />
-                          <span>{user.email}</span>
-                        </a>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Building size={14} color="#38bdf8" />
+                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                            {user.unidade_basica || 'Não informada'}
+                          </span>
+                        </div>
                       </td>
 
-                      {/* Telefone */}
+                      {/* CPF */}
                       <td style={{ padding: '14px 20px' }}>
-                        <a
-                          href={`tel:${user.telefone.replace(/\D/g, '')}`}
-                          style={{
-                            color: '#cbd5e1',
-                            textDecoration: 'none',
-                            fontFamily: 'var(--fonte-mono)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                          }}
-                        >
-                          <Phone size={13} color="#34d399" />
-                          <span>{user.telefone}</span>
-                        </a>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <CreditCard size={14} color="#94a3b8" />
+                          <span style={{ fontFamily: 'monospace', color: '#cbd5e1' }}>
+                            {user.cpf || 'Não informado'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Contatos */}
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
+                          <a
+                            href={`tel:${user.telefone.replace(/\D/g, '')}`}
+                            style={{
+                              color: '#34d399',
+                              textDecoration: 'none',
+                              fontFamily: 'monospace',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            <Phone size={12} color="#34d399" />
+                            <span>{user.telefone}</span>
+                          </a>
+                          <a
+                            href={`mailto:${user.email}`}
+                            style={{
+                              color: '#94a3b8',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '11px',
+                            }}
+                          >
+                            <Mail size={12} color="#94a3b8" />
+                            <span>{user.email}</span>
+                          </a>
+                        </div>
                       </td>
 
                       {/* Tablet Vinculado */}
@@ -416,7 +452,7 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
                                 color: 'var(--texto-secundario)',
                               }}
                             >
-                              <span className="texto-mono">SN: {user.dispositivo_numero_serie || 'Atribuído'}</span>
+                              <span className="texto-mono" style={{ color: '#38bdf8' }}>SN: {user.dispositivo_numero_serie || 'Atribuído'}</span>
                               {user.dispositivo_status && (
                                 <span
                                   style={{
@@ -452,18 +488,26 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
                         )}
                       </td>
 
-                      {/* Data de Cadastro */}
-                      <td style={{ padding: '14px 20px', color: 'var(--texto-secundario)', fontSize: '12px' }}>
-                        {new Date(user.criado_em).toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })}
-                      </td>
-
-                      {/* Ações */}
+                      {/* Ações & Termo de Responsabilidade */}
                       <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            className="btn btn-primario"
+                            onClick={() => aoAbrirTermo(user)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              background: '#0284c7',
+                              borderColor: '#0369a1',
+                            }}
+                            title="Imprimir Termo de Entrega de Equipamento para assinatura do servidor"
+                          >
+                            <Printer size={13} />
+                            Imprimir Termo
+                          </button>
                           <button
                             className="btn btn-secundario"
                             onClick={() => aoAbrirEdicao(user)}
@@ -514,7 +558,14 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
         aoFechar={() => setModalVisivel(false)}
         aoSalvarSucesso={aoSalvarSucesso}
       />
+
+      {/* Modal de Impressão do Termo de Responsabilidade */}
+      <ModalTermoResponsabilidade
+        visivel={Boolean(usuarioParaTermo)}
+        usuario={usuarioParaTermo}
+        dispositivo={dispositivoDoTermo}
+        aoFechar={() => setUsuarioParaTermo(null)}
+      />
     </div>
   );
 };
-

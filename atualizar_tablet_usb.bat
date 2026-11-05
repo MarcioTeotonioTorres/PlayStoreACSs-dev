@@ -20,8 +20,15 @@ echo [1/2] Verificando conexao com o tablet...
 %ADB% devices
 echo.
 
-echo [2/2] Instalando versao 1.2.2 (preservando o Device Owner intacto)...
-%ADB% install -r "%~dp0backend\public\apk\mdm-dpc.apk"
+echo Aplicando blindagem preventiva contra Play Protect (Package Verifier)...
+%ADB% shell settings put global package_verifier_enable 0 > nul 2>&1
+%ADB% shell settings put global package_verifier_user_consent 0 > nul 2>&1
+%ADB% shell settings put global upload_apk_enable 0 > nul 2>&1
+
+echo [2/2] Instalando versao 1.2.3 (preservando o Device Owner intacto)...
+%ADB% install -r -g -d "%~dp0backend\public\apk\mdm-dpc.apk"
+%ADB% shell pm enable com.mdm.corporativo > nul 2>&1
+%ADB% shell pm unhide com.mdm.corporativo > nul 2>&1
 
 if %ERRORLEVEL% EQU 0 (
     echo.

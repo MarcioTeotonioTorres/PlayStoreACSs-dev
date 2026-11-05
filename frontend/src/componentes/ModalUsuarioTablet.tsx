@@ -10,6 +10,8 @@ import {
   Save,
   UserPlus,
   Edit3,
+  Building,
+  CreditCard,
 } from 'lucide-react';
 import {
   UsuarioTabletItem,
@@ -36,6 +38,8 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
   aoSalvarSucesso,
 }) => {
   const [nomeCompleto, setNomeCompleto] = useState<string>('');
+  const [unidadeBasica, setUnidadeBasica] = useState<string>('');
+  const [cpf, setCpf] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [telefone, setTelefone] = useState<string>('');
   const [dispositivoId, setDispositivoId] = useState<string>('');
@@ -47,11 +51,15 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
   useEffect(() => {
     if (usuarioParaEditar) {
       setNomeCompleto(usuarioParaEditar.nome_completo || '');
+      setUnidadeBasica(usuarioParaEditar.unidade_basica || '');
+      setCpf(usuarioParaEditar.cpf || '');
       setEmail(usuarioParaEditar.email || '');
       setTelefone(usuarioParaEditar.telefone || '');
       setDispositivoId(usuarioParaEditar.dispositivo_id || '');
     } else {
       setNomeCompleto('');
+      setUnidadeBasica('');
+      setCpf('');
       setEmail('');
       setTelefone('');
       setDispositivoId('');
@@ -60,6 +68,20 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
   }, [usuarioParaEditar, visivel]);
 
   if (!visivel) return null;
+
+  // Formatação amigável de CPF brasileiro: 000.000.000-00
+  function aoMudarCpf(valor: string) {
+    const apenasDigitos = valor.replace(/\D/g, '').slice(0, 11);
+    let formatado = apenasDigitos;
+    if (apenasDigitos.length > 9) {
+      formatado = `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3, 6)}.${apenasDigitos.slice(6, 9)}-${apenasDigitos.slice(9)}`;
+    } else if (apenasDigitos.length > 6) {
+      formatado = `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3, 6)}.${apenasDigitos.slice(6)}`;
+    } else if (apenasDigitos.length > 3) {
+      formatado = `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3)}`;
+    }
+    setCpf(formatado);
+  }
 
   // Formatação automática amigável de telefone brasileiro (XX) XXXXX-XXXX
   function aoMudarTelefone(valor: string) {
@@ -85,7 +107,18 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
     e.preventDefault();
 
     if (!nomeCompleto.trim() || nomeCompleto.trim().length < 3) {
-      setErro('Informe o nome completo (mínimo de 3 caracteres).');
+      setErro('Informe o nome completo do Agente (mínimo de 3 caracteres).');
+      return;
+    }
+
+    if (!unidadeBasica.trim()) {
+      setErro('Informe a Unidade Básica (USF / UBS) do Agente.');
+      return;
+    }
+
+    const digitosCpf = cpf.replace(/\D/g, '');
+    if (digitosCpf.length !== 11) {
+      setErro('Informe um CPF válido com 11 dígitos numéricos.');
       return;
     }
 
@@ -106,6 +139,8 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
       if (ehEdicao && usuarioParaEditar) {
         const resp = await atualizar_usuario_tablet_api(usuarioParaEditar.id, {
           nome_completo: nomeCompleto.trim(),
+          unidade_basica: unidadeBasica.trim(),
+          cpf: cpf.trim(),
           email: email.trim().toLowerCase(),
           telefone: telefone.trim(),
           dispositivo_id: dispositivoId || null,
@@ -114,6 +149,8 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
       } else {
         const resp = await cadastrar_usuario_tablet_api({
           nome_completo: nomeCompleto.trim(),
+          unidade_basica: unidadeBasica.trim(),
+          cpf: cpf.trim(),
           email: email.trim().toLowerCase(),
           telefone: telefone.trim(),
           dispositivo_id: dispositivoId || null,
@@ -142,7 +179,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
       <div
         className="modal-conteudo"
         style={{
-          maxWidth: '520px',
+          maxWidth: '560px',
           width: '95%',
           background: 'var(--fundo-card)',
           border: '1px solid var(--borda-suave)',
@@ -179,12 +216,12 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#fff' }}>
-                {ehEdicao ? 'Editar Usuário do Tablet' : 'Cadastrar Usuário / Agente'}
+                {ehEdicao ? 'Editar Responsável pelo Tablet' : 'Cadastrar Responsável / Agente'}
               </h3>
               <p style={{ margin: 0, fontSize: '12px', color: 'var(--texto-secundario)' }}>
                 {ehEdicao
-                  ? 'Atualize os dados de contato e o tablet vinculado ao usuário'
-                  : 'Cadastre um novo responsável e vincule a um tablet da frota'}
+                  ? 'Atualize a unidade básica, CPF, contatos e o tablet vinculado'
+                  : 'Cadastre os dados completos do agente para emissão do Termo de Entrega'}
               </p>
             </div>
           </div>
@@ -235,7 +272,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
                 marginBottom: '6px',
               }}
             >
-              Nome Completo <span style={{ color: '#f87171' }}>*</span>
+              Nome Completo do Agente (ACS / Servidor) <span style={{ color: '#f87171' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
               <User
@@ -261,79 +298,161 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
             </div>
           </div>
 
-          {/* E-mail de Contato */}
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#e2e8f0',
-                marginBottom: '6px',
-              }}
-            >
-              E-mail para Contato <span style={{ color: '#f87171' }}>*</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Mail
-                size={16}
-                style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
-              />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Ex: maria.santos@saude.gov.br"
-                required
+          {/* Grid de 2 Colunas: Unidade Básica e CPF */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+            {/* Unidade Básica */}
+            <div>
+              <label
                 style={{
-                  width: '100%',
-                  padding: '10px 14px 10px 38px',
-                  borderRadius: '8px',
-                  background: 'var(--fundo-base)',
-                  border: '1px solid var(--borda-suave)',
-                  color: '#fff',
+                  display: 'block',
                   fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  marginBottom: '6px',
                 }}
-              />
+              >
+                Unidade Básica (USF / UBS) <span style={{ color: '#f87171' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Building
+                  size={16}
+                  style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
+                />
+                <input
+                  type="text"
+                  value={unidadeBasica}
+                  onChange={(e) => setUnidadeBasica(e.target.value)}
+                  placeholder="Ex: USF 01 Centro"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 38px',
+                    borderRadius: '8px',
+                    background: 'var(--fundo-base)',
+                    border: '1px solid var(--borda-suave)',
+                    color: '#fff',
+                    fontSize: '13px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* CPF */}
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  marginBottom: '6px',
+                }}
+              >
+                CPF do Agente <span style={{ color: '#f87171' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <CreditCard
+                  size={16}
+                  style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
+                />
+                <input
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => aoMudarCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                  required
+                  maxLength={14}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 38px',
+                    borderRadius: '8px',
+                    background: 'var(--fundo-base)',
+                    border: '1px solid var(--borda-suave)',
+                    color: '#fff',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                  }}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Telefone para Contato */}
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#e2e8f0',
-                marginBottom: '6px',
-              }}
-            >
-              Telefone para Contato <span style={{ color: '#f87171' }}>*</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Phone
-                size={16}
-                style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
-              />
-              <input
-                type="tel"
-                value={telefone}
-                onChange={(e) => aoMudarTelefone(e.target.value)}
-                placeholder="(11) 98765-4321"
-                required
-                maxLength={15}
+          {/* Grid de 2 Colunas: E-mail e Telefone */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+            {/* E-mail de Contato */}
+            <div>
+              <label
                 style={{
-                  width: '100%',
-                  padding: '10px 14px 10px 38px',
-                  borderRadius: '8px',
-                  background: 'var(--fundo-base)',
-                  border: '1px solid var(--borda-suave)',
-                  color: '#fff',
+                  display: 'block',
                   fontSize: '13px',
-                  fontFamily: 'var(--fonte-mono)',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  marginBottom: '6px',
                 }}
-              />
+              >
+                E-mail para Contato <span style={{ color: '#f87171' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail
+                  size={16}
+                  style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
+                />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="agente@saude.gov.br"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 38px',
+                    borderRadius: '8px',
+                    background: 'var(--fundo-base)',
+                    border: '1px solid var(--borda-suave)',
+                    color: '#fff',
+                    fontSize: '13px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Telefone para Contato */}
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  marginBottom: '6px',
+                }}
+              >
+                Telefone / Celular <span style={{ color: '#f87171' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Phone
+                  size={16}
+                  style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
+                />
+                <input
+                  type="tel"
+                  value={telefone}
+                  onChange={(e) => aoMudarTelefone(e.target.value)}
+                  placeholder="(81) 98765-4321"
+                  required
+                  maxLength={15}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 38px',
+                    borderRadius: '8px',
+                    background: 'var(--fundo-base)',
+                    border: '1px solid var(--borda-suave)',
+                    color: '#fff',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -348,7 +467,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
                 marginBottom: '6px',
               }}
             >
-              Tablet Corporativo Vinculado
+              Tablet Corporativo Vinculado (Alocação)
             </label>
             <div style={{ position: 'relative' }}>
               <Tablet
@@ -377,7 +496,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
                   );
                   return (
                     <option key={d.id} value={d.id}>
-                      📱 {d.modelo} — SN: {d.numero_serie} {ocupadoPor ? `[Em uso por: ${ocupadoPor.nome_completo}]` : '[Disponível]'}
+                      📱 {d.modelo} — SN: {d.numero_serie} {ocupadoPor ? `[Em uso por: ${ocupadoPor.nome_completo}]` : '[Disponível no Estoque]'}
                     </option>
                   );
                 })}
@@ -396,7 +515,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
                   border: '1px solid rgba(245, 158, 11, 0.25)',
                 }}
               >
-                ⚠️ Atenção: Este tablet já está alocado para <strong>{usuarioDoTabletSelecionado.nome_completo}</strong>.
+                ⚠️ Atenção: Este tablet já está alocado para <strong>{usuarioDoTabletSelecionado.nome_completo}</strong>. Ao salvar, ele será transferido.
               </div>
             )}
           </div>
@@ -432,4 +551,3 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
     </div>
   );
 };
-

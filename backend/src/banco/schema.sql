@@ -95,33 +95,59 @@ CREATE INDEX IF NOT EXISTS idx_dispositivos_numero_serie ON dispositivos(numero_
 CREATE INDEX IF NOT EXISTS idx_dispositivos_status ON dispositivos(status_conexao);
 CREATE INDEX IF NOT EXISTS idx_logs_telemetria_dispositivo_data ON logs_telemetria(dispositivo_id, registrado_em DESC);
 
--- Tabela de Usuários e Autenticação Segura para o Painel Web
+-- Tabela de Usuários e Autenticação Segura para o Painel Web (RBAC: adm vs supervisor)
 CREATE TABLE IF NOT EXISTS usuarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     senha_hash VARCHAR(255) NOT NULL,
-    perfil VARCHAR(30) NOT NULL DEFAULT 'admin', -- 'admin', 'operador'
+    perfil VARCHAR(30) NOT NULL DEFAULT 'adm', -- 'adm', 'supervisor'
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
     ultimo_login TIMESTAMPTZ DEFAULT NULL,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Migração para suporte a inventário de pacotes instalados por dispositivo
+-- Tabela de Perfis de Provisionamento e Configurações de Restrições
+CREATE TABLE IF NOT EXISTS perfis_provisionamento (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome VARCHAR(150) NOT NULL,
+    descricao TEXT,
+    eh_padrao BOOLEAN NOT NULL DEFAULT FALSE,
+    permitir_camera BOOLEAN NOT NULL DEFAULT TRUE,
+    bloquear_usb BOOLEAN NOT NULL DEFAULT TRUE,
+    permitir_reset_fabrica BOOLEAN NOT NULL DEFAULT FALSE,
+    bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE,
+    bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE,
+    modo_quiosque_app VARCHAR(255) DEFAULT NULL,
+    habilitar_modo_quiosque BOOLEAN NOT NULL DEFAULT FALSE,
+    pacotes_ocultos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    urls_permitidas JSONB NOT NULL DEFAULT '[]'::jsonb,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Migração para suporte a inventário de pacotes instalados e perfil ativo por dispositivo
 ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS aplicativos_instalados JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS perfil_ativo_id UUID REFERENCES perfis_provisionamento(id) ON DELETE SET NULL;
+ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS perfil_ativo_em TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
 
 -- Tabela de Cadastro de Usuários / Agentes Vinculados aos Tablets
 CREATE TABLE IF NOT EXISTS usuarios_tablets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome_completo VARCHAR(150) NOT NULL,
+    unidade_basica VARCHAR(150) DEFAULT NULL,
+    cpf VARCHAR(14) DEFAULT NULL,
     email VARCHAR(150) NOT NULL,
     telefone VARCHAR(50) NOT NULL,
     dispositivo_id UUID REFERENCES dispositivos(id) ON DELETE SET NULL,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS unidade_basica VARCHAR(150);
+ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
 CREATE INDEX IF NOT EXISTS idx_usuarios_tablets_dispositivo ON usuarios_tablets(dispositivo_id);
+
 
 

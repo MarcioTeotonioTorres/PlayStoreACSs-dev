@@ -114,7 +114,7 @@ export async function listar_dispositivos(
     }
 
     if (busca && busca.trim().length > 0) {
-      clausulasWhere.push(`(numero_serie ILIKE $${contador} OR modelo ILIKE $${contador} OR ssid_wifi ILIKE $${contador})`);
+      clausulasWhere.push(`(numero_serie ILIKE $${contador} OR modelo ILIKE $${contador} OR ssid_wifi ILIKE $${contador} OR usuario_nome ILIKE $${contador} OR usuario_unidade_basica ILIKE $${contador})`);
       parametros.push(`%${busca}%`);
       contador++;
     }
@@ -131,28 +131,39 @@ export async function listar_dispositivos(
     const sqlLista = `
       WITH cte_dispositivos AS (
         SELECT
-          id, numero_serie, modelo, versao_so,
+          d.id, d.numero_serie, d.modelo, d.versao_so,
           CASE
-            WHEN status_conexao = 'conectado' AND ultimo_contato >= NOW() - INTERVAL '25 hours' THEN 'conectado'
+            WHEN d.status_conexao = 'conectado' AND d.ultimo_contato >= NOW() - INTERVAL '25 hours' THEN 'conectado'
             ELSE 'desconectado'
           END AS status_conexao,
-          bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
-          app_foco,
+          d.bateria, d.esta_carregando, d.sinal_wifi_rssi, d.ssid_wifi,
+          d.app_foco,
           CASE
-            WHEN ultimo_contato < NOW() - INTERVAL '25 hours' THEN
-              COALESCE(tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - ultimo_contato)) / 60))::int
+            WHEN d.ultimo_contato < NOW() - INTERVAL '25 hours' THEN
+              COALESCE(d.tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - d.ultimo_contato)) / 60))::int
             ELSE
-              COALESCE(tempo_ocioso_minutos, 0)
+              COALESCE(d.tempo_ocioso_minutos, 0)
           END AS tempo_ocioso_calculado,
-          memoria_ram_livre_mb, armazenamento_livre_mb,
-          ultimo_contato, criado_em
-        FROM dispositivos
+          d.memoria_ram_livre_mb, d.armazenamento_livre_mb,
+          d.ultimo_contato, d.criado_em,
+          d.perfil_ativo_id, d.perfil_ativo_em,
+          ut.nome_completo AS usuario_nome,
+          ut.unidade_basica AS usuario_unidade_basica,
+          ut.telefone AS usuario_telefone,
+          ut.cpf AS usuario_cpf,
+          ut.email AS usuario_email,
+          COALESCE(pp.nome, 'Perfil Estrito ACS (Padrão de Campo)') AS perfil_ativo_nome
+        FROM dispositivos d
+        LEFT JOIN usuarios_tablets ut ON d.id = ut.dispositivo_id
+        LEFT JOIN perfis_provisionamento pp ON d.perfil_ativo_id = pp.id
       )
       SELECT
         id, numero_serie, modelo, versao_so,
         status_conexao, bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
         app_foco, tempo_ocioso_calculado AS tempo_ocioso_minutos,
         memoria_ram_livre_mb, armazenamento_livre_mb,
+        perfil_ativo_id, perfil_ativo_nome, perfil_ativo_em,
+        usuario_nome, usuario_unidade_basica, usuario_telefone, usuario_cpf, usuario_email,
         ultimo_contato, criado_em
       FROM cte_dispositivos
       ${whereSql}

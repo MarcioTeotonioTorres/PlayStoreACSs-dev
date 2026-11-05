@@ -70,8 +70,13 @@ echo [1/6] Verificando conexao com o tablet...
 echo Conectado com sucesso!
 echo.
 
+echo Aplicando blindagem preventiva contra Play Protect (Package Verifier)...
+%ADB% shell settings put global package_verifier_enable 0 > nul 2>&1
+%ADB% shell settings put global package_verifier_user_consent 0 > nul 2>&1
+%ADB% shell settings put global upload_apk_enable 0 > nul 2>&1
+
 echo [2/6] Instalando o agente MDM Corporativo v1.2.3...
-%ADB% install -r %APK_ALVO%
+%ADB% install -r -g -d %APK_ALVO%
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERRO] Falha ao instalar o APK mdm-dpc.apk.
@@ -80,6 +85,8 @@ if %ERRORLEVEL% NEQ 0 (
     pause
     exit /b 1
 )
+%ADB% shell pm enable com.mdm.corporativo > nul 2>&1
+%ADB% shell pm unhide com.mdm.corporativo > nul 2>&1
 echo APK instalado com sucesso!
 echo.
 

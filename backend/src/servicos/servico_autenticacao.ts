@@ -152,14 +152,31 @@ export async function garantir_usuario_admin_inicial(): Promise<void> {
 
     await executar_consulta(
       `INSERT INTO usuarios (nome, email, senha_hash, perfil, ativo)
-       VALUES ($1, $2, $3, 'admin', TRUE)
+       VALUES ($1, $2, $3, 'adm', TRUE)
        ON CONFLICT (email) DO UPDATE 
        SET senha_hash = EXCLUDED.senha_hash,
+           perfil = 'adm',
            ativo = TRUE,
            atualizado_em = NOW();`,
-      ['Administrador TI', emailAdmin, hash]
+      ['Administrador Geral', emailAdmin, hash]
     );
     console.log(`[MDM Auth] Usuário administrador inicial sincronizado e ativo: ${emailAdmin}`);
+
+    // Sincroniza também o usuário supervisor inicial
+    const emailSuperv = (process.env.SUPERVISOR_EMAIL || 'supervisor@mdm.corporativo').trim().toLowerCase();
+    const senhaSuperv = process.env.SUPERVISOR_SENHA || 'Supervisor@Mdm2026!';
+    const hashSuperv = hash_senha(senhaSuperv);
+    await executar_consulta(
+      `INSERT INTO usuarios (nome, email, senha_hash, perfil, ativo)
+       VALUES ($1, $2, $3, 'supervisor', TRUE)
+       ON CONFLICT (email) DO UPDATE 
+       SET senha_hash = EXCLUDED.senha_hash,
+           perfil = 'supervisor',
+           ativo = TRUE,
+           atualizado_em = NOW();`,
+      ['Supervisor Operacional', emailSuperv, hashSuperv]
+    );
+    console.log(`[MDM Auth] Usuário supervisor inicial sincronizado e ativo: ${emailSuperv}`);
   } catch (erro: any) {
     console.error('[MDM Auth] Falha ao registrar usuário admin inicial:', erro?.message || erro);
   }

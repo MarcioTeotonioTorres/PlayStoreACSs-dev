@@ -94,11 +94,21 @@ const hashAdminPadrao = crypto.scryptSync('Admin@Mdm2026!', saltAdminPadrao, 64)
 
 let usuariosMemoria: UsuarioSimulado[] = [
   {
-    id: crypto.randomUUID(),
-    nome: 'Administrador TI',
+    id: 'user-sys-admin-01',
+    nome: 'Administrador Geral',
     email: 'admin@mdm.corporativo',
     senha_hash: `${saltAdminPadrao}:${hashAdminPadrao}`,
-    perfil: 'admin',
+    perfil: 'adm',
+    ativo: true,
+    ultimo_login: null,
+    criado_em: new Date().toISOString(),
+  },
+  {
+    id: 'user-sys-superv-01',
+    nome: 'Supervisor Operacional',
+    email: 'supervisor@mdm.corporativo',
+    senha_hash: `${saltAdminPadrao}:${hashAdminPadrao}`,
+    perfil: 'supervisor',
     ativo: true,
     ultimo_login: null,
     criado_em: new Date().toISOString(),
@@ -118,6 +128,8 @@ let comandosMemoria: Array<{
 export interface UsuarioTabletSimulado {
   id: string;
   nome_completo: string;
+  unidade_basica?: string | null;
+  cpf?: string | null;
   email: string;
   telefone: string;
   dispositivo_id: string | null;
@@ -128,9 +140,11 @@ export interface UsuarioTabletSimulado {
 export let usuariosTabletsMemoria: UsuarioTabletSimulado[] = [
   {
     id: 'user-tab-001',
-    nome_completo: 'Ana Carolina Pereira',
-    email: 'ana.pereira@saude.gov.br',
-    telefone: '(11) 98452-1122',
+    nome_completo: 'Maria Aparecida da Silva',
+    unidade_basica: 'USF 01 Central',
+    cpf: '102.345.678-90',
+    email: 'maria.aparecida@saude.gov.br',
+    telefone: '(81) 98765-4321',
     dispositivo_id: dispositivosMemoria[0]?.id || null,
     criado_em: new Date(Date.now() - 86400000 * 5).toISOString(),
     atualizado_em: new Date(Date.now() - 86400000 * 5).toISOString(),
@@ -138,8 +152,10 @@ export let usuariosTabletsMemoria: UsuarioTabletSimulado[] = [
   {
     id: 'user-tab-002',
     nome_completo: 'Carlos Eduardo Santos',
+    unidade_basica: 'USF 01 Centro',
+    cpf: '213.456.789-01',
     email: 'carlos.santos@saude.gov.br',
-    telefone: '(11) 97123-4567',
+    telefone: '(81) 97123-4567',
     dispositivo_id: dispositivosMemoria[1]?.id || null,
     criado_em: new Date(Date.now() - 86400000 * 4).toISOString(),
     atualizado_em: new Date(Date.now() - 86400000 * 4).toISOString(),
@@ -147,8 +163,10 @@ export let usuariosTabletsMemoria: UsuarioTabletSimulado[] = [
   {
     id: 'user-tab-003',
     nome_completo: 'Mariana Ferreira Lima',
+    unidade_basica: 'USF 03 Porto',
+    cpf: '324.567.890-12',
     email: 'mariana.lima@saude.gov.br',
-    telefone: '(11) 99876-5432',
+    telefone: '(81) 99876-5432',
     dispositivo_id: dispositivosMemoria[2]?.id || null,
     criado_em: new Date(Date.now() - 86400000 * 3).toISOString(),
     atualizado_em: new Date(Date.now() - 86400000 * 3).toISOString(),
@@ -156,8 +174,10 @@ export let usuariosTabletsMemoria: UsuarioTabletSimulado[] = [
   {
     id: 'user-tab-004',
     nome_completo: 'Roberto Almeida Costa',
+    unidade_basica: 'USF 04 Nossa Senhora do Ó',
+    cpf: '435.678.901-23',
     email: 'roberto.costa@saude.gov.br',
-    telefone: '(11) 96543-2109',
+    telefone: '(81) 96543-2109',
     dispositivo_id: dispositivosMemoria[3]?.id || null,
     criado_em: new Date(Date.now() - 86400000 * 2).toISOString(),
     atualizado_em: new Date(Date.now() - 86400000 * 2).toISOString(),
@@ -693,11 +713,21 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
       const idParam = (parametros[0] || '').toString();
       const user = usuariosMemoria.find((u) => u.id === idParam);
       if (user) user.ultimo_login = new Date().toISOString();
-    } else if (sqlLimpo.includes('SENHA_HASH')) {
+    } else if (sqlLimpo.includes('SENHA_HASH') && !sqlLimpo.includes('SET NOME =')) {
       const novaSenhaHash = (parametros[0] || '').toString();
       const idParam = (parametros[1] || '').toString();
       const user = usuariosMemoria.find((u) => u.id === idParam);
       if (user) user.senha_hash = novaSenhaHash;
+    } else {
+      const idParam = (parametros[parametros.length - 1] || '').toString();
+      const user = usuariosMemoria.find((u) => u.id === idParam);
+      if (user) {
+        if (parametros[0] !== undefined) user.nome = parametros[0];
+        if (parametros[1] !== undefined) user.email = (parametros[1] || '').toString().toLowerCase();
+        if (parametros[2] !== undefined) user.perfil = parametros[2];
+        if (parametros[3] !== undefined) user.ativo = Boolean(parametros[3]);
+        if (parametros.length >= 6 && parametros[4]) user.senha_hash = parametros[4];
+      }
     }
     return {
       rows: [] as T[],
@@ -708,16 +738,34 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     };
   }
 
+  if (sqlLimpo.startsWith('DELETE FROM USUARIOS') && !sqlLimpo.startsWith('DELETE FROM USUARIOS_TABLETS')) {
+    const idParam = (parametros[0] || '').toString();
+    const idx = usuariosMemoria.findIndex((u) => u.id === idParam);
+    if (idx !== -1) {
+      usuariosMemoria.splice(idx, 1);
+    }
+    return {
+      rows: [] as T[],
+      command: 'DELETE',
+      rowCount: idx !== -1 ? 1 : 0,
+      oid: 0,
+      fields: [],
+    };
+  }
+
   if (sqlLimpo.startsWith('INSERT INTO USUARIOS') && !sqlLimpo.startsWith('INSERT INTO USUARIOS_TABLETS')) {
     const nomeParam = parametros[0] || 'Usuário';
     const emailParam = (parametros[1] || '').toString().toLowerCase();
     const hashParam = parametros[2] || '';
+    const perfilParam = parametros[3] || 'adm';
+    const ativoParam = parametros[4] !== undefined ? Boolean(parametros[4]) : true;
 
     const usuarioExistente = usuariosMemoria.find((u) => u.email.toLowerCase() === emailParam);
     if (usuarioExistente) {
       usuarioExistente.nome = nomeParam;
       usuarioExistente.senha_hash = hashParam;
-      usuarioExistente.ativo = true;
+      usuarioExistente.perfil = perfilParam;
+      usuarioExistente.ativo = ativoParam;
       return {
         rows: [usuarioExistente] as unknown as T[],
         command: 'INSERT',
@@ -732,8 +780,8 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
       nome: nomeParam,
       email: emailParam,
       senha_hash: hashParam,
-      perfil: 'admin',
-      ativo: true,
+      perfil: perfilParam,
+      ativo: ativoParam,
       ultimo_login: null,
       criado_em: new Date().toISOString(),
     };
@@ -983,13 +1031,17 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
   if (sqlLimpo.startsWith('INSERT INTO USUARIOS_TABLETS')) {
     const id = parametros[0] || crypto.randomUUID();
     const nome_completo = parametros[1] || '';
-    const email = (parametros[2] || '').toLowerCase();
-    const telefone = parametros[3] || '';
-    const dispositivo_id = parametros[4] || null;
+    const unidade_basica = parametros[2] || 'USF 01 Centro';
+    const cpf = parametros[3] || '000.000.000-00';
+    const email = (parametros[4] || '').toLowerCase();
+    const telefone = parametros[5] || '';
+    const dispositivo_id = parametros[6] || null;
 
     const novoUser: UsuarioTabletSimulado = {
       id,
       nome_completo,
+      unidade_basica,
+      cpf,
       email,
       telefone,
       dispositivo_id,
@@ -1023,9 +1075,11 @@ function processar_consulta_simulada_memoria<T extends QueryResultRow>(
     const u = usuariosTabletsMemoria.find((user) => user.id === idParam);
     if (u) {
       if (parametros[0] !== undefined) u.nome_completo = parametros[0];
-      if (parametros[1] !== undefined) u.email = (parametros[1] || '').toLowerCase();
-      if (parametros[2] !== undefined) u.telefone = parametros[2];
-      if (parametros[3] !== undefined) u.dispositivo_id = parametros[3] || null;
+      if (parametros[1] !== undefined) u.unidade_basica = parametros[1];
+      if (parametros[2] !== undefined) u.cpf = parametros[2];
+      if (parametros[3] !== undefined) u.email = (parametros[3] || '').toLowerCase();
+      if (parametros[4] !== undefined) u.telefone = parametros[4];
+      if (parametros[5] !== undefined) u.dispositivo_id = parametros[5] || null;
       u.atualizado_em = new Date().toISOString();
 
       const disp = u.dispositivo_id
@@ -1204,6 +1258,8 @@ export async function executar_migracoes_banco(): Promise<void> {
       CREATE TABLE IF NOT EXISTS usuarios_tablets (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         nome_completo VARCHAR(150) NOT NULL,
+        unidade_basica VARCHAR(150),
+        cpf VARCHAR(14),
         email VARCHAR(150) NOT NULL,
         telefone VARCHAR(50) NOT NULL,
         dispositivo_id UUID REFERENCES dispositivos(id) ON DELETE SET NULL,
@@ -1211,6 +1267,12 @@ export async function executar_migracoes_banco(): Promise<void> {
         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+    await poolInstancia.query(`ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS unidade_basica VARCHAR(150);`).catch(() => {});
+    await poolInstancia.query(`ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);`).catch(() => {});
+    await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS perfil_ativo_id UUID REFERENCES perfis_provisionamento(id) ON DELETE SET NULL;`).catch(() => {});
+    await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS perfil_ativo_em TIMESTAMPTZ;`).catch(() => {});
+    await poolInstancia.query(`UPDATE usuarios SET perfil = 'adm' WHERE perfil = 'admin';`).catch(() => {});
+    await poolInstancia.query(`UPDATE usuarios SET perfil = 'supervisor' WHERE perfil = 'operador';`).catch(() => {});
     await poolInstancia.query(`CREATE INDEX IF NOT EXISTS idx_usuarios_tablets_dispositivo ON usuarios_tablets(dispositivo_id);`).catch(() => {});
 
     console.log('[MDM Banco] Migrações estruturais, tabela de usuários, perfis e cadastro de tablets verificadas com sucesso no PostgreSQL.');
