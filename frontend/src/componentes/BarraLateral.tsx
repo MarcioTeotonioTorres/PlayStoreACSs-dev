@@ -25,9 +25,12 @@ export const BarraLateral: React.FC<PropriedadesBarraLateral> = ({
 }) => {
   const { usuario, logout, ehSupervisor } = useAuth();
 
-  // Para o perfil supervisor, o acesso é estritamente limitado ao Dashboard para monitoramento
+  // Para o perfil supervisor: acesso ao Dashboard (monitoramento) e aos Usuários dos Tablets (cadastro e termos de entrega)
   const itensNavegacao = ehSupervisor
-    ? [{ caminho: '/', rotulo: 'Dashboard', icone: LayoutDashboard }]
+    ? [
+        { caminho: '/', rotulo: 'Dashboard', icone: LayoutDashboard },
+        { caminho: '/usuarios', rotulo: 'Usuários dos Tablets', icone: Users },
+      ]
     : [
         { caminho: '/', rotulo: 'Dashboard', icone: LayoutDashboard },
         { caminho: '/dispositivos', rotulo: 'Dispositivos', icone: Tablet },

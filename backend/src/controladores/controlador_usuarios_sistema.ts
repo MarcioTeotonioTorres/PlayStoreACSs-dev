@@ -306,3 +306,4 @@ export async function remover_usuario_sistema(
     resposta.status(500).send({ sucesso: false, mensagem: 'Falha ao remover usuário do sistema.' });
   }
 }
+

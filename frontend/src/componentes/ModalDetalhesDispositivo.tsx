@@ -347,3 +347,4 @@ export const ModalDetalhesDispositivo: React.FC<PropriedadesModalDetalhes> = ({
     </div>
   );
 };
+

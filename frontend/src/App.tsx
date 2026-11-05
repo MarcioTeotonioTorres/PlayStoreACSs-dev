@@ -232,13 +232,10 @@ const PainelMdmLayout: React.FC = () => {
             }
           />
 
+          {/* Usuários dos Tablets: Acessível por Administrador e Supervisor (para alocação de tablets e termos) */}
           <Route
             path="/usuarios"
-            element={
-              <RotaExclusivaAdmin>
-                <PaginaUsuariosTablets dispositivos={dispositivos} />
-              </RotaExclusivaAdmin>
-            }
+            element={<PaginaUsuariosTablets dispositivos={dispositivos} />}
           />
 
           <Route

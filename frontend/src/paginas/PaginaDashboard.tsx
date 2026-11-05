@@ -183,7 +183,7 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
                   gap: '4px',
                 }}
               >
-                <Eye size={12} /> Perfil Supervisor (Somente Monitoração)
+                <Eye size={12} /> Perfil Supervisor (Monitoração & Alocação de Agentes)
               </span>
             )}
             {ehAdmin && (
@@ -220,7 +220,24 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
             {carregando ? 'Sincronizando...' : 'Sincronizar Frota'}
           </button>
 
-          {/* Botões Administrativos Ocultos para Perfil Supervisor */}
+          {/* Ações específicas por perfil */}
+          {ehSupervisor && (
+            <button
+              className="btn btn-primario"
+              onClick={() => navegar('/usuarios')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: '#0284c7',
+                borderColor: '#0369a1',
+              }}
+            >
+              <Users size={14} />
+              Usuários & Termos de Entrega
+            </button>
+          )}
+
           {ehAdmin && (
             <>
               <button className="btn btn-secundario" onClick={aoAbrirAdicionar}>
@@ -352,7 +369,7 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
         </div>
       </div>
 
-      {/* Atalhos Rápidos da Operação (Apenas para Administrador) */}
+      {/* Atalhos Rápidos da Operação */}
       {ehAdmin && (
         <div
           className="grid-atalhos"
@@ -414,6 +431,36 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
             </div>
             <p style={{ fontSize: '13px', color: 'var(--texto-fraco)', margin: 0 }}>
               Bloqueio simultâneo, reinicialização ou atualização de parâmetros operacionais.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {ehSupervisor && (
+        <div
+          className="grid-atalhos"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '16px',
+            marginBottom: '26px',
+          }}
+        >
+          <div className="card-atalho" onClick={() => navegar('/usuarios')} style={{ cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div
+                className="icone-atalho"
+                style={{ background: 'rgba(14, 165, 233, 0.15)', padding: '10px', borderRadius: '10px', color: '#38bdf8' }}
+              >
+                <Users size={22} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '15px' }}>Cadastro de Usuários & Termos de Entrega</div>
+                <div style={{ fontSize: '12px', color: 'var(--texto-secundario)' }}>Alocação de agentes aos tablets livres</div>
+              </div>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--texto-fraco)', margin: 0 }}>
+              Vincule agentes comunitários (ACS) aos tablets disponíveis em estoque e imprima o Termo Oficial em folha A4 para assinatura imediata.
             </p>
           </div>
         </div>
