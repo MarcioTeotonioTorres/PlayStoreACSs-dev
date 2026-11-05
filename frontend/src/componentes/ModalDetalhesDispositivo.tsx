@@ -46,9 +46,10 @@ export const ModalDetalhesDispositivo: React.FC<PropriedadesModalDetalhes> = ({
   }
 
   return (
-    <div className="modal-sobreposicao" style={{ zIndex: 1070 }}>
+    <div className="modal-overlay" onClick={aoFechar}>
       <div
         className="modal-conteudo"
+        onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: '680px',
           width: '95%',

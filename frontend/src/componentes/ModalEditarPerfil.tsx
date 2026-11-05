@@ -144,9 +144,10 @@ export const ModalEditarPerfil: React.FC<PropriedadesModalEditarPerfil> = ({
   );
 
   return (
-    <div className="modal-sobreposicao" style={{ zIndex: 1080 }}>
+    <div className="modal-overlay" onClick={aoFechar}>
       <div
         className="modal-conteudo"
+        onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: '750px',
           width: '95%',

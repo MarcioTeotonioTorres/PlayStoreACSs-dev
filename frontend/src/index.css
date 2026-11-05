@@ -325,28 +325,44 @@ tr:hover td {
   color: #e2e8f0;
 }
 
-/* Modais */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
+/* Modais Globais */
+.modal-overlay,
+.modal-sobreposicao,
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(4, 7, 14, 0.82) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important;
+  padding: 20px !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
 }
 
-.modal-conteudo {
-  background: var(--fundo-card);
-  border: 1px solid var(--borda-suave);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 620px;
-  overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+.modal-conteudo,
+.modal-caixa {
+  background: var(--fundo-card) !important;
+  border: 1px solid var(--borda-suave) !important;
+  border-radius: 16px !important;
+  width: 100% !important;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
   animation: modalSurgir 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative !important;
+  z-index: 100000 !important;
+  box-sizing: border-box !important;
 }
 
 @keyframes modalSurgir {

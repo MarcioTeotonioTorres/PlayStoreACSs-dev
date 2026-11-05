@@ -105,9 +105,10 @@ export const ModalGerenciarPerfis: React.FC<PropriedadesModalGerenciarPerfis> = 
   }
 
   return (
-    <div className="modal-sobreposicao" style={{ zIndex: 1050 }}>
+    <div className="modal-overlay" onClick={aoFechar}>
       <div
         className="modal-conteudo"
+        onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: '850px',
           width: '95%',

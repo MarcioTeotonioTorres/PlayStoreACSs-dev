@@ -175,9 +175,10 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
     : null;
 
   return (
-    <div className="modal-sobreposicao" style={{ zIndex: 1060 }}>
+    <div className="modal-overlay" onClick={aoFechar}>
       <div
         className="modal-conteudo"
+        onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: '560px',
           width: '95%',

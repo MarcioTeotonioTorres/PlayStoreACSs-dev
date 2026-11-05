@@ -73,9 +73,10 @@ export const ModalSalvarPerfil: React.FC<PropriedadesModalSalvarPerfil> = ({
   const totalUrls = (politicaAtual.urls_permitidas || []).length;
 
   return (
-    <div className="modal-sobreposicao" style={{ zIndex: 1050 }}>
+    <div className="modal-overlay" onClick={aoFechar}>
       <div
         className="modal-conteudo"
+        onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: '560px',
           width: '95%',

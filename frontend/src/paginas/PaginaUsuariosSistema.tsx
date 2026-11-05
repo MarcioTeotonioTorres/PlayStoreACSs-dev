@@ -498,9 +498,9 @@ export const PaginaUsuariosSistema: React.FC = () => {
 
       {/* Modal de Criação / Edição */}
       {modalAberto && (
-        <div className="modal-overlay">
-          <div className="modal-caixa" style={{ maxWidth: '520px', width: '100%' }}>
-            <div className="modal-cabecalho">
+        <div className="modal-overlay" onClick={() => setModalAberto(false)}>
+          <div className="modal-conteudo" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%' }}>
+            <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <KeyRound size={22} color="#3b82f6" />
                 <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>
@@ -640,14 +640,14 @@ export const PaginaUsuariosSistema: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalAberto(false)}
-                  className="botao botao-secundario"
+                  className="btn btn-secundario"
                   disabled={salvando}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="botao botao-primario"
+                  className="btn btn-primario"
                   disabled={salvando}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
