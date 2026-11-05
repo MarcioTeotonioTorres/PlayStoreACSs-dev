@@ -496,162 +496,488 @@ export const PaginaUsuariosSistema: React.FC = () => {
         </table>
       </div>
 
-      {/* Modal de Criação / Edição */}
+      {/* Modal de Criação / Edição de Operador */}
       {modalAberto && (
         <div className="modal-overlay" onClick={() => setModalAberto(false)}>
-          <div className="modal-conteudo" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <KeyRound size={22} color="#3b82f6" />
-                <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>
-                  {usuarioEmEdicao ? `Editar Operador: ${usuarioEmEdicao.nome}` : 'Cadastrar Novo Operador'}
-                </h3>
+          <div
+            className="modal-conteudo"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '560px',
+              width: '95%',
+              background: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: '16px',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Cabeçalho do Modal */}
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #1e293b',
+                background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    background: usuarioEmEdicao ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                    border: `1px solid ${usuarioEmEdicao ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                    color: usuarioEmEdicao ? '#60a5fa' : '#34d399',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {usuarioEmEdicao ? <UserCog size={22} /> : <UserPlus size={22} />}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+                    {usuarioEmEdicao ? `Editar Operador: ${usuarioEmEdicao.nome}` : 'Cadastrar Novo Operador'}
+                  </h3>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    {usuarioEmEdicao
+                      ? 'Altere o nome, e-mail, permissões ou redefina a senha de acesso'
+                      : 'Configure os dados de acesso e a permissão do novo operador do sistema'}
+                  </p>
+                </div>
               </div>
+
               <button
+                type="button"
                 onClick={() => setModalAberto(false)}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                  e.currentTarget.style.color = '#f87171';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                  e.currentTarget.style.color = '#94a3b8';
+                }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={salvarUsuario}>
-              <div className="modal-corpo" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    Nome Completo *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder="Ex: João da Silva Santos"
-                    className="campo-input"
-                    style={{ width: '100%' }}
-                  />
-                </div>
+            {/* Formulário */}
+            <form onSubmit={salvarUsuario} style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                
+                {/* Alerta de erro se houver */}
+                {mensagemErro && (
+                  <div
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                    }}
+                  >
+                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                    <span>{mensagemErro}</span>
+                  </div>
+                )}
 
+                {/* Campo Nome Completo */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    E-mail Corporativo *
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#e2e8f0',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    Nome Completo <span style={{ color: '#f87171' }}>*</span>
                   </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="operador@mdm.corporativo"
-                    className="campo-input"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    Perfil de Acesso *
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <label
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <User
+                      size={18}
                       style={{
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: `1px solid ${perfil === 'supervisor' ? '#10b981' : 'var(--borda-suave)'}`,
-                        background: perfil === 'supervisor' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
+                        position: 'absolute',
+                        left: '14px',
+                        color: '#64748b',
+                        pointerEvents: 'none',
                       }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="radio"
-                          name="perfil"
-                          checked={perfil === 'supervisor'}
-                          onChange={() => setPerfil('supervisor')}
-                        />
-                        <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '13px' }}>Supervisor</span>
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#94a3b8', paddingLeft: '22px' }}>
-                        Acesso exclusivo ao Dashboard para monitoramento. Sem comandos ou exclusões.
-                      </span>
-                    </label>
-
-                    <label
+                    />
+                    <input
+                      type="text"
+                      required
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      placeholder="Ex: João da Silva Santos"
                       style={{
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: `1px solid ${perfil === 'adm' ? '#3b82f6' : 'var(--borda-suave)'}`,
-                        background: perfil === 'adm' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
+                        width: '100%',
+                        padding: '11px 14px 11px 44px',
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '10px',
+                        color: '#ffffff',
+                        fontSize: '13.5px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.2)',
                       }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="radio"
-                          name="perfil"
-                          checked={perfil === 'adm'}
-                          onChange={() => setPerfil('adm')}
-                        />
-                        <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '13px' }}>Administrador (Adm)</span>
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#94a3b8', paddingLeft: '22px' }}>
-                        Controle total: frota, catálogo, comandos remotos, políticas e novos operadores.
-                      </span>
-                    </label>
+                      onFocus={(e) => (e.target.style.borderColor = '#3b82f6')}
+                      onBlur={(e) => (e.target.style.borderColor = '#334155')}
+                    />
                   </div>
                 </div>
 
+                {/* Campo E-mail Corporativo */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {usuarioEmEdicao ? 'Nova Senha (deixe em branco para manter a atual)' : 'Senha de Acesso *'}
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#e2e8f0',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    E-mail Corporativo <span style={{ color: '#f87171' }}>*</span>
                   </label>
-                  <input
-                    type="password"
-                    required={!usuarioEmEdicao}
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
-                    placeholder={usuarioEmEdicao ? '••••••••' : 'Mínimo de 8 caracteres'}
-                    minLength={senha ? 8 : undefined}
-                    className="campo-input"
-                    style={{ width: '100%' }}
-                  />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Mail
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        color: '#64748b',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="operador@mdm.corporativo"
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px 11px 44px',
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '10px',
+                        color: '#ffffff',
+                        fontSize: '13.5px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.2)',
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = '#3b82f6')}
+                      onBlur={(e) => (e.target.style.borderColor = '#334155')}
+                    />
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {/* Seletor de Perfil de Acesso */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#e2e8f0',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    Perfil de Acesso & Nível de Permissão <span style={{ color: '#f87171' }}>*</span>
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    
+                    {/* Perfil Supervisor */}
+                    <div
+                      onClick={() => setPerfil('supervisor')}
+                      style={{
+                        padding: '14px',
+                        borderRadius: '12px',
+                        border: `2px solid ${perfil === 'supervisor' ? '#10b981' : '#334155'}`,
+                        background: perfil === 'supervisor' ? 'rgba(16, 185, 129, 0.08)' : '#1e293b',
+                        boxShadow: perfil === 'supervisor' ? '0 0 15px rgba(16, 185, 129, 0.15)' : 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div
+                            style={{
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '6px',
+                              background: 'rgba(16, 185, 129, 0.2)',
+                              color: '#34d399',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Eye size={15} />
+                          </div>
+                          <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: '13.5px' }}>Supervisor</span>
+                        </div>
+                        <input
+                          type="radio"
+                          name="perfil_operador"
+                          checked={perfil === 'supervisor'}
+                          onChange={() => setPerfil('supervisor')}
+                          style={{ accentColor: '#10b981', cursor: 'pointer' }}
+                        />
+                      </div>
+                      <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8', lineHeight: 1.4, marginTop: '4px' }}>
+                        Acesso ao Dashboard e vínculo de tablets a agentes. Sem comandos remotos ou exclusões.
+                      </p>
+                    </div>
+
+                    {/* Perfil Administrador */}
+                    <div
+                      onClick={() => setPerfil('adm')}
+                      style={{
+                        padding: '14px',
+                        borderRadius: '12px',
+                        border: `2px solid ${perfil === 'adm' ? '#3b82f6' : '#334155'}`,
+                        background: perfil === 'adm' ? 'rgba(59, 130, 246, 0.08)' : '#1e293b',
+                        boxShadow: perfil === 'adm' ? '0 0 15px rgba(59, 130, 246, 0.15)' : 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div
+                            style={{
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '6px',
+                              background: 'rgba(59, 130, 246, 0.2)',
+                              color: '#60a5fa',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <ShieldAlert size={15} />
+                          </div>
+                          <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: '13.5px' }}>Administrador</span>
+                        </div>
+                        <input
+                          type="radio"
+                          name="perfil_operador"
+                          checked={perfil === 'adm'}
+                          onChange={() => setPerfil('adm')}
+                          style={{ accentColor: '#3b82f6', cursor: 'pointer' }}
+                        />
+                      </div>
+                      <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8', lineHeight: 1.4, marginTop: '4px' }}>
+                        Controle irrestrito: comandos remotos, políticas de bloqueio e gestão de operadores.
+                      </p>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Senha de Acesso */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#e2e8f0',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    {usuarioEmEdicao ? 'Nova Senha de Acesso (Opcional)' : 'Senha de Acesso *'}
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Lock
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        color: '#64748b',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    <input
+                      type="password"
+                      required={!usuarioEmEdicao}
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      placeholder={usuarioEmEdicao ? 'Deixe em branco para manter a senha atual' : 'Mínimo de 8 caracteres'}
+                      minLength={senha ? 8 : undefined}
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px 11px 44px',
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '10px',
+                        color: '#ffffff',
+                        fontSize: '13.5px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.2)',
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = '#3b82f6')}
+                      onBlur={(e) => (e.target.style.borderColor = '#334155')}
+                    />
+                  </div>
+                  {usuarioEmEdicao && (
+                    <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
+                      Preencha apenas caso deseje resetar a senha deste operador.
+                    </small>
+                  )}
+                </div>
+
+                {/* Status Ativo / Inativo */}
+                <div
+                  onClick={() => setAtivo(!ativo)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        background: ativo ? '#10b981' : '#ef4444',
+                        boxShadow: ativo ? '0 0 8px #10b981' : '0 0 8px #ef4444',
+                      }}
+                    />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#f8fafc' }}>
+                        {ativo ? 'Conta Ativa e Liberada' : 'Conta Desativada / Suspensa'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                        {ativo ? 'O operador pode realizar login normalmente' : 'Acesso bloqueado até reativação'}
+                      </div>
+                    </div>
+                  </div>
                   <input
                     type="checkbox"
-                    id="chkAtivo"
                     checked={ativo}
                     onChange={(e) => setAtivo(e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    style={{ width: '18px', height: '18px', accentColor: '#10b981', cursor: 'pointer' }}
                   />
-                  <label htmlFor="chkAtivo" style={{ fontSize: '13px', color: '#f8fafc', cursor: 'pointer' }}>
-                    Conta ativa e liberada para login
-                  </label>
                 </div>
+
               </div>
 
-              <div className="modal-rodape" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              {/* Rodapé do Modal */}
+              <div
+                style={{
+                  padding: '16px 24px',
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  borderTop: '1px solid #1e293b',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setModalAberto(false)}
-                  className="btn btn-secundario"
                   disabled={salvando}
+                  style={{
+                    padding: '10px 18px',
+                    fontSize: '13.5px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    background: '#1e293b',
+                    color: '#94a3b8',
+                    border: '1px solid #334155',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.borderColor = '#475569';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#94a3b8';
+                    e.currentTarget.style.borderColor = '#334155';
+                  }}
                 >
                   Cancelar
                 </button>
+
                 <button
                   type="submit"
-                  className="btn btn-primario"
                   disabled={salvando}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{
+                    padding: '10px 22px',
+                    fontSize: '13.5px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: salvando ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                    opacity: salvando ? 0.7 : 1,
+                  }}
                 >
-                  {salvando ? 'Salvando...' : usuarioEmEdicao ? 'Salvar Alterações' : 'Cadastrar Operador'}
+                  {salvando ? (
+                    <>Salvando...</>
+                  ) : usuarioEmEdicao ? (
+                    <>
+                      <CheckCircle size={16} /> Salvar Alterações
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={16} /> Cadastrar Operador
+                    </>
+                  )}
                 </button>
               </div>
             </form>
