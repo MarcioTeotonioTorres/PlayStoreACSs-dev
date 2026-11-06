@@ -266,7 +266,9 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
                 </div>
                 <div className="termo-col-item" style={{ flex: '1 1 35%' }}>
                   <span className="campo-rotulo">Mat.:</span>
-                  <span className="campo-valor campo-sublinhado">{usuario.id ? usuario.id.substring(0, 8).toUpperCase() : '__________________'}</span>
+                  <span className="campo-valor campo-sublinhado">
+                    {usuario.matricula?.trim() || (usuario.id ? usuario.id.substring(0, 8).toUpperCase() : '__________________')}
+                  </span>
                 </div>
               </div>
 
@@ -441,7 +443,7 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
           padding: 24px 34px;
           overflow-y: auto;
-          line-height: 1.22;
+          line-height: 1.25;
           font-size: 9pt;
         }
 
@@ -450,8 +452,8 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           align-items: center;
           justify-content: space-between;
           border-bottom: 1.5px solid #000000;
-          padding-bottom: 6px;
-          margin-bottom: 6px;
+          padding-bottom: 8px;
+          margin-bottom: 12px;
           gap: 12px;
         }
 
@@ -490,23 +492,23 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
 
         .termo-box-identificacao {
           border: 1px solid #000000;
-          margin-bottom: 6px;
+          margin-bottom: 12px;
         }
 
         .termo-box-topo {
           background: #f1f5f9;
           font-weight: bold;
           font-size: 8.5pt;
-          padding: 2px 6px;
+          padding: 3px 6px;
           border-bottom: 1px solid #000000;
           letter-spacing: 0.3px;
         }
 
         .termo-box-conteudo {
-          padding: 4px 6px;
+          padding: 5px 8px;
           display: flex;
           flex-direction: column;
-          gap: 3px;
+          gap: 4px;
         }
 
         .termo-linha-grid {
@@ -541,14 +543,14 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
         .termo-tabela-equipamento {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 6px;
+          margin-bottom: 12px;
           font-size: 8.5pt;
         }
 
         .termo-tabela-equipamento th,
         .termo-tabela-equipamento td {
           border: 1px solid #000000;
-          padding: 3px 6px;
+          padding: 4px 6px;
         }
 
         .termo-tabela-equipamento th {
@@ -561,35 +563,35 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
         .termo-texto-abertura {
           font-size: 8.5pt;
           text-align: justify;
-          margin-bottom: 5px;
-          line-height: 1.22;
+          margin-bottom: 12px;
+          line-height: 1.28;
         }
 
         .termo-lista-regras {
           font-size: 8pt;
-          line-height: 1.18;
+          line-height: 1.25;
           text-align: justify;
-          margin-bottom: 6px;
+          margin-bottom: 12px;
         }
 
         .termo-lista-regras p {
-          margin: 0 0 3px 0;
+          margin: 0 0 10px 0;
           text-indent: 0;
         }
 
         .termo-texto-fechamento {
           font-size: 8.2pt;
           text-align: justify;
-          margin-bottom: 10px;
-          line-height: 1.2;
+          margin-bottom: 14px;
+          line-height: 1.25;
         }
 
         .termo-area-assinatura {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-top: 8px;
-          padding-top: 4px;
+          margin-top: 14px;
+          padding-top: 6px;
         }
 
         .termo-data-cidade {
@@ -621,7 +623,7 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           color: #0f172a;
         }
 
-        /* Regras Rigorosas para Impressão A4 em Página Única */
+        /* Regras Rigorosas para Impressão A4 em Página Única com Espaçamento */
         @media print {
           body * {
             visibility: hidden;
@@ -661,40 +663,94 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .folha-termo-a4 {
-            padding: 6mm 10mm !important;
-            font-size: 7.8pt !important;
+            padding: 4mm 8mm !important;
+            font-size: 7.4pt !important;
             line-height: 1.15 !important;
             background: #ffffff !important;
             color: #000000 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          .termo-cabecalho-oficial {
+            padding-bottom: 4px !important;
+            margin-bottom: 5px !important;
           }
 
           .termo-titulo-documento {
-            font-size: 9pt !important;
-          }
-
-          .termo-lista-regras {
-            font-size: 7.2pt !important;
+            font-size: 8.8pt !important;
             line-height: 1.12 !important;
           }
 
-          .termo-lista-regras p {
-            margin-bottom: 2px !important;
-          }
-
-          .termo-texto-abertura,
-          .termo-texto-fechamento {
+          .termo-subtitulo-documento {
             font-size: 7.5pt !important;
-            line-height: 1.14 !important;
           }
 
-          .termo-tabela-equipamento,
           .termo-box-identificacao {
-            font-size: 7.5pt !important;
+            margin-bottom: 5px !important;
+            font-size: 7.2pt !important;
+          }
+
+          .termo-box-topo {
+            padding: 1px 4px !important;
+            font-size: 7.2pt !important;
+          }
+
+          .termo-box-conteudo {
+            padding: 2px 4px !important;
+            gap: 2px !important;
+          }
+
+          .termo-linha-grid {
+            font-size: 7.2pt !important;
+            gap: 8px !important;
+          }
+
+          .termo-tabela-equipamento {
+            margin-bottom: 5px !important;
+            font-size: 7.2pt !important;
+          }
+
+          .termo-tabela-equipamento th,
+          .termo-tabela-equipamento td {
+            padding: 2px 4px !important;
+          }
+
+          .termo-texto-abertura {
+            font-size: 7.1pt !important;
+            line-height: 1.13 !important;
+            margin-bottom: 5px !important;
+          }
+
+          .termo-lista-regras {
+            font-size: 7.0pt !important;
+            line-height: 1.12 !important;
+            margin-bottom: 5px !important;
+          }
+
+          .termo-lista-regras p {
+            margin-bottom: 3.5px !important;
+          }
+
+          .termo-texto-fechamento {
+            font-size: 7.1pt !important;
+            line-height: 1.13 !important;
+            margin-bottom: 6px !important;
+          }
+
+          .termo-area-assinatura {
+            margin-top: 6px !important;
+            padding-top: 2px !important;
+          }
+
+          .termo-data-cidade,
+          .termo-nome-assinante {
+            font-size: 7.2pt !important;
           }
 
           @page {
             size: A4 portrait;
-            margin: 6mm;
+            margin: 5mm;
           }
         }
       `}</style>

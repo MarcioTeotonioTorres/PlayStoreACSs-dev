@@ -128,6 +128,7 @@ let comandosMemoria: Array<{
 export interface UsuarioTabletSimulado {
   id: string;
   nome_completo: string;
+  matricula?: string | null;
   unidade_basica?: string | null;
   cpf?: string | null;
   email: string;
@@ -141,6 +142,7 @@ export let usuariosTabletsMemoria: UsuarioTabletSimulado[] = [
   {
     id: 'user-tab-001',
     nome_completo: 'Maria Aparecida da Silva',
+    matricula: '12684',
     unidade_basica: 'USF 01 Central',
     cpf: '102.345.678-90',
     email: 'maria.aparecida@saude.gov.br',
@@ -152,6 +154,7 @@ export let usuariosTabletsMemoria: UsuarioTabletSimulado[] = [
   {
     id: 'user-tab-002',
     nome_completo: 'Carlos Eduardo Santos',
+    matricula: '12685',
     unidade_basica: 'USF 01 Centro',
     cpf: '213.456.789-01',
     email: 'carlos.santos@saude.gov.br',
@@ -163,6 +166,7 @@ export let usuariosTabletsMemoria: UsuarioTabletSimulado[] = [
   {
     id: 'user-tab-003',
     nome_completo: 'Mariana Ferreira Lima',
+    matricula: '12686',
     unidade_basica: 'USF 03 Porto',
     cpf: '324.567.890-12',
     email: 'mariana.lima@saude.gov.br',
@@ -1258,6 +1262,7 @@ export async function executar_migracoes_banco(): Promise<void> {
       CREATE TABLE IF NOT EXISTS usuarios_tablets (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         nome_completo VARCHAR(150) NOT NULL,
+        matricula VARCHAR(50),
         unidade_basica VARCHAR(150),
         cpf VARCHAR(14),
         email VARCHAR(150) NOT NULL,
@@ -1267,6 +1272,7 @@ export async function executar_migracoes_banco(): Promise<void> {
         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+    await poolInstancia.query(`ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS matricula VARCHAR(50);`).catch(() => {});
     await poolInstancia.query(`ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS unidade_basica VARCHAR(150);`).catch(() => {});
     await poolInstancia.query(`ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);`).catch(() => {});
     await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS perfil_ativo_id UUID REFERENCES perfis_provisionamento(id) ON DELETE SET NULL;`).catch(() => {});

@@ -51,6 +51,7 @@ export interface DispositivoItem {
   perfil_ativo_em?: string | null;
   usuario_nome?: string | null;
   usuario_unidade_basica?: string | null;
+  usuario_matricula?: string | null;
   usuario_telefone?: string | null;
   usuario_cpf?: string | null;
   usuario_email?: string | null;
@@ -436,6 +437,7 @@ export interface UsuarioTabletItem {
   id: string;
   nome_completo: string;
   unidade_basica?: string | null;
+  matricula?: string | null;
   cpf?: string | null;
   email: string;
   telefone: string;
@@ -484,6 +486,7 @@ export async function obter_usuario_tablet_api(id: string): Promise<{
 export async function cadastrar_usuario_tablet_api(dados: {
   nome_completo: string;
   unidade_basica?: string | null;
+  matricula?: string | null;
   cpf?: string | null;
   email: string;
   telefone: string;
@@ -513,6 +516,7 @@ export async function atualizar_usuario_tablet_api(
   dados: {
     nome_completo?: string;
     unidade_basica?: string | null;
+    matricula?: string | null;
     cpf?: string | null;
     email?: string;
     telefone?: string;

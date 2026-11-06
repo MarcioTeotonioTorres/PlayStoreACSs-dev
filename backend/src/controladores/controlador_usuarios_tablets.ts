@@ -10,6 +10,7 @@ export interface UsuarioTabletDTO {
   id?: string;
   nome_completo: string;
   unidade_basica?: string | null;
+  matricula?: string | null;
   cpf?: string | null;
   email: string;
   telefone: string;
@@ -30,6 +31,7 @@ function normalizarUsuarioTablet(row: any): UsuarioTabletDTO {
     id: row.id,
     nome_completo: row.nome_completo || '',
     unidade_basica: row.unidade_basica || 'USF 01 Centro',
+    matricula: row.matricula || null,
     cpf: row.cpf || '',
     email: (row.email || '').toLowerCase(),
     telefone: row.telefone || '',
@@ -54,7 +56,7 @@ export async function listar_usuarios_tablets(
     const busca = requisicao.query.busca?.trim().toLowerCase();
 
     const sql = `
-      SELECT ut.id, ut.nome_completo, ut.unidade_basica, ut.cpf, ut.email, ut.telefone, ut.dispositivo_id,
+      SELECT ut.id, ut.nome_completo, ut.unidade_basica, ut.matricula, ut.cpf, ut.email, ut.telefone, ut.dispositivo_id,
              ut.criado_em, ut.atualizado_em,
              d.numero_serie AS dispositivo_numero_serie,
              d.modelo AS dispositivo_modelo,
@@ -79,6 +81,7 @@ export async function listar_usuarios_tablets(
         return (
           u.nome_completo.toLowerCase().includes(busca) ||
           (u.unidade_basica && u.unidade_basica.toLowerCase().includes(busca)) ||
+          (u.matricula && u.matricula.toLowerCase().includes(busca)) ||
           (u.cpf && u.cpf.toLowerCase().includes(busca)) ||
           u.email.toLowerCase().includes(busca) ||
           u.telefone.toLowerCase().includes(busca) ||
@@ -113,7 +116,7 @@ export async function obter_usuario_tablet(
     const { id } = requisicao.params;
 
     const sql = `
-      SELECT ut.id, ut.nome_completo, ut.email, ut.telefone, ut.dispositivo_id,
+      SELECT ut.id, ut.nome_completo, ut.unidade_basica, ut.matricula, ut.cpf, ut.email, ut.telefone, ut.dispositivo_id,
              ut.criado_em, ut.atualizado_em,
              d.numero_serie AS dispositivo_numero_serie,
              d.modelo AS dispositivo_modelo,
@@ -165,7 +168,7 @@ export async function cadastrar_usuario_tablet(
   resposta: FastifyReply
 ): Promise<void> {
   try {
-    const { nome_completo, unidade_basica, cpf, email, telefone, dispositivo_id } = requisicao.body;
+    const { nome_completo, unidade_basica, matricula, cpf, email, telefone, dispositivo_id } = requisicao.body;
 
     if (!nome_completo || nome_completo.trim().length < 3) {
       resposta.status(400).send({
@@ -213,6 +216,7 @@ export async function cadastrar_usuario_tablet(
     const id = crypto.randomUUID();
     const nomeLimpo = nome_completo.trim();
     const ubLimpo = unidade_basica?.trim() || 'USF 01 Centro';
+    const matriculaLimpo = matricula?.trim() || null;
     const cpfLimpo = cpf?.trim() || null;
     const emailLimpo = email.trim().toLowerCase();
     const telLimpo = telefone.trim();
@@ -221,14 +225,15 @@ export async function cadastrar_usuario_tablet(
     let usuarioCriado: any = null;
     try {
       const sqlInsert = `
-        INSERT INTO usuarios_tablets (id, nome_completo, unidade_basica, cpf, email, telefone, dispositivo_id, criado_em, atualizado_em)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        INSERT INTO usuarios_tablets (id, nome_completo, unidade_basica, matricula, cpf, email, telefone, dispositivo_id, criado_em, atualizado_em)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
         RETURNING *;
       `;
       const resInsert = await executar_consulta(sqlInsert, [
         id,
         nomeLimpo,
         ubLimpo,
+        matriculaLimpo,
         cpfLimpo,
         emailLimpo,
         telLimpo,
@@ -246,6 +251,7 @@ export async function cadastrar_usuario_tablet(
       id,
       nome_completo: nomeLimpo,
       unidade_basica: ubLimpo,
+      matricula: matriculaLimpo,
       cpf: cpfLimpo,
       email: emailLimpo,
       telefone: telLimpo,
@@ -284,7 +290,7 @@ export async function atualizar_usuario_tablet(
 ): Promise<void> {
   try {
     const { id } = requisicao.params;
-    const { nome_completo, unidade_basica, cpf, email, telefone, dispositivo_id } = requisicao.body;
+    const { nome_completo, unidade_basica, matricula, cpf, email, telefone, dispositivo_id } = requisicao.body;
 
     if (nome_completo !== undefined && nome_completo.trim().length < 3) {
       resposta.status(400).send({
@@ -335,17 +341,19 @@ export async function atualizar_usuario_tablet(
         UPDATE usuarios_tablets
         SET nome_completo = COALESCE($1, nome_completo),
             unidade_basica = COALESCE($2, unidade_basica),
-            cpf = COALESCE($3, cpf),
-            email = COALESCE($4, email),
-            telefone = COALESCE($5, telefone),
-            dispositivo_id = $6,
+            matricula = COALESCE($3, matricula),
+            cpf = COALESCE($4, cpf),
+            email = COALESCE($5, email),
+            telefone = COALESCE($6, telefone),
+            dispositivo_id = $7,
             atualizado_em = NOW()
-        WHERE id::text = $7
+        WHERE id::text = $8
         RETURNING *;
       `;
       const resUp = await executar_consulta(sqlUpdate, [
         nome_completo?.trim(),
         unidade_basica?.trim(),
+        matricula !== undefined ? matricula?.trim() || null : undefined,
         cpf?.trim(),
         email ? email.trim().toLowerCase() : undefined,
         telefone?.trim(),
@@ -363,6 +371,7 @@ export async function atualizar_usuario_tablet(
     if (usuarioMem) {
       if (nome_completo !== undefined) usuarioMem.nome_completo = nome_completo.trim();
       if (unidade_basica !== undefined) usuarioMem.unidade_basica = unidade_basica?.trim() || null;
+      if (matricula !== undefined) usuarioMem.matricula = matricula?.trim() || null;
       if (cpf !== undefined) usuarioMem.cpf = cpf?.trim() || null;
       if (email !== undefined) usuarioMem.email = email.trim().toLowerCase();
       if (telefone !== undefined) usuarioMem.telefone = telefone.trim();

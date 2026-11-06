@@ -114,7 +114,7 @@ export async function listar_dispositivos(
     }
 
     if (busca && busca.trim().length > 0) {
-      clausulasWhere.push(`(numero_serie ILIKE $${contador} OR modelo ILIKE $${contador} OR ssid_wifi ILIKE $${contador} OR usuario_nome ILIKE $${contador} OR usuario_unidade_basica ILIKE $${contador})`);
+      clausulasWhere.push(`(numero_serie ILIKE $${contador} OR modelo ILIKE $${contador} OR ssid_wifi ILIKE $${contador} OR usuario_nome ILIKE $${contador} OR usuario_unidade_basica ILIKE $${contador} OR usuario_matricula ILIKE $${contador})`);
       parametros.push(`%${busca}%`);
       contador++;
     }
@@ -149,6 +149,7 @@ export async function listar_dispositivos(
           d.perfil_ativo_id, d.perfil_ativo_em,
           ut.nome_completo AS usuario_nome,
           ut.unidade_basica AS usuario_unidade_basica,
+          ut.matricula AS usuario_matricula,
           ut.telefone AS usuario_telefone,
           ut.cpf AS usuario_cpf,
           ut.email AS usuario_email,
@@ -163,7 +164,7 @@ export async function listar_dispositivos(
         app_foco, tempo_ocioso_calculado AS tempo_ocioso_minutos,
         memoria_ram_livre_mb, armazenamento_livre_mb,
         perfil_ativo_id, perfil_ativo_nome, perfil_ativo_em,
-        usuario_nome, usuario_unidade_basica, usuario_telefone, usuario_cpf, usuario_email,
+        usuario_nome, usuario_unidade_basica, usuario_matricula, usuario_telefone, usuario_cpf, usuario_email,
         ultimo_contato, criado_em
       FROM cte_dispositivos
       ${whereSql}

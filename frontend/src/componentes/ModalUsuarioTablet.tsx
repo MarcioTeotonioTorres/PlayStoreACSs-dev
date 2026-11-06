@@ -12,6 +12,7 @@ import {
   Edit3,
   Building,
   CreditCard,
+  Hash,
 } from 'lucide-react';
 import {
   UsuarioTabletItem,
@@ -39,6 +40,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
 }) => {
   const [nomeCompleto, setNomeCompleto] = useState<string>('');
   const [unidadeBasica, setUnidadeBasica] = useState<string>('');
+  const [matricula, setMatricula] = useState<string>('');
   const [cpf, setCpf] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [telefone, setTelefone] = useState<string>('');
@@ -52,6 +54,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
     if (usuarioParaEditar) {
       setNomeCompleto(usuarioParaEditar.nome_completo || '');
       setUnidadeBasica(usuarioParaEditar.unidade_basica || '');
+      setMatricula(usuarioParaEditar.matricula || '');
       setCpf(usuarioParaEditar.cpf || '');
       setEmail(usuarioParaEditar.email || '');
       setTelefone(usuarioParaEditar.telefone || '');
@@ -59,6 +62,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
     } else {
       setNomeCompleto('');
       setUnidadeBasica('');
+      setMatricula('');
       setCpf('');
       setEmail('');
       setTelefone('');
@@ -140,6 +144,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
         const resp = await atualizar_usuario_tablet_api(usuarioParaEditar.id, {
           nome_completo: nomeCompleto.trim(),
           unidade_basica: unidadeBasica.trim(),
+          matricula: matricula.trim() || null,
           cpf: cpf.trim(),
           email: email.trim().toLowerCase(),
           telefone: telefone.trim(),
@@ -150,6 +155,7 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
         const resp = await cadastrar_usuario_tablet_api({
           nome_completo: nomeCompleto.trim(),
           unidade_basica: unidadeBasica.trim(),
+          matricula: matricula.trim() || null,
           cpf: cpf.trim(),
           email: email.trim().toLowerCase(),
           telefone: telefone.trim(),
@@ -299,8 +305,8 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
             </div>
           </div>
 
-          {/* Grid de 2 Colunas: Unidade Básica e CPF */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+          {/* Grid de 2 Colunas: Unidade Básica e Matrícula */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '14px', marginBottom: '16px' }}>
             {/* Unidade Básica */}
             <div>
               <label
@@ -338,6 +344,46 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
               </div>
             </div>
 
+            {/* Matrícula do Servidor / Agente */}
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  marginBottom: '6px',
+                }}
+              >
+                Matrícula do Servidor
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Hash
+                  size={16}
+                  style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
+                />
+                <input
+                  type="text"
+                  value={matricula}
+                  onChange={(e) => setMatricula(e.target.value)}
+                  placeholder="Ex: 12684"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 38px',
+                    borderRadius: '8px',
+                    background: 'var(--fundo-base)',
+                    border: '1px solid var(--borda-suave)',
+                    color: '#fff',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Grid de 2 Colunas: CPF e Telefone */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
             {/* CPF */}
             <div>
               <label
@@ -372,46 +418,6 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
                     color: '#fff',
                     fontSize: '13px',
                     fontFamily: 'monospace',
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Grid de 2 Colunas: E-mail e Telefone */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
-            {/* E-mail de Contato */}
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#e2e8f0',
-                  marginBottom: '6px',
-                }}
-              >
-                E-mail para Contato <span style={{ color: '#f87171' }}>*</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail
-                  size={16}
-                  style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
-                />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="agente@saude.gov.br"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px 10px 38px',
-                    borderRadius: '8px',
-                    background: 'var(--fundo-base)',
-                    border: '1px solid var(--borda-suave)',
-                    color: '#fff',
-                    fontSize: '13px',
                   }}
                 />
               </div>
@@ -454,6 +460,43 @@ export const ModalUsuarioTablet: React.FC<PropriedadesModalUsuarioTablet> = ({
                   }}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* E-mail para Contato */}
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#e2e8f0',
+                marginBottom: '6px',
+              }}
+            >
+              E-mail para Contato <span style={{ color: '#f87171' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Mail
+                size={16}
+                style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }}
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="agente@saude.gov.br"
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px 14px 10px 38px',
+                  borderRadius: '8px',
+                  background: 'var(--fundo-base)',
+                  border: '1px solid var(--borda-suave)',
+                  color: '#fff',
+                  fontSize: '13px',
+                }}
+              />
             </div>
           </div>
 

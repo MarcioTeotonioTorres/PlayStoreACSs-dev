@@ -111,6 +111,7 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
       const matchBusca =
         user.nome_completo.toLowerCase().includes(termo) ||
         (user.unidade_basica && user.unidade_basica.toLowerCase().includes(termo)) ||
+        (user.matricula && user.matricula.toLowerCase().includes(termo)) ||
         (user.cpf && user.cpf.toLowerCase().includes(termo)) ||
         user.email.toLowerCase().includes(termo) ||
         user.telefone.toLowerCase().includes(termo) ||
@@ -359,8 +360,25 @@ export const PaginaUsuariosTablets: React.FC<PropriedadesPaginaUsuariosTablets> 
                             {iniciais || 'U'}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 600, color: '#fff', fontSize: '14px' }}>
-                              {user.nome_completo}
+                            <div style={{ fontWeight: 600, color: '#fff', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span>{user.nome_completo}</span>
+                              {user.matricula && (
+                                <span
+                                  style={{
+                                    background: 'rgba(56, 189, 248, 0.15)',
+                                    color: '#38bdf8',
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    fontFamily: 'monospace',
+                                    fontWeight: 700,
+                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                  }}
+                                  title={`Matrícula: ${user.matricula}`}
+                                >
+                                  Mat: {user.matricula}
+                                </span>
+                              )}
                             </div>
                             <div style={{ fontSize: '11px', color: '#94a3b8' }}>
                               Agente Comunitário de Saúde
