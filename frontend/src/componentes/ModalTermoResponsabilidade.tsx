@@ -361,16 +361,14 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
             Declaro que conferi o (s) equipamento (s) acima descrito (s), estando este em perfeitas condições de uso, bem como expresso, neste ato, plena, total e irrevogável concordância com as condições acima estabelecidas no presente termo.
           </div>
 
-          {/* Data e Campo de Ciente / Assinatura */}
+          {/* Data e Campo de Assinatura */}
           <div className="termo-area-assinatura">
             <div className="termo-data-cidade">
               {config.cidade}, {diaAtual} de {mesAtual} de {anoAtual}.
             </div>
-            <div className="termo-bloco-ciente">
-              <span className="termo-rotulo-ciente">Ciente:</span>
-              <div className="termo-linha-assinatura-ciente">
-                <span className="termo-nome-assinante">{usuario.nome_completo}</span>
-              </div>
+            <div className="termo-bloco-assinatura">
+              <span className="termo-rotulo-assinatura">Assinatura:</span>
+              <div className="termo-linha-assinatura"></div>
             </div>
           </div>
         </div>
@@ -436,24 +434,24 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           border-color: #38bdf8;
         }
 
-        /* Folha A4 com Calibração Estrita para Impressão em 1 Página */
+        /* Folha A4 com Calibração Estrita para Impressão em 1 Página Total */
         .folha-termo-a4 {
           background: #ffffff;
           color: #000000;
           font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
           padding: 24px 34px;
           overflow-y: auto;
-          line-height: 1.25;
-          font-size: 9pt;
+          line-height: 1.34;
+          font-size: 9.2pt;
         }
 
         .termo-cabecalho-oficial {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          border-bottom: 1.5px solid #000000;
+          border-bottom: 2px solid #000000;
           padding-bottom: 8px;
-          margin-bottom: 12px;
+          margin-bottom: 14px;
           gap: 12px;
         }
 
@@ -463,26 +461,26 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
         }
 
         .termo-titulo-documento {
-          font-size: 10.5pt;
+          font-size: 11pt;
           font-weight: 900;
           color: #000000;
           margin: 0;
-          line-height: 1.15;
+          line-height: 1.25;
           text-transform: uppercase;
           letter-spacing: -0.2px;
         }
 
         .termo-subtitulo-documento {
-          font-size: 8.5pt;
-          color: #334155;
-          margin: 2px 0 0 0;
-          font-weight: 600;
+          font-size: 9pt;
+          color: #1e293b;
+          margin: 4px 0 0 0;
+          font-weight: 700;
         }
 
         .termo-bloco-numero {
           text-align: right;
           white-space: nowrap;
-          font-size: 9pt;
+          font-size: 9.5pt;
           font-weight: bold;
         }
 
@@ -492,30 +490,31 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
 
         .termo-box-identificacao {
           border: 1px solid #000000;
-          margin-bottom: 12px;
+          margin-bottom: 14px;
+          font-size: 9pt;
         }
 
         .termo-box-topo {
           background: #f1f5f9;
           font-weight: bold;
-          font-size: 8.5pt;
-          padding: 3px 6px;
+          font-size: 9pt;
+          padding: 3px 8px;
           border-bottom: 1px solid #000000;
           letter-spacing: 0.3px;
         }
 
         .termo-box-conteudo {
-          padding: 5px 8px;
+          padding: 6px 8px;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 5px;
         }
 
         .termo-linha-grid {
           display: flex;
           align-items: center;
-          gap: 12px;
-          font-size: 8.5pt;
+          gap: 14px;
+          font-size: 9pt;
         }
 
         .termo-col-item {
@@ -537,93 +536,89 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
 
         .campo-sublinhado {
           border-bottom: 1px dotted #64748b;
-          min-height: 14px;
+          min-height: 16px;
         }
 
         .termo-tabela-equipamento {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 12px;
-          font-size: 8.5pt;
+          margin-bottom: 14px;
+          font-size: 9pt;
         }
 
         .termo-tabela-equipamento th,
         .termo-tabela-equipamento td {
           border: 1px solid #000000;
-          padding: 4px 6px;
+          padding: 5px 8px;
         }
 
         .termo-tabela-equipamento th {
           background: #f1f5f9;
           font-weight: bold;
           text-align: left;
-          font-size: 8pt;
+          font-size: 8.5pt;
         }
 
         .termo-texto-abertura {
-          font-size: 8.5pt;
+          font-size: 9pt;
           text-align: justify;
-          margin-bottom: 12px;
-          line-height: 1.28;
+          margin-bottom: 14px;
+          line-height: 1.35;
         }
 
         .termo-lista-regras {
-          font-size: 8pt;
-          line-height: 1.25;
+          font-size: 8.8pt;
+          line-height: 1.32;
           text-align: justify;
-          margin-bottom: 12px;
+          margin-bottom: 14px;
         }
 
         .termo-lista-regras p {
-          margin: 0 0 10px 0;
+          margin: 0 0 11px 0;
           text-indent: 0;
+          display: block;
         }
 
         .termo-texto-fechamento {
-          font-size: 8.2pt;
+          font-size: 9pt;
           text-align: justify;
-          margin-bottom: 14px;
-          line-height: 1.25;
+          margin-bottom: 20px;
+          line-height: 1.35;
         }
 
         .termo-area-assinatura {
           display: flex;
-          align-items: center;
+          align-items: flex-end;
           justify-content: space-between;
-          margin-top: 14px;
-          padding-top: 6px;
+          margin-top: 20px;
+          padding-top: 8px;
         }
 
         .termo-data-cidade {
-          font-size: 8.5pt;
-          font-weight: 500;
-        }
-
-        .termo-bloco-ciente {
-          display: flex;
-          align-items: baseline;
-          gap: 6px;
-          width: 58%;
-        }
-
-        .termo-rotulo-ciente {
-          font-weight: bold;
           font-size: 9pt;
+          font-weight: 600;
         }
 
-        .termo-linha-assinatura-ciente {
+        .termo-bloco-assinatura {
+          display: flex;
+          align-items: flex-end;
+          gap: 8px;
+          width: 55%;
+        }
+
+        .termo-rotulo-assinatura {
+          font-weight: bold;
+          font-size: 9.5pt;
+          white-space: nowrap;
+        }
+
+        .termo-linha-assinatura {
           flex: 1;
-          border-bottom: 1px solid #000000;
-          text-align: center;
-          padding-bottom: 2px;
+          border-bottom: 1.5px solid #000000;
+          height: 22px;
         }
 
-        .termo-nome-assinante {
-          font-size: 8.5pt;
-          color: #0f172a;
-        }
-
-        /* Regras Rigorosas para Impressão A4 em Página Única com Espaçamento */
+        /* Regras Rigorosas para Impressão A4 em Página Única Ocupando Toda a Folha */
         @media print {
           body * {
             visibility: hidden;
@@ -663,9 +658,9 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .folha-termo-a4 {
-            padding: 6mm 10mm !important;
-            font-size: 8.2pt !important;
-            line-height: 1.22 !important;
+            padding: 2mm 6mm !important;
+            font-size: 8.6pt !important;
+            line-height: 1.28 !important;
             background: #ffffff !important;
             color: #000000 !important;
             page-break-inside: avoid !important;
@@ -673,27 +668,28 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .termo-cabecalho-oficial {
-            padding-bottom: 6px !important;
-            margin-bottom: 9px !important;
+            padding-bottom: 5px !important;
+            margin-bottom: 10px !important;
+            border-bottom: 1.5px solid #000000 !important;
           }
 
           .termo-titulo-documento {
-            font-size: 9.5pt !important;
-            line-height: 1.15 !important;
+            font-size: 10pt !important;
+            line-height: 1.2 !important;
           }
 
           .termo-subtitulo-documento {
-            font-size: 8pt !important;
+            font-size: 8.5pt !important;
           }
 
           .termo-box-identificacao {
-            margin-bottom: 9px !important;
-            font-size: 7.8pt !important;
+            margin-bottom: 10px !important;
+            font-size: 8.3pt !important;
           }
 
           .termo-box-topo {
             padding: 2px 6px !important;
-            font-size: 8pt !important;
+            font-size: 8.3pt !important;
           }
 
           .termo-box-conteudo {
@@ -702,13 +698,13 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .termo-linha-grid {
-            font-size: 7.8pt !important;
+            font-size: 8.3pt !important;
             gap: 10px !important;
           }
 
           .termo-tabela-equipamento {
-            margin-bottom: 9px !important;
-            font-size: 7.8pt !important;
+            margin-bottom: 10px !important;
+            font-size: 8.3pt !important;
           }
 
           .termo-tabela-equipamento th,
@@ -717,47 +713,55 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .termo-texto-abertura {
-            font-size: 7.8pt !important;
-            line-height: 1.2 !important;
-            margin-bottom: 9px !important;
+            font-size: 8.3pt !important;
+            line-height: 1.28 !important;
+            margin-bottom: 10px !important;
             text-align: justify !important;
           }
 
           .termo-lista-regras {
-            font-size: 7.6pt !important;
-            line-height: 1.2 !important;
-            margin-bottom: 9px !important;
+            font-size: 8.1pt !important;
+            line-height: 1.26 !important;
+            margin-bottom: 10px !important;
             text-align: justify !important;
           }
 
           .termo-lista-regras p {
-            margin: 0 0 8px 0 !important;
-            margin-bottom: 8px !important;
+            margin: 0 0 8.5px 0 !important;
+            margin-bottom: 8.5px !important;
             text-indent: 0 !important;
             display: block !important;
           }
 
           .termo-texto-fechamento {
-            font-size: 7.8pt !important;
-            line-height: 1.2 !important;
-            margin-bottom: 12px !important;
+            font-size: 8.3pt !important;
+            line-height: 1.28 !important;
+            margin-bottom: 14px !important;
             text-align: justify !important;
           }
 
           .termo-area-assinatura {
-            margin-top: 14px !important;
-            padding-top: 4px !important;
+            margin-top: 16px !important;
+            padding-top: 6px !important;
             display: flex !important;
           }
 
-          .termo-data-cidade,
-          .termo-nome-assinante {
-            font-size: 8pt !important;
+          .termo-data-cidade {
+            font-size: 8.5pt !important;
+          }
+
+          .termo-rotulo-assinatura {
+            font-size: 9pt !important;
+          }
+
+          .termo-linha-assinatura {
+            border-bottom: 1.5px solid #000000 !important;
+            height: 18px !important;
           }
 
           @page {
             size: A4 portrait;
-            margin: 6mm;
+            margin: 8mm;
           }
         }
       `}</style>
