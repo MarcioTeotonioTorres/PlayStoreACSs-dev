@@ -40,6 +40,7 @@ class ServicoSegundoPlanoMdm : Service() {
         private const val INTERVALO_TELEMETRIA_MS = 86_400_000L // 24 horas (economiza recursos da VPS e bateria)
         const val ACAO_FORCAR_SINCRONIZACAO = "com.mdm.corporativo.FORCAR_SINCRONIZACAO"
         const val ACAO_RESULTADO_INSTALACAO_NOTIFICAR = "com.mdm.corporativo.ACAO_RESULTADO_INSTALACAO_NOTIFICAR"
+        const val ACAO_SINCRONIZACAO_DIARIA_ALARME = "com.mdm.corporativo.ACAO_SINCRONIZACAO_DIARIA_ALARME"
 
         @Volatile
         var instanciaAtiva: ServicoSegundoPlanoMdm? = null
@@ -136,6 +137,43 @@ class ServicoSegundoPlanoMdm : Service() {
                 Log.w(TAG, "Falha ao disparar sincronização imediata: ${t.message}")
             }
         }
+
+        /**
+         * Agenda o ciclo diário de 24 horas usando AlarmManager com RTC_WAKEUP,
+         * garantindo despertar mesmo com o tablet em repouso profundo (Doze Mode).
+         */
+        fun agendar_sincronizacao_diaria(contexto: Context) {
+            try {
+                val alarmManager = contexto.getSystemService(Context.ALARM_SERVICE) as? android.app.AlarmManager ?: return
+                val intent = Intent(contexto, ServicoSegundoPlanoMdm::class.java).apply {
+                    action = ACAO_SINCRONIZACAO_DIARIA_ALARME
+                }
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
+                val pendingIntent = PendingIntent.getService(contexto, 2002, intent, flags)
+
+                val proximoDisparo = System.currentTimeMillis() + INTERVALO_TELEMETRIA_MS
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        android.app.AlarmManager.RTC_WAKEUP,
+                        proximoDisparo,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.set(
+                        android.app.AlarmManager.RTC_WAKEUP,
+                        proximoDisparo,
+                        pendingIntent
+                    )
+                }
+                Log.i(TAG, "Agendador de telemetria diária de 24h configurado via AlarmManager (RTC_WAKEUP).")
+            } catch (e: Exception) {
+                Log.w(TAG, "Aviso ao agendar alarme de telemetria de 24h: ${e.message}")
+            }
+        }
     }
 
     private val escopoServico = CoroutineScope(Dispatchers.IO + Job())
@@ -173,11 +211,13 @@ class ServicoSegundoPlanoMdm : Service() {
             gestorPoliticas = GestorPoliticasDispositivo(this)
             gestorPoliticas.liberar_depuracao_adb()
             gestorPoliticas.definir_bloqueio_instalacao_aplicativos(true)
+            gestorPoliticas.aplicar_whitelist_universal()
             instaladorSilencioso = GestorInstaladorSilencioso(this)
             gestorTelemetria = GestorTelemetria(this)
 
             configurar_cliente_mqtt()
             iniciar_ciclo_telemetria()
+            agendar_sincronizacao_diaria(this)
         } catch (t: Throwable) {
             Log.e(TAG, "Aviso ao inicializar componentes do serviço MDM: ${t.message}", t)
         }
@@ -187,6 +227,13 @@ class ServicoSegundoPlanoMdm : Service() {
         // Trata requisição avulsa de sincronização imediata disparada pelo usuário na tela
         if (intent?.action == ACAO_FORCAR_SINCRONIZACAO) {
             Log.i(TAG, "Solicitação de sincronização avulsa recebida. Enviando telemetria agora...")
+            enviar_telemetria_avulsa_agora()
+        }
+
+        // Trata o disparo diário do AlarmManager (ciclo resiliente de 24 horas)
+        if (intent?.action == ACAO_SINCRONIZACAO_DIARIA_ALARME) {
+            Log.i(TAG, "Alarme de 24h disparado pelo AlarmManager! Transmitindo telemetria e renovando agendamento...")
+            agendar_sincronizacao_diaria(this)
             enviar_telemetria_avulsa_agora()
         }
 
@@ -385,11 +432,61 @@ class ServicoSegundoPlanoMdm : Service() {
                         gestorComandos.processar_e_executar_comando(cmdObj.toString())
                     }
                 }
+
+                // 3. Verificação de versão e Auto-Update Silencioso do APK DPC (OTA)
+                if (jsonResp.has("atualizacao_dpc") && !jsonResp.isNull("atualizacao_dpc")) {
+                    val dpcUpdate = jsonResp.getJSONObject("atualizacao_dpc")
+                    verificar_e_aplicar_autoupdate_dpc(dpcUpdate)
+                }
             }
 
             conexao.disconnect()
         } catch (e: Exception) {
             Log.w(TAG, "Aviso no envio de telemetria HTTP: ${e.message}")
+        }
+    }
+
+    /**
+     * Verifica a versão do APK corporativo DPC e realiza o auto-update silencioso via OTA (PackageInstaller).
+     */
+    private fun verificar_e_aplicar_autoupdate_dpc(dpcJson: org.json.JSONObject) {
+        escopoServico.launch(Dispatchers.IO) {
+            try {
+                val versaoCodigoRemota = dpcJson.optInt("versao_codigo", 0)
+                val urlApk = dpcJson.optString("url_apk", "")
+                val versaoNomeRemota = dpcJson.optString("versao_nome", "")
+
+                if (versaoCodigoRemota <= 0 || urlApk.isEmpty()) return@launch
+
+                val pm = packageManager
+                val pInfo = pm.getPackageInfo(packageName, 0)
+                val versaoLocal = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    pInfo.longVersionCode.toInt()
+                } else {
+                    @Suppress("DEPRECATION")
+                    pInfo.versionCode
+                }
+
+                Log.i(TAG, "Verificação OTA DPC: instalada=$versaoLocal, remota=$versaoCodigoRemota ($versaoNomeRemota)")
+
+                if (versaoCodigoRemota > versaoLocal) {
+                    Log.i(TAG, "Nova versão DPC detectada ($versaoNomeRemota)! Baixando APK em background via OTA...")
+                    val arquivoTemp = java.io.File(cacheDir, "dpc_update_${versaoCodigoRemota}.apk")
+                    val downloadOk = gestorComandos.baixar_apk_remoto(urlApk, arquivoTemp.absolutePath)
+                    if (downloadOk && arquivoTemp.exists() && arquivoTemp.length() > 0) {
+                        Log.i(TAG, "Download OTA concluído com êxito (${arquivoTemp.length()} bytes). Submetendo ao PackageInstaller silencioso...")
+                        val instalado = instaladorSilencioso.instalar_aplicativo_silencioso(
+                            arquivoTemp.absolutePath,
+                            "AUTO_UPDATE_OTA_$versaoCodigoRemota"
+                        )
+                        Log.i(TAG, "Instalação silenciosa OTA submetida ao SO: status=$instalado")
+                    } else {
+                        Log.w(TAG, "Falha no download do pacote de atualização OTA do DPC.")
+                    }
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "Erro na verificação de atualização OTA do DPC: ${t.message}", t)
+            }
         }
     }
 

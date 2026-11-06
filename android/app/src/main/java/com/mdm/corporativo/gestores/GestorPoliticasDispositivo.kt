@@ -283,9 +283,9 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
         return try {
             if (verificar_se_e_device_owner()) {
                 try {
-                    gestorPoliticas.setGlobalSetting(adminComponente, Settings.Global.PACKAGE_VERIFIER_ENABLE, "0")
+                    gestorPoliticas.setGlobalSetting(adminComponente, "package_verifier_enable", "0")
                 } catch (e: Throwable) {
-                    Log.w(TAG, "Aviso ao definir PACKAGE_VERIFIER_ENABLE: ${e.message}")
+                    Log.w(TAG, "Aviso ao definir package_verifier_enable: ${e.message}")
                 }
                 try {
                     gestorPoliticas.setGlobalSetting(adminComponente, "package_verifier_user_consent", "0")
@@ -465,6 +465,63 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             Log.e(TAG, "Erro ao definir bloqueio de Bluetooth: ${e.message}", e)
             false
         }
+    }
+
+    /**
+     * Aplica a Whitelist Universal Multi-Marca:
+     * Em vez de confiar em listas estáticas de pacotes proprietários (ex: TCL, Samsung, Lenovo, Motorola),
+     * varre dinamicamente todos os pacotes instalados com launcher intent.
+     * Preserva:
+     * - O pacote DPC (com.mdm.corporativo)
+     * - PACOTES_VITAIS_IMUNES (Launcher ativo do SO, Teclado/IME, SystemUI, PackageInstaller, GMS)
+     * - Pacotes de trabalho e saúde corporativos explicitamente autorizados (ex: e-SUS Território, WhatsApp, Chrome)
+     * Oculta silenciosamente qualquer outro bloatware ou jogo proprietário encontrado no aparelho.
+     */
+    fun aplicar_whitelist_universal(
+        pacotesAutorizadosTrabalho: Set<String> = setOf(
+            "com.android.chrome",
+            "br.gov.datasus.esusatendimentomobile",
+            "br.gov.saude.esus.territorio",
+            "com.whatsapp",
+            "com.whatsapp.w4b"
+        )
+    ): Int {
+        if (!verificar_se_e_device_owner()) return 0
+        var totalOcultados = 0
+        try {
+            val pm = contexto.packageManager
+            val pacotesInstalados = pm.getInstalledPackages(0)
+
+            val launcherIntent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                addCategory(android.content.Intent.CATEGORY_HOME)
+            }
+            val launcherResolve = pm.resolveActivity(launcherIntent, 0)
+            val pacoteLauncherAtivo = launcherResolve?.activityInfo?.packageName
+
+            val todosImunes = PACOTES_VITAIS_IMUNES.toMutableSet().apply {
+                if (!pacoteLauncherAtivo.isNullOrEmpty()) add(pacoteLauncherAtivo)
+                addAll(pacotesAutorizadosTrabalho)
+            }
+
+            for (pkg in pacotesInstalados) {
+                val nomePacote = pkg.packageName
+
+                if (todosImunes.contains(nomePacote)) {
+                    restaurar_aplicativo_sistema(nomePacote)
+                    continue
+                }
+
+                val temLaunchIntent = pm.getLaunchIntentForPackage(nomePacote) != null
+                if (temLaunchIntent) {
+                    val sucesso = ocultar_aplicativo_sistema(nomePacote)
+                    if (sucesso) totalOcultados++
+                }
+            }
+            Log.i(TAG, "aplicar_whitelist_universal: $totalOcultados aplicativos ocultados com sucesso.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro na aplicação da whitelist universal: ${e.message}", e)
+        }
+        return totalOcultados
     }
 
     /**

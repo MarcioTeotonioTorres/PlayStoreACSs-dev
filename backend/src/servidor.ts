@@ -56,7 +56,10 @@ import {
   remover_aplicativo_catalogo,
   disparar_instalacao_catalogo,
 } from './controladores/controlador_aplicativos';
-import { obter_dados_provisionamento_qr } from './controladores/controlador_provisionamento';
+import {
+  obter_dados_provisionamento_qr,
+  obter_versao_dpc_mais_recente,
+} from './controladores/controlador_provisionamento';
 import {
   login_usuario,
   obter_perfil_usuario,
@@ -148,6 +151,7 @@ export function configurar_rotas_api(app: FastifyInstance): void {
       '/api/auth/login',
       '/api/saude',
       '/api/provisionamento/qr',
+      '/api/provisionamento/versao-dpc',
       '/api/debug/ping',
     ];
 
@@ -296,9 +300,10 @@ export function configurar_rotas_api(app: FastifyInstance): void {
   app.delete('/api/aplicativos/:nome_arquivo', remover_aplicativo_catalogo);
   app.post('/api/aplicativos/instalar', disparar_instalacao_catalogo);
 
-  // 7. Provisionamento QR Code Android Enterprise
+  // 7. Provisionamento QR Code Android Enterprise e Versão DPC
   app.get('/api/provisionamento/qr', obter_dados_provisionamento_qr);
   app.post('/api/provisionamento/qr', obter_dados_provisionamento_qr);
+  app.get('/api/provisionamento/versao-dpc', obter_versao_dpc_mais_recente);
 
   // 7.1 Rota de telemetria diagnóstica do provisionamento do tablet
   app.get(

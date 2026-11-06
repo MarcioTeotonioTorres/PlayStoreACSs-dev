@@ -37,3 +37,32 @@ export async function obter_dados_provisionamento_qr(
     resposta.status(500).send({ sucesso: false, mensagem: 'Falha ao gerar QR Code de provisionamento.' });
   }
 }
+
+/**
+ * Rota pública para consulta da versão mais recente do APK DPC disponível para auto-update OTA.
+ */
+export async function obter_versao_dpc_mais_recente(
+  _requisicao: FastifyRequest,
+  resposta: FastifyReply
+): Promise<void> {
+  try {
+    const versaoCodigo = 7;
+    const versaoNome = '1.2.4';
+    const host = process.env.DOMINIO_EXTERNO || 'mdmplaystoreacs.duckdns.org';
+    const protocolo = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    const urlDownload = `${protocolo}://${host}/apk/mdm-dpc.apk`;
+
+    resposta.status(200).send({
+      sucesso: true,
+      versao_codigo: versaoCodigo,
+      versao_nome: versaoNome,
+      url_apk: urlDownload,
+      obrigatoria: false,
+      descricao: 'Atualização do DPC MDM: Auto-Update OTA, telemetria diária de 24h e Whitelist Universal Multi-Marca.',
+      atualizado_em: new Date().toISOString(),
+    });
+  } catch (erro) {
+    console.error('Erro ao consultar versão DPC:', erro);
+    resposta.status(500).send({ sucesso: false, mensagem: 'Falha ao consultar versão do DPC.' });
+  }
+}

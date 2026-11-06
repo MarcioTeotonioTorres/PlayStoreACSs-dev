@@ -262,9 +262,9 @@ export const ModalDetalhesDispositivo: React.FC<PropriedadesModalDetalhes> = ({
                 <span style={{ fontSize: '13px', color: '#cbd5e1' }}>
                   {(() => {
                     const versao = dispositivo.versao_so || dispositivo.versao_android;
-                    if (!versao || versao.trim() === '' || versao === 'Android') return 'Android 13';
+                    if (!versao || versao.trim() === '' || versao === 'Android') return 'Android (SO)';
                     return versao.toLowerCase().startsWith('android') ? versao : `Android ${versao}`;
-                  })()} • Agente DPC v{dispositivo.versao_agente || '1.2.3'}
+                  })()} • Agente DPC v{dispositivo.versao_agente || '1.2.4'}
                 </span>
               </div>
 

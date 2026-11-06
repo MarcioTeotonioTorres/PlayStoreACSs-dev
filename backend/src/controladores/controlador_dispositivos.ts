@@ -404,11 +404,21 @@ export async function receber_telemetria_http(
       }
     } catch (_) {}
 
+    const host = process.env.DOMINIO_EXTERNO || 'mdmplaystoreacs.duckdns.org';
+    const protocolo = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    const urlDownload = `${protocolo}://${host}/apk/mdm-dpc.apk`;
+
     resposta.status(200).send({
       sucesso: true,
       mensagem: 'Telemetria registrada com sucesso.',
       politica: politicaAtiva,
       comandos_pendentes: comandosPendentes,
+      atualizacao_dpc: {
+        versao_codigo: 7,
+        versao_nome: '1.2.4',
+        url_apk: urlDownload,
+        obrigatoria: false,
+      },
     });
   } catch (erro) {
     console.error('Erro em receber_telemetria_http:', erro);

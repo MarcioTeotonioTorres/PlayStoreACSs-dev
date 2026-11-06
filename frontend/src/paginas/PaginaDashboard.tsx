@@ -139,7 +139,7 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
 
   function formatarVersaoAndroid(versaoBruta?: string): string {
     if (!versaoBruta || versaoBruta.trim() === '' || versaoBruta === 'Android') {
-      return 'Android 13';
+      return 'Android (SO)';
     }
     const limpa = versaoBruta.trim();
     if (limpa.toLowerCase().startsWith('android')) {
@@ -638,7 +638,7 @@ export const PaginaDashboard: React.FC<PropriedadesDashboard> = ({
                               >
                                 SN: {disp.numero_serie}
                               </span>
-                              <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                              <span style={{ fontSize: '10.5px', color: '#94a3b8', whiteSpace: 'nowrap', display: 'inline-block' }}>
                                 {formatarVersaoAndroid(disp.versao_so || disp.versao_android)}
                               </span>
                             </div>

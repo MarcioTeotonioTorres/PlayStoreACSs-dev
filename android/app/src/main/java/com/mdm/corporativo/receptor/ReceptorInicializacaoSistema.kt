@@ -7,8 +7,8 @@ import android.util.Log
 import com.mdm.corporativo.servico.ServicoSegundoPlanoMdm
 
 /**
- * Receptor de inicialização do dispositivo para reativação automática
- * do serviço de telemetria e recepção de comandos MDM após o boot.
+ * Receptor de inicialização do dispositivo e pós-atualização de pacote (OTA)
+ * para reativação automática do serviço persistente e reagendamento da rotina diária de 24h.
  */
 class ReceptorInicializacaoSistema : BroadcastReceiver() {
 
@@ -17,25 +17,23 @@ class ReceptorInicializacaoSistema : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
-            intent.action == "android.intent.action.QUICKBOOT_POWERON"
+        val acao = intent.action
+        Log.i(TAG, "Receptor acionado pelo SO: $acao")
+
+        if (acao == Intent.ACTION_BOOT_COMPLETED ||
+            acao == "android.intent.action.QUICKBOOT_POWERON" ||
+            acao == Intent.ACTION_MY_PACKAGE_REPLACED
         ) {
-            Log.i(TAG, "Dispositivo inicializado. Iniciando serviços MDM...")
-            ao_receber_inicializacao(context, intent)
+            Log.i(TAG, "Reativando serviços corporativos MDM e agendador diário...")
+            iniciar_servicos_corporativos(context)
         }
     }
 
     /**
-     * Trata o evento de boot do sistema operacional.
-     */
-    fun ao_receber_inicializacao(contexto: Context, intent: Intent) {
-        iniciar_servicos_corporativos(contexto)
-    }
-
-    /**
-     * Dispara a execução do serviço persistente em primeiro plano.
+     * Dispara o serviço persistente e arma o agendador de 24h resiliente a Doze Mode.
      */
     fun iniciar_servicos_corporativos(contexto: Context) {
         ServicoSegundoPlanoMdm.iniciar_servico(contexto)
+        ServicoSegundoPlanoMdm.agendar_sincronizacao_diaria(contexto)
     }
 }

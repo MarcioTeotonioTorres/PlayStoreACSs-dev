@@ -1,8 +1,31 @@
 import React, { useState } from 'react';
-import { Search, Lock, RotateCcw, MoreVertical, Wifi, Battery, Zap, Trash2, AlertTriangle, Clock, PlayCircle, ArrowUpDown } from 'lucide-react';
+import {
+  Search,
+  Lock,
+  RotateCcw,
+  MoreVertical,
+  Wifi,
+  Battery,
+  Zap,
+  Trash2,
+  AlertTriangle,
+  Clock,
+  ArrowUpDown,
+  Building,
+  Smartphone,
+  Shield,
+  User,
+} from 'lucide-react';
 import { DispositivoItem } from '../servicos/api_mdm';
 
-type FiltroStatus = 'todos' | 'em_uso_ativo' | 'ocioso_moderado' | 'ocioso_critico' | 'conectado' | 'desconectado' | 'bateria_baixa';
+type FiltroStatus =
+  | 'todos'
+  | 'em_uso_ativo'
+  | 'ocioso_moderado'
+  | 'ocioso_critico'
+  | 'conectado'
+  | 'desconectado'
+  | 'bateria_baixa';
 type OrdemOciosidade = 'padrao' | 'maior_ociosidade';
 
 interface PropriedadesTabela {
@@ -34,12 +57,27 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
     setFiltroStatus(filtro);
   }
 
+  function formatarVersaoAndroid(versaoBruta?: string): string {
+    if (!versaoBruta || versaoBruta.trim() === '' || versaoBruta === 'Android') {
+      return 'Android (SO)';
+    }
+    const limpa = versaoBruta.trim();
+    if (limpa.toLowerCase().startsWith('android')) {
+      return limpa;
+    }
+    return `Android ${limpa}`;
+  }
+
   function filtrar_dispositivos(): DispositivoItem[] {
     const lista = dispositivos.filter((d) => {
+      const termo = termoBusca.toLowerCase();
       const correspondeBusca =
-        d.numero_serie.toLowerCase().includes(termoBusca.toLowerCase()) ||
-        d.modelo.toLowerCase().includes(termoBusca.toLowerCase()) ||
-        (d.ssid_wifi && d.ssid_wifi.toLowerCase().includes(termoBusca.toLowerCase()));
+        d.numero_serie.toLowerCase().includes(termo) ||
+        d.modelo.toLowerCase().includes(termo) ||
+        (d.ssid_wifi && d.ssid_wifi.toLowerCase().includes(termo)) ||
+        (d.usuario_nome && d.usuario_nome.toLowerCase().includes(termo)) ||
+        (d.usuario_unidade_basica && d.usuario_unidade_basica.toLowerCase().includes(termo)) ||
+        (d.perfil_ativo_nome && d.perfil_ativo_nome.toLowerCase().includes(termo));
 
       if (!correspondeBusca) return false;
 
@@ -72,10 +110,6 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
     return lista;
   }
 
-  /**
-   * Formata a ociosidade do tablet arredondando para horas e a partir de 24hs exibindo dias e horas.
-   * Identifica tablets com ociosidade fora do comum (ex: resetados via bootloader ou abandonados).
-   */
   function formatar_tempo_ocioso(minutos?: number, ultimoContato?: string): {
     texto: string;
     alertaNivel: 'normal' | 'atencao' | 'critico';
@@ -86,13 +120,12 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
     if (ultimoContato) {
       const msSemContato = Date.now() - new Date(ultimoContato).getTime();
       const minutosSemContato = Math.max(0, Math.floor(msSemContato / 60000));
-      // Se o tablet não reporta há mais de 3 minutos, computa o tempo sem contato
       if (minutosSemContato > 3) {
         minutosEfetivos = Math.max(minutosEfetivos, minutosSemContato);
       }
     }
 
-    const ehSuspeitoReset = minutosEfetivos >= 1440; // >= 24h sem comunicação
+    const ehSuspeitoReset = minutosEfetivos >= 1440;
 
     if (minutosEfetivos <= 1) {
       return { texto: 'Em uso agora', alertaNivel: 'normal', tempoTotalMinutos: minutosEfetivos, ehSuspeitoReset: false };
@@ -108,7 +141,6 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
     }
 
     if (minutosEfetivos < 1440) {
-      // Arredondar o valor para horas
       const horas = Math.round(minutosEfetivos / 60);
       return {
         texto: `${horas} ${horas === 1 ? 'hora' : 'horas'}`,
@@ -118,41 +150,26 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
       };
     }
 
-    // A partir de 24 horas: dias e horas de ociosidade
     const dias = Math.floor(minutosEfetivos / 1440);
     const horasRestantes = Math.round((minutosEfetivos % 1440) / 60);
-
-    let textoFormatado = '';
-    if (horasRestantes === 0) {
-      textoFormatado = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
-    } else {
-      textoFormatado = `${dias} ${dias === 1 ? 'dia' : 'dias'} e ${horasRestantes} ${horasRestantes === 1 ? 'hora' : 'horas'}`;
-    }
-
     return {
-      texto: textoFormatado,
+      texto: `${dias}d ${horasRestantes}h`,
       alertaNivel: 'critico',
       tempoTotalMinutos: minutosEfetivos,
-      ehSuspeitoReset: true,
+      ehSuspeitoReset,
     };
   }
 
-  function formatar_data_hora(isoString: string): string {
+  function formatar_data_hora(isoString?: string): string {
     if (!isoString) return 'Nunca';
     try {
       const data = new Date(isoString);
-      const hoje = new Date();
-      const ehHoje =
-        data.getDate() === hoje.getDate() &&
-        data.getMonth() === hoje.getMonth() &&
-        data.getFullYear() === hoje.getFullYear();
-
-      const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      if (ehHoje) {
-        return `Hoje às ${horaFormatada}`;
-      }
-      return `${data.toLocaleDateString('pt-BR')} às ${horaFormatada}`;
+      return data.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
     } catch {
       return isoString;
     }
@@ -165,29 +182,29 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
   ).length;
 
   const contagemModerado = dispositivos.filter((d) => {
-    const min = formatar_tempo_ocioso(d.tempo_ocioso_minutos, d.ultimo_contato).tempoTotalMinutos;
-    return min >= 120 && min < 1440;
+    const o = formatar_tempo_ocioso(d.tempo_ocioso_minutos, d.ultimo_contato).tempoTotalMinutos;
+    return o >= 120 && o < 1440;
   }).length;
 
-  const contagemCritico = dispositivos.filter(
-    (d) => formatar_tempo_ocioso(d.tempo_ocioso_minutos, d.ultimo_contato).tempoTotalMinutos >= 1440
-  ).length;
+  const contagemCritico = dispositivos.filter((d) => {
+    const o = formatar_tempo_ocioso(d.tempo_ocioso_minutos, d.ultimo_contato);
+    return o.ehSuspeitoReset || o.tempoTotalMinutos >= 1440;
+  }).length;
 
   return (
-    <div className="card-tabela">
-      {/* Barra de Filtros e Busca */}
-      <div className="tabela-barra-topo" style={{ flexWrap: 'wrap', gap: '12px' }}>
-        <div className="tabela-barra-busca" style={{ minWidth: '260px' }}>
-          <Search size={16} color="var(--texto-secundario)" />
+    <div className="card-dispositivos">
+      <div className="painel-filtros-topo">
+        <div className="campo-busca">
+          <Search size={16} className="icone-busca" />
           <input
             type="text"
-            placeholder="Buscar por serial, modelo ou rede Wi-Fi..."
+            placeholder="Buscar por serial, modelo, agente, UBS, perfil ou Wi-Fi..."
             value={termoBusca}
             onChange={ao_digitar_busca}
           />
         </div>
 
-        <div className="tabela-filtros" style={{ flexWrap: 'wrap', gap: '6px' }}>
+        <div className="grupo-chips-filtro">
           <button
             className={`filtro-chip ${filtroStatus === 'todos' ? 'ativo' : ''}`}
             onClick={() => ao_selecionar_filtro('todos')}
@@ -246,17 +263,18 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
         </div>
       </div>
 
-      {/* Tabela de Dispositivos */}
+      {/* Tabela Unificada de Dispositivos com Agente Responsável e Perfil */}
       <div className="tabela-wrapper">
         <table>
           <thead>
             <tr>
               <th>Status</th>
               <th>Dispositivo / Serial</th>
+              <th>Agente Responsável (ACS)</th>
+              <th>Perfil de Políticas</th>
               <th>SO / Firmware</th>
-              <th>Bateria</th>
-              <th>Wi-Fi / Sinal</th>
-              <th>App em Primeiro Plano / Uso</th>
+              <th>Bateria & Wi-Fi</th>
+              <th>App em Foco / Uso</th>
               <th>Último Contato</th>
               <th style={{ textAlign: 'right' }}>Ações Rápidas</th>
             </tr>
@@ -264,19 +282,21 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
           <tbody>
             {carregando ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--texto-secundario)' }}>
+                <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--texto-secundario)' }}>
                   Sincronizando telemetria com a frota...
                 </td>
               </tr>
             ) : listaFiltrada.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--texto-secundario)' }}>
+                <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--texto-secundario)' }}>
                   Nenhum tablet localizado com os critérios informados.
                 </td>
               </tr>
             ) : (
               listaFiltrada.map((disp) => {
                 const isOnline = disp.status_conexao === 'conectado';
+                const temUsuario = Boolean(disp.usuario_nome);
+
                 return (
                   <tr key={disp.id || disp.numero_serie}>
                     {/* Status */}
@@ -287,74 +307,149 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                       </span>
                     </td>
 
-                    {/* Dispositivo / Serial */}
+                    {/* Dispositivo / Serial / Versão SO */}
                     <td>
-                      <div style={{ fontWeight: 600 }}>{disp.modelo}</div>
-                      <div className="texto-mono" style={{ fontSize: '11px', color: 'var(--texto-fraco)' }}>
-                        SN: {disp.numero_serie}
+                      <div style={{ fontWeight: 700, color: '#f8fafc' }}>{disp.modelo}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                        <span className="texto-mono" style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 600 }}>
+                          SN: {disp.numero_serie}
+                        </span>
+                        <span style={{ fontSize: '10.5px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                          {formatarVersaoAndroid(disp.versao_so || disp.versao_android)}
+                        </span>
                       </div>
                     </td>
 
-                    {/* Versão SO e Aplicativos Instalados */}
+                    {/* Agente Responsável (ACS) */}
                     <td>
-                      <span style={{ fontSize: '13px', color: 'var(--texto-secundario)' }}>
-                        {disp.versao_so}
+                      {temUsuario ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: '12.5px' }}>
+                            {disp.usuario_nome}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                color: '#38bdf8',
+                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}
+                            >
+                              <Building size={9} /> {disp.usuario_unidade_basica || 'USF'}
+                            </span>
+                            {disp.usuario_cpf && (
+                              <span style={{ fontFamily: 'monospace', fontSize: '10.5px', color: '#cbd5e1' }}>
+                                {disp.usuario_cpf}
+                              </span>
+                            )}
+                            {disp.usuario_telefone && (
+                              <span style={{ fontFamily: 'monospace', fontSize: '10.5px', color: '#34d399' }}>
+                                {disp.usuario_telefone}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <span
+                          style={{
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            color: '#fbbf24',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Smartphone size={11} /> Livre no Estoque
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Perfil de Políticas */}
+                    <td>
+                      <div
+                        style={{
+                          background: 'rgba(139, 92, 246, 0.12)',
+                          border: '1px solid rgba(139, 92, 246, 0.25)',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          display: 'inline-flex',
+                          flexDirection: 'column',
+                          gap: '1px',
+                        }}
+                      >
+                        <span style={{ fontSize: '11.5px', color: '#c084fc', fontWeight: 700 }}>
+                          {disp.perfil_ativo_nome || 'Perfil Estrito ACS'}
+                        </span>
+                        <span style={{ fontSize: '9.5px', color: '#34d399', fontWeight: 600 }}>
+                          ✓ Blindagem Ativa
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* SO / Firmware */}
+                    <td>
+                      <span style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        {formatarVersaoAndroid(disp.versao_so || disp.versao_android)}
                       </span>
                       {disp.aplicativos_instalados && disp.aplicativos_instalados.length > 0 ? (
-                        <div style={{ marginTop: '5px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                          {disp.aplicativos_instalados.map((app) => (
+                        <div style={{ marginTop: '3px', display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                          {disp.aplicativos_instalados.slice(0, 3).map((app) => (
                             <span
                               key={app.pacote}
                               style={{
                                 background: 'rgba(59, 130, 246, 0.12)',
                                 color: '#93c5fd',
                                 border: '1px solid rgba(59, 130, 246, 0.25)',
-                                fontSize: '10px',
-                                padding: '2px 6px',
+                                fontSize: '9.5px',
+                                padding: '1px 5px',
                                 borderRadius: '4px',
                                 fontWeight: 600,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
                               }}
                               title={`${app.nome || app.pacote} • Versão Código: ${app.versao_codigo}`}
                             >
-                              <span style={{ color: '#60a5fa' }}>●</span>
-                              {app.nome ? app.nome.split(' ')[0] : 'App'}: v{app.versao_nome}
+                              {app.nome ? app.nome.split(' ')[0] : 'App'}
                             </span>
                           ))}
+                          {disp.aplicativos_instalados.length > 3 && (
+                            <span style={{ fontSize: '9.5px', color: '#94a3b8' }}>
+                              +{disp.aplicativos_instalados.length - 3}
+                            </span>
+                          )}
                         </div>
                       ) : (
-                        <span style={{ fontSize: '10px', color: 'var(--texto-fraco)', display: 'block', marginTop: '3px' }}>
-                          Telemetria de apps pendente
+                        <span style={{ fontSize: '9.5px', color: 'var(--texto-fraco)', display: 'block', marginTop: '2px' }}>
+                          Telemetria apps pendente
                         </span>
                       )}
                     </td>
 
-                    {/* Bateria */}
+                    {/* Bateria & Wi-Fi */}
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <Battery
-                          size={16}
+                          size={15}
                           color={disp.bateria <= 20 ? '#ef4444' : disp.bateria <= 50 ? '#f59e0b' : '#10b981'}
                         />
-                        <span style={{ fontWeight: 600, fontSize: '13px' }}>{disp.bateria}%</span>
-                        {disp.esta_carregando && (
-                          <span title="Carregando">
-                            <Zap size={14} color="#3b82f6" />
-                          </span>
-                        )}
+                        <span style={{ fontWeight: 700, fontSize: '12px', color: '#fff' }}>{disp.bateria}%</span>
+                        {disp.esta_carregando && <Zap size={12} color="#fbbf24" />}
                       </div>
-                    </td>
-
-                    {/* Wi-Fi */}
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Wifi size={15} color="var(--texto-secundario)" />
-                        <span style={{ fontSize: '13px' }}>{disp.ssid_wifi || 'N/D'}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--texto-fraco)' }}>
-                        {disp.sinal_wifi_rssi} dBm
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontSize: '11px', color: 'var(--texto-secundario)' }}>
+                        <Wifi size={12} color="#60a5fa" />
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px' }}>
+                          {disp.ssid_wifi || 'Sem rede'}
+                        </span>
                       </div>
                     </td>
 
@@ -363,16 +458,17 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                       <span
                         className="texto-mono"
                         style={{
-                          fontSize: '12px',
+                          fontSize: '11.5px',
                           background: 'rgba(255,255,255,0.04)',
-                          padding: '2px 6px',
+                          padding: '2px 5px',
                           borderRadius: '4px',
                           display: 'block',
-                          marginBottom: '4px',
-                          maxWidth: '220px',
+                          marginBottom: '3px',
+                          maxWidth: '180px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          color: '#e2e8f0',
                         }}
                         title={disp.app_foco || 'Sistema'}
                       >
@@ -392,46 +488,26 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                         return (
                           <div
                             style={{
-                              fontSize: '11px',
+                              fontSize: '10.5px',
                               color: cor,
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '4px',
-                              fontWeight: ocioso.alertaNivel === 'critico' ? 600 : 400
+                              gap: '3px',
+                              fontWeight: ocioso.alertaNivel === 'critico' ? 600 : 400,
                             }}
-                            title={
-                              ocioso.ehSuspeitoReset
-                                ? 'Atenção: Tablet com tempo de ociosidade fora do comum! Possível reinício forçado pelo bootloader, formatação ou abandono.'
-                                : undefined
-                            }
                           >
                             {ocioso.alertaNivel === 'critico' ? (
-                              <AlertTriangle size={12} color="#ef4444" style={{ flexShrink: 0 }} />
+                              <AlertTriangle size={11} color="#ef4444" style={{ flexShrink: 0 }} />
                             ) : (
-                              <Clock size={11} color={cor} style={{ flexShrink: 0 }} />
+                              <Clock size={10} color={cor} style={{ flexShrink: 0 }} />
                             )}
                             <span>
                               {ocioso.tempoTotalMinutos <= 1 ? (
                                 <span style={{ color: '#34d399', fontWeight: 600 }}>Em uso ativo</span>
                               ) : (
-                                <>Ocioso há: {ocioso.texto}</>
+                                <>Ocioso: {ocioso.texto}</>
                               )}
                             </span>
-                            {ocioso.ehSuspeitoReset && (
-                              <span
-                                style={{
-                                  background: 'rgba(239, 68, 68, 0.2)',
-                                  color: '#f87171',
-                                  fontSize: '9px',
-                                  padding: '1px 4px',
-                                  borderRadius: '3px',
-                                  fontWeight: 700,
-                                  marginLeft: '4px'
-                                }}
-                              >
-                                FORA DO COMUM
-                              </span>
-                            )}
                           </div>
                         );
                       })()}
@@ -439,35 +515,37 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
 
                     {/* Último Contato */}
                     <td>
-                      <span style={{ fontSize: '12px', color: 'var(--texto-secundario)' }}>
+                      <span style={{ fontSize: '11.5px', color: 'var(--texto-secundario)', whiteSpace: 'nowrap' }}>
                         {formatar_data_hora(disp.ultimo_contato)}
                       </span>
                     </td>
 
                     {/* Ações Rápidas */}
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <div style={{ display: 'inline-flex', gap: '5px' }}>
                         <button
                           className="btn btn-secundario btn-acao-rapida"
                           title="Bloquear Tela Imediatamente"
                           onClick={() => aoBloquearDispositivo(disp)}
+                          style={{ padding: '5px 8px', fontSize: '11px' }}
                         >
-                          <Lock size={13} />
-                          Bloquear
+                          <Lock size={12} />
                         </button>
                         <button
                           className="btn btn-secundario btn-acao-rapida"
                           title="Reiniciar Tablet"
                           onClick={() => aoReiniciarDispositivo(disp)}
+                          style={{ padding: '5px 8px', fontSize: '11px' }}
                         >
-                          <RotateCcw size={13} />
+                          <RotateCcw size={12} />
                         </button>
                         <button
                           className="btn btn-secundario btn-acao-rapida"
                           title="Mais Comandos"
                           onClick={() => aoAbrirComandosCompletos(disp)}
+                          style={{ padding: '5px 8px', fontSize: '11px' }}
                         >
-                          <MoreVertical size={13} />
+                          <MoreVertical size={12} />
                         </button>
                         {aoRemoverDispositivo && (
                           <button
@@ -478,20 +556,15 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                               background: 'rgba(239, 68, 68, 0.12)',
                               border: '1px solid rgba(239, 68, 68, 0.35)',
                               color: '#f87171',
-                              borderRadius: '8px',
-                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              padding: '5px 8px',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              transition: 'all 0.15s',
+                              fontSize: '11px',
                             }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={12} />
                           </button>
                         )}
                       </div>

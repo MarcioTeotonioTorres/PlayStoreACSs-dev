@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 > nul
 echo =====================================================================
-echo    ATUALIZADOR DO AGENTE MDM CORPORATIVO (DPC v1.2.2)
+echo    ATUALIZADOR DO AGENTE MDM CORPORATIVO (DPC v1.2.4)
 echo =====================================================================
 echo.
 echo Certifique-se de que o tablet esta conectado via cabo USB com
@@ -25,7 +25,7 @@ echo Aplicando blindagem preventiva contra Play Protect (Package Verifier)...
 %ADB% shell settings put global package_verifier_user_consent 0 > nul 2>&1
 %ADB% shell settings put global upload_apk_enable 0 > nul 2>&1
 
-echo [2/2] Instalando versao 1.2.3 (preservando o Device Owner intacto)...
+echo [2/2] Instalando versao 1.2.4 (preservando o Device Owner intacto)...
 %ADB% install -r -g -d "%~dp0backend\public\apk\mdm-dpc.apk"
 %ADB% shell pm enable com.mdm.corporativo > nul 2>&1
 %ADB% shell pm unhide com.mdm.corporativo > nul 2>&1
@@ -33,8 +33,8 @@ echo [2/2] Instalando versao 1.2.3 (preservando o Device Owner intacto)...
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo =====================================================================
-    echo   SUCESSO! O MDM Corporativo foi atualizado para v1.2.2!
-    echo   Agora as instalacoes silenciosas pelo painel web funcionarao 100%%.
+    echo   SUCESSO! O MDM Corporativo foi atualizado para v1.2.4!
+    echo   Auto-update OTA e telemetria de 24h ativados com exito.
     echo =====================================================================
 ) else (
     echo.
