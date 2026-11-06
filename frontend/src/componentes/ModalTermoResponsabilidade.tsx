@@ -658,9 +658,10 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .folha-termo-a4 {
-            padding: 2mm 6mm !important;
-            font-size: 8.6pt !important;
-            line-height: 1.28 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            font-size: 8.8pt !important;
+            line-height: 1.30 !important;
             background: #ffffff !important;
             color: #000000 !important;
             page-break-inside: avoid !important;
@@ -668,100 +669,145 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .termo-cabecalho-oficial {
-            padding-bottom: 5px !important;
-            margin-bottom: 10px !important;
+            text-align: center !important;
             border-bottom: 1.5px solid #000000 !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 9px !important;
           }
 
           .termo-titulo-documento {
             font-size: 10pt !important;
+            font-weight: 900 !important;
             line-height: 1.2 !important;
+            text-transform: uppercase !important;
+            letter-spacing: -0.2px !important;
           }
 
           .termo-subtitulo-documento {
             font-size: 8.5pt !important;
+            font-weight: bold !important;
+            margin: 2px 0 0 0 !important;
+          }
+
+          .termo-bloco-numero {
+            font-size: 9.5pt !important;
+            font-weight: bold !important;
+            white-space: nowrap !important;
           }
 
           .termo-box-identificacao {
+            border: 1px solid #000000 !important;
             margin-bottom: 10px !important;
-            font-size: 8.3pt !important;
+            font-size: 8.5pt !important;
           }
 
           .termo-box-topo {
+            background: #f1f5f9 !important;
+            font-weight: bold !important;
+            font-size: 8.5pt !important;
             padding: 2px 6px !important;
-            font-size: 8.3pt !important;
+            border-bottom: 1px solid #000000 !important;
+            letter-spacing: 0.3px !important;
           }
 
           .termo-box-conteudo {
             padding: 4px 6px !important;
+            display: flex !important;
+            flex-direction: column !important;
             gap: 3px !important;
           }
 
           .termo-linha-grid {
-            font-size: 8.3pt !important;
+            font-size: 8.5pt !important;
             gap: 10px !important;
+            display: flex !important;
+            align-items: center !important;
           }
 
           .termo-tabela-equipamento {
+            width: 100% !important;
+            border-collapse: collapse !important;
             margin-bottom: 10px !important;
-            font-size: 8.3pt !important;
+            font-size: 8.5pt !important;
           }
 
           .termo-tabela-equipamento th,
           .termo-tabela-equipamento td {
+            border: 1px solid #000000 !important;
             padding: 3px 6px !important;
           }
 
-          .termo-texto-abertura {
+          .termo-tabela-equipamento th {
+            background: #f1f5f9 !important;
+            font-weight: bold !important;
+            text-align: left !important;
             font-size: 8.3pt !important;
-            line-height: 1.28 !important;
+          }
+
+          .termo-texto-abertura {
+            font-size: 8.8pt !important;
+            line-height: 1.30 !important;
             margin-bottom: 10px !important;
             text-align: justify !important;
           }
 
           .termo-lista-regras {
-            font-size: 8.1pt !important;
-            line-height: 1.26 !important;
+            font-size: 8.6pt !important;
+            line-height: 1.30 !important;
             margin-bottom: 10px !important;
             text-align: justify !important;
           }
 
           .termo-lista-regras p {
-            margin: 0 0 8.5px 0 !important;
-            margin-bottom: 8.5px !important;
+            margin: 0 0 10px 0 !important;
+            margin-bottom: 10px !important;
             text-indent: 0 !important;
             display: block !important;
+            clear: both !important;
           }
 
           .termo-texto-fechamento {
-            font-size: 8.3pt !important;
-            line-height: 1.28 !important;
-            margin-bottom: 14px !important;
+            font-size: 8.8pt !important;
+            line-height: 1.30 !important;
+            margin-bottom: 10px !important;
             text-align: justify !important;
           }
 
           .termo-area-assinatura {
             margin-top: 16px !important;
-            padding-top: 6px !important;
+            padding-top: 4px !important;
             display: flex !important;
+            align-items: flex-end !important;
+            justify-content: space-between !important;
           }
 
           .termo-data-cidade {
-            font-size: 8.5pt !important;
+            font-size: 8.8pt !important;
+            font-weight: 600 !important;
+          }
+
+          .termo-bloco-assinatura {
+            display: flex !important;
+            align-items: flex-end !important;
+            gap: 8px !important;
+            width: 55% !important;
           }
 
           .termo-rotulo-assinatura {
+            font-weight: bold !important;
             font-size: 9pt !important;
+            white-space: nowrap !important;
           }
 
           .termo-linha-assinatura {
+            flex: 1 !important;
             border-bottom: 1.5px solid #000000 !important;
             height: 18px !important;
           }
 
           @page {
             size: A4 portrait;
-            margin: 8mm;
+            margin: 8mm 10mm;
           }
         }
       `}</style>
