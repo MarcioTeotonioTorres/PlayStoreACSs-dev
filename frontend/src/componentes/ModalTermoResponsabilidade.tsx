@@ -663,9 +663,9 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .folha-termo-a4 {
-            padding: 4mm 8mm !important;
-            font-size: 7.4pt !important;
-            line-height: 1.15 !important;
+            padding: 6mm 10mm !important;
+            font-size: 8.2pt !important;
+            line-height: 1.22 !important;
             background: #ffffff !important;
             color: #000000 !important;
             page-break-inside: avoid !important;
@@ -673,84 +673,91 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
           }
 
           .termo-cabecalho-oficial {
-            padding-bottom: 4px !important;
-            margin-bottom: 5px !important;
+            padding-bottom: 6px !important;
+            margin-bottom: 9px !important;
           }
 
           .termo-titulo-documento {
-            font-size: 8.8pt !important;
-            line-height: 1.12 !important;
+            font-size: 9.5pt !important;
+            line-height: 1.15 !important;
           }
 
           .termo-subtitulo-documento {
-            font-size: 7.5pt !important;
+            font-size: 8pt !important;
           }
 
           .termo-box-identificacao {
-            margin-bottom: 5px !important;
-            font-size: 7.2pt !important;
+            margin-bottom: 9px !important;
+            font-size: 7.8pt !important;
           }
 
           .termo-box-topo {
-            padding: 1px 4px !important;
-            font-size: 7.2pt !important;
+            padding: 2px 6px !important;
+            font-size: 8pt !important;
           }
 
           .termo-box-conteudo {
-            padding: 2px 4px !important;
-            gap: 2px !important;
+            padding: 4px 6px !important;
+            gap: 3px !important;
           }
 
           .termo-linha-grid {
-            font-size: 7.2pt !important;
-            gap: 8px !important;
+            font-size: 7.8pt !important;
+            gap: 10px !important;
           }
 
           .termo-tabela-equipamento {
-            margin-bottom: 5px !important;
-            font-size: 7.2pt !important;
+            margin-bottom: 9px !important;
+            font-size: 7.8pt !important;
           }
 
           .termo-tabela-equipamento th,
           .termo-tabela-equipamento td {
-            padding: 2px 4px !important;
+            padding: 3px 6px !important;
           }
 
           .termo-texto-abertura {
-            font-size: 7.1pt !important;
-            line-height: 1.13 !important;
-            margin-bottom: 5px !important;
+            font-size: 7.8pt !important;
+            line-height: 1.2 !important;
+            margin-bottom: 9px !important;
+            text-align: justify !important;
           }
 
           .termo-lista-regras {
-            font-size: 7.0pt !important;
-            line-height: 1.12 !important;
-            margin-bottom: 5px !important;
+            font-size: 7.6pt !important;
+            line-height: 1.2 !important;
+            margin-bottom: 9px !important;
+            text-align: justify !important;
           }
 
           .termo-lista-regras p {
-            margin-bottom: 3.5px !important;
+            margin: 0 0 8px 0 !important;
+            margin-bottom: 8px !important;
+            text-indent: 0 !important;
+            display: block !important;
           }
 
           .termo-texto-fechamento {
-            font-size: 7.1pt !important;
-            line-height: 1.13 !important;
-            margin-bottom: 6px !important;
+            font-size: 7.8pt !important;
+            line-height: 1.2 !important;
+            margin-bottom: 12px !important;
+            text-align: justify !important;
           }
 
           .termo-area-assinatura {
-            margin-top: 6px !important;
-            padding-top: 2px !important;
+            margin-top: 14px !important;
+            padding-top: 4px !important;
+            display: flex !important;
           }
 
           .termo-data-cidade,
           .termo-nome-assinante {
-            font-size: 7.2pt !important;
+            font-size: 8pt !important;
           }
 
           @page {
             size: A4 portrait;
-            margin: 5mm;
+            margin: 6mm;
           }
         }
       `}</style>
