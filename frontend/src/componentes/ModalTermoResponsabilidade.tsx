@@ -68,7 +68,225 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
   }
 
   function aoImprimir() {
-    window.print();
+    const folhaElemento = document.getElementById('folha-impressao-termo');
+    if (!folhaElemento) {
+      window.print();
+      return;
+    }
+
+    // Remove qualquer iframe residual anterior
+    const iframeAnterior = document.getElementById('iframe-impressao-termo-mdm');
+    if (iframeAnterior) {
+      iframeAnterior.remove();
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'iframe-impressao-termo-mdm';
+    iframe.setAttribute(
+      'style',
+      'position: fixed; right: 0; bottom: 0; width: 0; height: 0; border: 0; visibility: hidden;'
+    );
+    document.body.appendChild(iframe);
+
+    const docIframe = iframe.contentWindow?.document;
+    if (!docIframe) {
+      window.print();
+      return;
+    }
+
+    const estilos = `
+      @page {
+        size: A4 portrait;
+        margin: 6mm 10mm;
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      }
+      .folha-termo-a4 {
+        width: 100%;
+        margin: 0 auto;
+        font-size: 8.8pt;
+        line-height: 1.30;
+        color: #000000;
+        padding: 0 !important;
+      }
+      .termo-cabecalho-oficial {
+        text-align: center;
+        border-bottom: 1.5px solid #000000;
+        padding-bottom: 4px;
+        margin-bottom: 9px;
+      }
+      .termo-titulo-documento {
+        font-size: 10.5pt;
+        font-weight: 900;
+        color: #000000;
+        margin: 0;
+        line-height: 1.22;
+        text-transform: uppercase;
+        letter-spacing: -0.2px;
+      }
+      .termo-subtitulo-documento {
+        font-size: 8.8pt;
+        color: #1e293b;
+        margin: 3px 0 0 0;
+        font-weight: 700;
+      }
+      .termo-bloco-numero {
+        font-size: 9.5pt;
+        font-weight: bold;
+        white-space: nowrap;
+        text-align: right;
+      }
+      .termo-numero-rotulo {
+        margin-right: 4px;
+      }
+      .termo-box-identificacao {
+        border: 1px solid #000000;
+        margin-bottom: 9px;
+        font-size: 8.6pt;
+      }
+      .termo-box-topo {
+        background: #f1f5f9;
+        font-weight: bold;
+        font-size: 8.6pt;
+        padding: 2.5px 8px;
+        border-bottom: 1px solid #000000;
+        letter-spacing: 0.3px;
+      }
+      .termo-box-conteudo {
+        padding: 4px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .termo-linha-grid {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 8.6pt;
+      }
+      .termo-col-item {
+        display: flex;
+        align-items: baseline;
+        overflow: hidden;
+      }
+      .campo-rotulo {
+        font-weight: bold;
+        margin-right: 5px;
+        white-space: nowrap;
+      }
+      .campo-valor {
+        flex: 1;
+        color: #111827;
+      }
+      .campo-sublinhado {
+        border-bottom: 1px dotted #64748b;
+        min-height: 15px;
+      }
+      .termo-tabela-equipamento {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 9px;
+        font-size: 8.6pt;
+      }
+      .termo-tabela-equipamento th,
+      .termo-tabela-equipamento td {
+        border: 1px solid #000000;
+        padding: 3.5px 8px;
+      }
+      .termo-tabela-equipamento th {
+        background: #f1f5f9;
+        font-weight: bold;
+        text-align: left;
+        font-size: 8.3pt;
+      }
+      .termo-texto-abertura {
+        font-size: 8.8pt;
+        text-align: justify;
+        margin-bottom: 9px;
+        line-height: 1.30;
+      }
+      .termo-lista-regras {
+        font-size: 8.6pt;
+        line-height: 1.29;
+        text-align: justify;
+        margin-bottom: 9px;
+      }
+      .termo-lista-regras p {
+        margin: 0 0 9.5px 0;
+        text-indent: 0;
+        display: block;
+        clear: both;
+      }
+      .termo-texto-fechamento {
+        font-size: 8.8pt;
+        text-align: justify;
+        margin-bottom: 11px;
+        line-height: 1.30;
+      }
+      .termo-area-assinatura {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-top: 15px;
+        padding-top: 4px;
+      }
+      .termo-data-cidade {
+        font-size: 8.8pt;
+        font-weight: 600;
+      }
+      .termo-bloco-assinatura {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        width: 55%;
+      }
+      .termo-rotulo-assinatura {
+        font-weight: bold;
+        font-size: 9pt;
+        white-space: nowrap;
+      }
+      .termo-linha-assinatura {
+        flex: 1;
+        border-bottom: 1.5px solid #000000;
+        height: 18px;
+      }
+    `;
+
+    docIframe.open();
+    docIframe.write(`
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8">
+        <title>Termo de Responsabilidade - ${usuario?.nome_completo || 'Servidor'}</title>
+        <style>${estilos}</style>
+      </head>
+      <body>
+        ${folhaElemento.outerHTML}
+      </body>
+      </html>
+    `);
+    docIframe.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
+        console.error('Falha ao acionar impressão via iframe:', e);
+        window.print();
+      }
+    }, 250);
   }
 
   // Dados do Equipamento
@@ -807,7 +1025,7 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
 
           @page {
             size: A4 portrait;
-            margin: 8mm 10mm;
+            margin: 6mm 10mm;
           }
         }
       `}</style>
