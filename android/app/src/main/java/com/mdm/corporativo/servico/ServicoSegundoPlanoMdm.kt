@@ -156,7 +156,21 @@ class ServicoSegundoPlanoMdm : Service() {
                 val pendingIntent = PendingIntent.getService(contexto, 2002, intent, flags)
 
                 val proximoDisparo = System.currentTimeMillis() + INTERVALO_TELEMETRIA_MS
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (alarmManager.canScheduleExactAlarms()) {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            android.app.AlarmManager.RTC_WAKEUP,
+                            proximoDisparo,
+                            pendingIntent
+                        )
+                    } else {
+                        alarmManager.setAndAllowWhileIdle(
+                            android.app.AlarmManager.RTC_WAKEUP,
+                            proximoDisparo,
+                            pendingIntent
+                        )
+                    }
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     alarmManager.setExactAndAllowWhileIdle(
                         android.app.AlarmManager.RTC_WAKEUP,
                         proximoDisparo,
