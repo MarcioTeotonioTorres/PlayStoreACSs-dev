@@ -440,6 +440,16 @@ export const ModalTermoResponsabilidade: React.FC<PropriedadesModalTermo> = ({
                   onChange={(e) => setConfig({ ...config, emailServiceDesk: e.target.value })}
                 />
               </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Itens Incluídos:</label>
+                <input
+                  type="text"
+                  className="input-termo-cfg"
+                  value={config.itensInclusosPadrao}
+                  onChange={(e) => setConfig({ ...config, itensInclusosPadrao: e.target.value })}
+                  placeholder="Ex: Carregador Bivolt, Cabo USB Type-C, Capa Antichoque Protetora"
+                />
+              </div>
             </div>
             <div style={{ marginTop: '12px', textAlign: 'right' }}>
               <button
