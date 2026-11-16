@@ -60,7 +60,15 @@ class ServicoSegundoPlanoMdm : Service() {
             val descricao = if (sucesso) {
                 "Aplicativo ${pacote ?: "desconhecido"} instalado e confirmado com êxito pelo sistema operacional Android!"
             } else {
-                "Falha na instalação ($status): ${mensagem ?: "Erro desconhecido durante validação/gravação do pacote pelo SO"}"
+                val detalheErro = when (status) {
+                    android.content.pm.PackageInstaller.STATUS_FAILURE_BLOCKED -> "Instalação bloqueada por política ou restrição do administrador."
+                    android.content.pm.PackageInstaller.STATUS_FAILURE_INVALID -> "Arquivo APK corrompido, assinatura ausente ou manifesto inválido."
+                    android.content.pm.PackageInstaller.STATUS_FAILURE_CONFLICT -> "Conflito com pacote já existente (assinatura ou certificado diferente)."
+                    android.content.pm.PackageInstaller.STATUS_FAILURE_STORAGE -> "Espaço de armazenamento insuficiente no tablet."
+                    android.content.pm.PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "Pacote incompatível com a versão do Android ou arquitetura (ABI) do tablet."
+                    else -> mensagem ?: "Erro retornado pelo PackageManager do Android"
+                }
+                "Falha na instalação ($status): $detalheErro"
             }
 
             Log.i(TAG, "Notificando resultado de instalação: comando=$comandoId, status=$statusComando, msg=$descricao")

@@ -40,7 +40,7 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
 
   // Filtros e busca
   const [busca, setBusca] = useState<string>('');
-  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'apk' | 'xapk'>('todos');
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'apk' | 'xapk' | 'apks'>('todos');
 
   // Estado do modal de remoção
   const [pacoteParaRemover, setPacoteParaRemover] = useState<ItemCatalogoApk | null>(null);
@@ -76,9 +76,10 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
     const nomeMinusculo = arquivoSelecionado.name.toLowerCase();
     const ehApk = nomeMinusculo.endsWith('.apk');
     const ehXapk = nomeMinusculo.endsWith('.xapk');
+    const ehApks = nomeMinusculo.endsWith('.apks');
 
-    if (!ehApk && !ehXapk) {
-      alert('Formato não suportado! Por favor selecione um arquivo com extensão .apk ou .xapk.');
+    if (!ehApk && !ehXapk && !ehApks) {
+      alert('Formato não suportado! Por favor selecione um arquivo com extensão .apk, .xapk ou .apks.');
       if (inputArquivoRef.current) inputArquivoRef.current.value = '';
       return;
     }
@@ -211,14 +212,18 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
   }
 
   // Estatísticas de armazenamento da VPS
-  const { totalBytes, totalMb, totalApk, totalXapk } = useMemo(() => {
+  const { totalBytes, totalMb, totalApk, totalXapk, totalApks } = useMemo(() => {
     let bytes = 0;
     let apks = 0;
     let xapks = 0;
+    let apksCount = 0;
     for (const app of aplicativos) {
       bytes += app.tamanho_bytes || 0;
-      if (app.nome_arquivo.toLowerCase().endsWith('.xapk')) {
+      const nomeL = app.nome_arquivo.toLowerCase();
+      if (nomeL.endsWith('.xapk')) {
         xapks++;
+      } else if (nomeL.endsWith('.apks')) {
+        apksCount++;
       } else {
         apks++;
       }
@@ -228,6 +233,7 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
       totalMb: (bytes / (1024 * 1024)).toFixed(2),
       totalApk: apks,
       totalXapk: xapks,
+      totalApks: apksCount,
     };
   }, [aplicativos]);
 
@@ -238,9 +244,14 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
       const hashMatch = (app.checksum_sha256 || '').toLowerCase().includes(busca.toLowerCase());
       const bateuBusca = nomeMatch || hashMatch;
 
-      const ehXapk = app.nome_arquivo.toLowerCase().endsWith('.xapk');
-      if (filtroTipo === 'apk' && ehXapk) return false;
+      const nomeL = app.nome_arquivo.toLowerCase();
+      const ehXapk = nomeL.endsWith('.xapk');
+      const ehApks = nomeL.endsWith('.apks');
+      const ehApk = !ehXapk && !ehApks;
+
+      if (filtroTipo === 'apk' && !ehApk) return false;
       if (filtroTipo === 'xapk' && !ehXapk) return false;
+      if (filtroTipo === 'apks' && !ehApks) return false;
 
       return bateuBusca;
     });
@@ -281,14 +292,14 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
               ? progressoUpload !== null
                 ? `Enviando... ${progressoUpload}%`
                 : 'Processando Upload...'
-              : 'Fazer Upload (.apk / .xapk)'}
+              : 'Fazer Upload (.apk / .xapk / .apks)'}
           </button>
 
           <input
             type="file"
             ref={inputArquivoRef}
             onChange={ao_selecionar_arquivo}
-            accept=".apk,.xapk"
+            accept=".apk,.xapk,.apks"
             style={{ display: 'none' }}
           />
         </div>
@@ -393,7 +404,7 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
             {aplicativos.length} <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--texto-secundario)' }}>pacote(s)</span>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--texto-fraco)', marginTop: '4px' }}>
-            {totalApk} APK(s) padrão • {totalXapk} XAPK(s)
+            {totalApk} APK(s) padrão • {totalXapk} XAPK(s) • {totalApks} APKS
           </div>
         </div>
 
@@ -446,9 +457,22 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
             >
               .XAPK
             </span>
+            <span
+              style={{
+                background: 'rgba(236, 72, 153, 0.2)',
+                color: '#f472b6',
+                border: '1px solid rgba(236, 72, 153, 0.4)',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 700,
+              }}
+            >
+              .APKS
+            </span>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--texto-fraco)', marginTop: '6px' }}>
-            Compatível com App Bundles, Splits e OBBs
+            Compatível com App Bundles, Splits, OBBs e Pacotes até 1 GB
           </div>
         </div>
       </div>
@@ -580,6 +604,22 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
               >
                 XAPK
               </button>
+              <button
+                onClick={() => setFiltroTipo('apks')}
+                style={{
+                  background: filtroTipo === 'apks' ? 'rgba(236, 72, 153, 0.3)' : 'transparent',
+                  color: filtroTipo === 'apks' ? '#f472b6' : 'var(--texto-secundario)',
+                  border: 'none',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                APKS
+              </button>
             </div>
 
             {/* Input de Busca */}
@@ -669,8 +709,10 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
                 </tr>
               ) : (
                 aplicativosFiltrados.map((item) => {
-                  const ehXapk = item.nome_arquivo.toLowerCase().endsWith('.xapk');
-                  const ehDpcBase = item.nome_arquivo.toLowerCase() === 'mdm-dpc.apk';
+                  const nomeL = item.nome_arquivo.toLowerCase();
+                  const ehXapk = item.tipo === 'XAPK' || nomeL.endsWith('.xapk');
+                  const ehApks = item.tipo === 'APKS' || nomeL.endsWith('.apks');
+                  const ehDpcBase = nomeL === 'mdm-dpc.apk';
 
                   return (
                     <tr key={item.nome_arquivo}>
@@ -681,10 +723,12 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
                             style={{
                               background: ehXapk
                                 ? 'rgba(139, 92, 246, 0.15)'
+                                : ehApks
+                                ? 'rgba(236, 72, 153, 0.15)'
                                 : 'rgba(59, 130, 246, 0.15)',
                               padding: '10px',
                               borderRadius: '8px',
-                              color: ehXapk ? '#a78bfa' : '#60a5fa',
+                              color: ehXapk ? '#a78bfa' : ehApks ? '#f472b6' : '#60a5fa',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -746,6 +790,21 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
                             }}
                           >
                             XAPK
+                          </span>
+                        ) : ehApks ? (
+                          <span
+                            style={{
+                              background: 'rgba(236, 72, 153, 0.18)',
+                              color: '#f472b6',
+                              border: '1px solid rgba(236, 72, 153, 0.35)',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
+                            }}
+                          >
+                            APKS
                           </span>
                         ) : (
                           <span

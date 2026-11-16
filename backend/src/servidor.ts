@@ -76,6 +76,7 @@ dotenv.config();
 
 const aplicacao: FastifyInstance = Fastify({
   logger: true,
+  bodyLimit: 1024 * 1024 * 1024, // 1 GB para pacotes pesados de APK, XAPK e APKS
 });
 
 /**
@@ -124,10 +125,14 @@ export async function configurar_plugins(app: FastifyInstance): Promise<void> {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   });
 
-  // Upload de arquivos APK corporativos (até 250MB)
+  // Upload de arquivos APK, XAPK e APKS corporativos (até 1 GB)
   await app.register(fastifyMultipart, {
     limits: {
-      fileSize: 250 * 1024 * 1024,
+      fileSize: 1024 * 1024 * 1024, // 1 GB
+      fieldNameSize: 100,
+      fieldSize: 1024 * 1024,
+      fields: 10,
+      files: 1,
     },
   });
 
@@ -142,6 +147,32 @@ export async function configurar_plugins(app: FastifyInstance): Promise<void> {
  * Registra as rotas da API REST do MDM Corporativo e middleware de segurança.
  */
 export function configurar_rotas_api(app: FastifyInstance): void {
+  // Tratador global de erros para respostas padronizadas em JSON (evita quebra do frontend em erro 413)
+  app.setErrorHandler((error, requisicao, resposta) => {
+    const codErro = (error as any).code;
+    const status = error.statusCode || 500;
+    if (
+      status === 413 ||
+      codErro === 'FST_REQ_FILE_TOO_LARGE' ||
+      codErro === 'FST_ERR_CTP_BODY_TOO_LARGE' ||
+      error.message?.includes('body is too large') ||
+      error.message?.includes('File too large')
+    ) {
+      resposta.status(413).send({
+        sucesso: false,
+        mensagem: 'O arquivo enviado excede o limite máximo permitido pelo servidor (1 GB).',
+        codigo: 'PAYLOAD_TOO_LARGE',
+      });
+      return;
+    }
+
+    resposta.status(status).send({
+      sucesso: false,
+      mensagem: error.message || 'Erro interno no servidor.',
+      codigo: codErro || 'INTERNAL_SERVER_ERROR',
+    });
+  });
+
   // Hook Global de Autenticação e Proteção de Rotas (Zero Trust para rotas administrativas)
   app.addHook('preHandler', async (requisicao: FastifyRequest, resposta: FastifyReply) => {
     const urlLimpa = (requisicao.raw.url || requisicao.url).split('?')[0];

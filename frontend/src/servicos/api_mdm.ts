@@ -231,7 +231,7 @@ export interface DadosPolitica {
 export interface ItemCatalogoApk {
   nome_arquivo: string;
   extensao?: string;
-  tipo?: 'APK' | 'XAPK';
+  tipo?: 'APK' | 'XAPK' | 'APKS';
   tamanho_bytes: number;
   tamanho_mb: string;
   checksum_sha256: string;
@@ -702,6 +702,7 @@ export function fazer_upload_aplicativo_api(
     const token = obter_token_armazenado();
 
     xhr.open('POST', `${URL_BASE}/aplicativos/upload`);
+    xhr.timeout = 600000; // 10 minutos de timeout para uploads pesados de até 1 GB
     if (token) {
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     }
@@ -721,15 +722,25 @@ export function fazer_upload_aplicativo_api(
         if (xhr.status >= 200 && xhr.status < 300 && dados.sucesso) {
           resolve(dados);
         } else {
-          reject(new Error(dados.mensagem || `Erro no upload (${xhr.status})`));
+          reject(new Error(dados.mensagem || `Erro no upload (Status ${xhr.status})`));
         }
       } catch (_) {
-        reject(new Error(`Falha no processamento da resposta do servidor: status ${xhr.status}`));
+        if (xhr.status === 413) {
+          reject(
+            new Error(
+              'O arquivo selecionado excede o limite máximo permitido para upload (Status 413: Payload Too Large). Limite máximo suportado: 1 GB.'
+            )
+          );
+        } else if (xhr.status === 504) {
+          reject(new Error('Tempo limite de processamento esgotado pelo servidor ou gateway (Status 504: Gateway Timeout).'));
+        } else {
+          reject(new Error(`Falha no processamento da resposta do servidor: status ${xhr.status}`));
+        }
       }
     };
 
     xhr.onerror = () => reject(new Error('Erro de conexão ao enviar o arquivo para o servidor.'));
-    xhr.ontimeout = () => reject(new Error('Tempo limite de upload esgotado pelo servidor.'));
+    xhr.ontimeout = () => reject(new Error('Tempo limite de upload esgotado (10 minutos) pelo servidor.'));
 
     const formData = new FormData();
     formData.append('arquivo', arquivo);

@@ -2,13 +2,14 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { pipeline } from 'stream/promises';
 import { despachar_comando_mqtt } from '../servicos/servico_mqtt';
 import { executar_consulta } from '../banco/conexao';
 
 export interface ItemCatalogoApk {
   nome_arquivo: string;
   extensao: string;
-  tipo: 'APK' | 'XAPK';
+  tipo: 'APK' | 'XAPK' | 'APKS';
   tamanho_bytes: number;
   tamanho_mb: string;
   checksum_sha256: string;
@@ -53,15 +54,17 @@ export async function listar_catalogo_aplicativos(
 
     for (const arquivo of arquivos) {
       const ext = path.extname(arquivo).toLowerCase();
-      if (ext === '.apk' || ext === '.xapk') {
+      if (ext === '.apk' || ext === '.xapk' || ext === '.apks') {
         const caminhoCompleto = path.join(DIRETORIO_APKS, arquivo);
         const stats = fs.statSync(caminhoCompleto);
         const checksum = await calcular_checksum_sha256(caminhoCompleto);
 
+        const tipo = ext === '.xapk' ? 'XAPK' : (ext === '.apks' ? 'APKS' : 'APK');
+
         listaApks.push({
           nome_arquivo: arquivo,
           extensao: ext,
-          tipo: ext === '.xapk' ? 'XAPK' : 'APK',
+          tipo,
           tamanho_bytes: stats.size,
           tamanho_mb: (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
           checksum_sha256: checksum,
@@ -88,12 +91,14 @@ export async function listar_catalogo_aplicativos(
 }
 
 /**
- * Realiza o upload de um novo pacote APK ou XAPK para distribuição na frota.
+ * Realiza o upload de um novo pacote APK, XAPK ou APKS para distribuição na frota via streaming.
+ * Não carrega o arquivo inteiro na memória RAM, garantindo compatibilidade com pacotes de até 1 GB.
  */
 export async function fazer_upload_aplicativo(
   requisicao: FastifyRequest,
   resposta: FastifyReply
 ): Promise<void> {
+  let caminhoTemp: string | null = null;
   try {
     const dadosArquivo = await requisicao.file();
     if (!dadosArquivo) {
@@ -103,20 +108,11 @@ export async function fazer_upload_aplicativo(
 
     const nomeOriginal = dadosArquivo.filename || '';
     const extensao = path.extname(nomeOriginal).toLowerCase();
-    if (extensao !== '.apk' && extensao !== '.xapk') {
+    const extensoesValidas = ['.apk', '.xapk', '.apks'];
+    if (!extensoesValidas.includes(extensao)) {
       resposta.status(400).send({
         sucesso: false,
-        mensagem: 'Formato inválido. Apenas pacotes com extensão .apk ou .xapk são permitidos.',
-      });
-      return;
-    }
-
-    const buffer = await dadosArquivo.toBuffer();
-    // Validação estrita de Magic Bytes: pacotes ZIP / APK / XAPK Android DEVEM começar com PK\x03\x04 (0x50 0x4B 0x03 0x04)
-    if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4b || buffer[2] !== 0x03 || buffer[3] !== 0x04) {
-      resposta.status(400).send({
-        sucesso: false,
-        mensagem: 'Arquivo rejeitado por segurança: cabeçalho binário incompatível com pacote Android (APK ou XAPK).',
+        mensagem: 'Formato inválido. Apenas pacotes com extensão .apk, .xapk ou .apks são permitidos.',
       });
       return;
     }
@@ -127,27 +123,87 @@ export async function fazer_upload_aplicativo(
 
     const nomeSanitizado = path.basename(nomeOriginal).replace(/[^a-zA-Z0-9._-]/g, '_');
     const caminhoDestino = path.join(DIRETORIO_APKS, nomeSanitizado);
+    caminhoTemp = path.join(DIRETORIO_APKS, `.${nomeSanitizado}.${Date.now()}.tmp`);
 
-    fs.writeFileSync(caminhoDestino, buffer);
+    const hashSha256 = crypto.createHash('sha256');
+    const writeStream = fs.createWriteStream(caminhoTemp);
+
+    dadosArquivo.file.on('data', (chunk: Buffer) => {
+      hashSha256.update(chunk);
+    });
+
+    try {
+      await pipeline(dadosArquivo.file, writeStream);
+    } catch (errStream) {
+      if (caminhoTemp && fs.existsSync(caminhoTemp)) {
+        try { fs.unlinkSync(caminhoTemp); } catch (_) {}
+      }
+      throw errStream;
+    }
+
+    if (dadosArquivo.file.truncated) {
+      if (caminhoTemp && fs.existsSync(caminhoTemp)) {
+        try { fs.unlinkSync(caminhoTemp); } catch (_) {}
+      }
+      resposta.status(413).send({
+        sucesso: false,
+        mensagem: 'O arquivo enviado excedeu o tamanho máximo permitido (1 GB).',
+        codigo: 'PAYLOAD_TOO_LARGE',
+      });
+      return;
+    }
+
+    // Validação estrita de Magic Bytes: pacotes ZIP / APK / XAPK / APKS Android DEVEM começar com PK\x03\x04 (0x50 0x4B 0x03 0x04)
+    const fd = fs.openSync(caminhoTemp, 'r');
+    const cabecalho = Buffer.alloc(4);
+    const bytesLidos = fs.readSync(fd, cabecalho, 0, 4, 0);
+    fs.closeSync(fd);
+
+    if (bytesLidos < 4 || cabecalho[0] !== 0x50 || cabecalho[1] !== 0x4b || cabecalho[2] !== 0x03 || cabecalho[3] !== 0x04) {
+      if (caminhoTemp && fs.existsSync(caminhoTemp)) {
+        try { fs.unlinkSync(caminhoTemp); } catch (_) {}
+      }
+      resposta.status(400).send({
+        sucesso: false,
+        mensagem: 'Arquivo rejeitado por segurança: cabeçalho binário incompatível com pacote Android (APK, XAPK ou APKS).',
+      });
+      return;
+    }
+
+    // Se o destino final já existir, remove para substituição atômica
+    if (fs.existsSync(caminhoDestino)) {
+      fs.unlinkSync(caminhoDestino);
+    }
+    fs.renameSync(caminhoTemp, caminhoDestino);
+    caminhoTemp = null; // Renomeado com sucesso
 
     const stats = fs.statSync(caminhoDestino);
-    const checksum = crypto.createHash('sha256').update(buffer).digest('hex');
+    const checksum = hashSha256.digest('hex');
+    const tipoExibicao: 'APK' | 'XAPK' | 'APKS' =
+      extensao === '.xapk' ? 'XAPK' : (extensao === '.apks' ? 'APKS' : 'APK');
 
     resposta.status(201).send({
       sucesso: true,
-      mensagem: `Pacote '${nomeSanitizado}' (${extensao.toUpperCase().replace('.', '')}) armazenado no catálogo com sucesso!`,
+      mensagem: `Pacote '${nomeSanitizado}' (${tipoExibicao}) armazenado no catálogo com sucesso!`,
       aplicativo: {
         nome_arquivo: nomeSanitizado,
         extensao,
-        tipo: extensao === '.xapk' ? 'XAPK' : 'APK',
+        tipo: tipoExibicao,
         tamanho_bytes: stats.size,
         tamanho_mb: (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
         checksum_sha256: checksum,
       },
     });
-  } catch (erro) {
+  } catch (erro: any) {
+    if (caminhoTemp && fs.existsSync(caminhoTemp)) {
+      try { fs.unlinkSync(caminhoTemp); } catch (_) {}
+    }
     console.error('Erro em fazer_upload_aplicativo:', erro);
-    resposta.status(500).send({ sucesso: false, mensagem: 'Falha no processamento do upload do pacote.' });
+    const status = erro.statusCode || (erro.message?.includes('too large') ? 413 : 500);
+    resposta.status(status).send({
+      sucesso: false,
+      mensagem: erro.message || 'Falha no processamento do upload do pacote.',
+    });
   }
 }
 
@@ -243,6 +299,9 @@ export async function disparar_instalacao_catalogo(
     const protocolo = usaHttps ? 'https' : 'http';
     const urlDownload = `${protocolo}://${host}/apk/${encodeURI(nomeSeguro)}`;
 
+    const extLower = nomeSeguro.toLowerCase();
+    const tipoPacote = extLower.endsWith('.xapk') ? 'xapk' : (extLower.endsWith('.apks') ? 'apks' : 'apk');
+
     const comandoId = crypto.randomUUID();
     const payloadComando = {
       id: comandoId,
@@ -250,7 +309,7 @@ export async function disparar_instalacao_catalogo(
       parametros: {
         url_apk: urlDownload,
         nome_arquivo: nomeSeguro,
-        tipo_pacote: nomeSeguro.toLowerCase().endsWith('.xapk') ? 'xapk' : 'apk',
+        tipo_pacote: tipoPacote,
       },
     };
 

@@ -103,9 +103,12 @@ class GestorComandosMdm(
                         val nomeArquivoParam = parametros.optString("nome_arquivo", "")
 
                         if (urlDownload.isNotEmpty()) {
-                            val ehXapk = nomeArquivoParam.endsWith(".xapk", ignoreCase = true) ||
-                                         urlDownload.contains(".xapk", ignoreCase = true)
-                            val extensao = if (ehXapk) ".xapk" else ".apk"
+                            val ehPacoteCompactado = nomeArquivoParam.endsWith(".xapk", ignoreCase = true) ||
+                                                     nomeArquivoParam.endsWith(".apks", ignoreCase = true) ||
+                                                     nomeArquivoParam.endsWith(".zip", ignoreCase = true) ||
+                                                     urlDownload.contains(".xapk", ignoreCase = true) ||
+                                                     urlDownload.contains(".apks", ignoreCase = true)
+                            val extensao = if (ehPacoteCompactado) ".xapk" else ".apk"
                             val arquivoTemporario = File(contexto.cacheDir, "temp_update_${System.currentTimeMillis()}$extensao")
                             val downloadOk = baixar_apk_remoto(urlDownload, arquivoTemporario.absolutePath)
                             if (downloadOk) {
@@ -121,7 +124,7 @@ class GestorComandosMdm(
                                     clienteMqtt.enviar_resposta_comando(
                                         comandoId,
                                         "processando",
-                                        "Download (${if (ehXapk) "XAPK" else "APK"}) concluído com êxito. Sessão de instalação submetida ao SO Android. Aguardando confirmação..."
+                                        "Download (${if (ehPacoteCompactado) "XAPK/APKS" else "APK"}) concluído com êxito. Sessão de instalação submetida ao SO Android. Aguardando confirmação..."
                                     )
                                 } else {
                                     clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Falha ao submeter sessão do instalador Android.")
