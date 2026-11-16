@@ -24,8 +24,9 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
     companion object {
         private const val TAG = "MDM_GestorPoliticas"
 
-        // Lista de pacotes vitais do sistema que JAMAIS podem ser bloqueados ou suspensos
+        // Lista de pacotes vitais do sistema e ferramentas de trabalho que JAMAIS podem ser bloqueados ou suspensos
         val PACOTES_VITAIS_IMUNES = setOf(
+            // Framework Android, Segurança e Google Mobile Services
             "com.android.settings",
             "com.android.systemui",
             "android",
@@ -40,6 +41,7 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             "com.google.android.permissioncontroller",
             "com.android.inputmethod.latin",
             "com.google.android.inputmethod.latin",
+            "com.google.android.inputmethod.gboard",
             "com.google.android.webview",
             "com.android.webview",
             "com.android.providers.media",
@@ -47,7 +49,34 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             "com.android.providers.settings",
             "com.android.documentsui",
             "com.mdm.corporativo",
-            "com.google.android.gms"
+            "com.google.android.gms",
+
+            // Calculadoras de Sistema e Fabricantes (TCL, Google, AOSP, Samsung)
+            "com.google.android.calculator",
+            "com.android.calculator2",
+            "com.tcl.calculator",
+            "com.sec.android.app.popupcalculator",
+
+            // Relógio, Despertador e Cronômetro
+            "com.google.android.deskclock",
+            "com.android.deskclock",
+            "com.tcl.deskclock",
+            "com.sec.android.app.clockpackage",
+
+            // Câmera e Galeria de Fotos Corporativa
+            "com.android.camera",
+            "com.android.camera2",
+            "com.tcl.camera",
+            "com.google.android.GoogleCamera",
+            "com.android.gallery3d",
+            "com.tcl.gallery",
+
+            // Aplicativos Operacionais Vitais de Saúde Pública (ACS) e Comunicação
+            "br.gov.saude.esus.territorio",
+            "br.gov.datasus.esusatendimentomobile",
+            "com.whatsapp",
+            "com.whatsapp.w4b",
+            "com.android.chrome"
         )
     }
 
@@ -227,11 +256,8 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // Restrição de reset de fábrica por padrão
             definir_bloqueio_reset_fabrica(true)
 
-            // Proibir instalação de apps por fontes desconhecidas ou lojas alternativas (sideloading)
+            // Proibir instalação de apps por fontes desconhecidas locais (mantém PackageInstaller DPC livre)
             definir_bloqueio_instalacao_aplicativos(true)
-
-            // Bloquear rádio Bluetooth e compartilhamento de arquivos (impede envio/recebimento de APKs por proximidade)
-            definir_bloqueio_bluetooth(true)
 
             // Proibir transferência de arquivos USB (MTP) para impedir injeção manual de APKs
             gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_USB_FILE_TRANSFER)
@@ -468,71 +494,32 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
     }
 
     /**
-     * Aplica a Whitelist Universal Multi-Marca:
-     * Em vez de confiar em listas estáticas de pacotes proprietários (ex: TCL, Samsung, Lenovo, Motorola),
-     * varre dinamicamente todos os pacotes instalados com launcher intent.
-     * Preserva:
-     * - O pacote DPC (com.mdm.corporativo)
-     * - PACOTES_VITAIS_IMUNES (Launcher ativo do SO, Teclado/IME, SystemUI, PackageInstaller, GMS)
-     * - Pacotes de trabalho e saúde corporativos explicitamente autorizados (ex: e-SUS Território, WhatsApp, Chrome)
-     * Oculta silenciosamente qualquer outro bloatware ou jogo proprietário encontrado no aparelho.
+     * Whitelist Universal descontinuada em favor do modelo de Governança Baseado em Perfis.
+     * As diretrizes de visibilidade de aplicativos são agora gerenciadas dinamicamente
+     * por 'aplicar_politicas_sistema_completas', respeitando o perfil ativo da frota e
+     * preservando a lista de PACOTES_VITAIS_IMUNES (Calculadora, e-SUS, Câmera, Relógio, WhatsApp).
      */
+    @Deprecated("Utilize aplicar_politicas_sistema_completas")
     fun aplicar_whitelist_universal(
-        pacotesAutorizadosTrabalho: Set<String> = setOf(
-            "com.android.chrome",
-            "br.gov.datasus.esusatendimentomobile",
-            "br.gov.saude.esus.territorio",
-            "com.whatsapp",
-            "com.whatsapp.w4b"
-        )
+        pacotesAutorizadosTrabalho: Set<String> = emptySet()
     ): Int {
-        if (!verificar_se_e_device_owner()) return 0
-        var totalOcultados = 0
-        try {
-            val pm = contexto.packageManager
-            val pacotesInstalados = pm.getInstalledPackages(0)
-
-            val launcherIntent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
-                addCategory(android.content.Intent.CATEGORY_HOME)
-            }
-            val launcherResolve = pm.resolveActivity(launcherIntent, 0)
-            val pacoteLauncherAtivo = launcherResolve?.activityInfo?.packageName
-
-            val todosImunes = PACOTES_VITAIS_IMUNES.toMutableSet().apply {
-                if (!pacoteLauncherAtivo.isNullOrEmpty()) add(pacoteLauncherAtivo)
-                addAll(pacotesAutorizadosTrabalho)
-            }
-
-            for (pkg in pacotesInstalados) {
-                val nomePacote = pkg.packageName
-
-                if (todosImunes.contains(nomePacote)) {
-                    restaurar_aplicativo_sistema(nomePacote)
-                    continue
-                }
-
-                val temLaunchIntent = pm.getLaunchIntentForPackage(nomePacote) != null
-                if (temLaunchIntent) {
-                    val sucesso = ocultar_aplicativo_sistema(nomePacote)
-                    if (sucesso) totalOcultados++
-                }
-            }
-            Log.i(TAG, "aplicar_whitelist_universal: $totalOcultados aplicativos ocultados com sucesso.")
-        } catch (e: Exception) {
-            Log.e(TAG, "Erro na aplicação da whitelist universal: ${e.message}", e)
-        }
-        return totalOcultados
+        Log.i(TAG, "aplicar_whitelist_universal ignorada: Governança Granular por Perfis ativa.")
+        return 0
     }
 
     /**
      * Aplica o conjunto completo de diretrizes de segurança, aplicativos ocultos e restrições de navegação.
+     * Realiza uma RECONCILIAÇÃO COMPLETA:
+     * - Pacotes da lista negra do perfil (ex: YouTube, Jogos, Redes Sociais) são ocultados e suspensos.
+     * - Pacotes vitais/imunes (ex: Calculadora, e-SUS, Câmera, Relógio, WhatsApp) são garantidamente RESTAURADOS.
+     * - Qualquer aplicativo instalado que NÃO conste na lista de bloqueio é RESTAURADO e mantido ativo.
      */
     fun aplicar_politicas_sistema_completas(
         pacotesOcultos: List<String>, 
-        pacotesLiberados: List<String>,
-        dominiosAutorizados: List<String>,
-        permitirCamera: Boolean,
-        bloquearUsb: Boolean,
+        pacotesLiberados: List<String> = emptyList(),
+        dominiosAutorizados: List<String> = emptyList(),
+        permitirCamera: Boolean = true,
+        bloquearUsb: Boolean = true,
         bloquearInstalacaoApps: Boolean = true,
         bloquearBluetooth: Boolean = false,
         permitirResetFabrica: Boolean = false
@@ -543,17 +530,47 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // Define o bloqueio/liberação do reset de fábrica conforme a política
             definir_bloqueio_reset_fabrica(!permitirResetFabrica)
 
-            // Restaura APENAS os pacotes que foram explicitamente liberados pelo administrador
+            val conjuntoOcultos = pacotesOcultos.map { it.trim().lowercase() }.toSet()
+
+            // 1. Reconciliação Dinâmica: Varre todos os pacotes instalados no SO
+            val pm = contexto.packageManager
+            val pacotesInstalados = pm.getInstalledPackages(0)
+
+            for (pkg in pacotesInstalados) {
+                val nomePacote = pkg.packageName
+                val pacoteLimpo = nomePacote.trim().lowercase()
+
+                // Se for pacote vital/imune: NUNCA oculta, assegura restauração imediata
+                if (PACOTES_VITAIS_IMUNES.contains(pacoteLimpo) || pacoteLimpo.startsWith("com.android.providers.")) {
+                    restaurar_aplicativo_sistema(nomePacote)
+                    continue
+                }
+
+                if (conjuntoOcultos.contains(pacoteLimpo)) {
+                    ocultar_aplicativo_sistema(nomePacote)
+                } else {
+                    // Se NÃO está na lista de bloqueados e possui inicializador (ícone na gaveta), RESTAURA
+                    val temLaunchIntent = pm.getLaunchIntentForPackage(nomePacote) != null
+                    if (temLaunchIntent) {
+                        restaurar_aplicativo_sistema(nomePacote)
+                    }
+                }
+            }
+
+            // 2. Garante restauração de qualquer pacote explicitamente liberado
             for (pacoteLiberado in pacotesLiberados) {
                 restaurar_aplicativo_sistema(pacoteLiberado)
             }
 
-            // Oculta todos os pacotes da lista
+            // 3. Aplica ocultação preventiva para pacotes da lista negra mesmo antes de instalados
             for (pacote in pacotesOcultos) {
-                ocultar_aplicativo_sistema(pacote)
+                val limpo = pacote.trim().lowercase()
+                if (!PACOTES_VITAIS_IMUNES.contains(limpo)) {
+                    ocultar_aplicativo_sistema(pacote)
+                }
             }
 
-            // Aplicar politicas de hardware passadas
+            // 4. Aplicar políticas de hardware do perfil
             definir_bloqueio_camera(!permitirCamera)
             definir_bloqueio_usb(bloquearUsb)
             definir_bloqueio_instalacao_aplicativos(bloquearInstalacaoApps)
@@ -563,6 +580,7 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
                 configurar_restricoes_navegacao_chrome(dominiosAutorizados)
             }
 
+            Log.i(TAG, "aplicar_politicas_sistema_completas: Reconciliação de políticas concluída com sucesso!")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao aplicar políticas completas: ${e.message}", e)

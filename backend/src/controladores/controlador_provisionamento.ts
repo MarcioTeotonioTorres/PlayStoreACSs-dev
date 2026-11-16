@@ -46,8 +46,8 @@ export async function obter_versao_dpc_mais_recente(
   resposta: FastifyReply
 ): Promise<void> {
   try {
-    const versaoCodigo = 9;
-    const versaoNome = '1.2.6';
+    const versaoCodigo = 10;
+    const versaoNome = '1.2.7';
     const host = process.env.DOMINIO_EXTERNO || 'mdmplaystoreacs.duckdns.org';
     const protocolo = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const urlDownload = `${protocolo}://${host}/apk/mdm-dpc.apk`;
@@ -58,7 +58,7 @@ export async function obter_versao_dpc_mais_recente(
       versao_nome: versaoNome,
       url_apk: urlDownload,
       obrigatoria: false,
-      descricao: 'Atualização do DPC MDM: Auto-Update OTA, telemetria diária de 24h e Whitelist Universal Multi-Marca.',
+      descricao: 'Atualização do DPC MDM: Reconciliação Dinâmica de Perfis, Restauração de Calculadora/e-SUS/Câmera e Suporte a Split APKs.',
       atualizado_em: new Date().toISOString(),
     });
   } catch (erro) {

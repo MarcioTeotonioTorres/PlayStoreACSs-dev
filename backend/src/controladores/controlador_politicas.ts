@@ -31,6 +31,7 @@ export const PACOTES_VITAIS_IMUNES = new Set([
   'com.google.android.permissioncontroller',
   'com.android.inputmethod.latin',
   'com.google.android.inputmethod.latin',
+  'com.google.android.inputmethod.gboard',
   'com.google.android.webview',
   'com.android.webview',
   'com.android.providers.media',
@@ -39,6 +40,33 @@ export const PACOTES_VITAIS_IMUNES = new Set([
   'com.android.documentsui',
   'com.mdm.corporativo',
   'com.google.android.gms',
+
+  // Calculadoras
+  'com.google.android.calculator',
+  'com.android.calculator2',
+  'com.tcl.calculator',
+  'com.sec.android.app.popupcalculator',
+
+  // Relógio e Despertador
+  'com.google.android.deskclock',
+  'com.android.deskclock',
+  'com.tcl.deskclock',
+  'com.sec.android.app.clockpackage',
+
+  // Câmera e Galeria
+  'com.android.camera',
+  'com.android.camera2',
+  'com.tcl.camera',
+  'com.google.android.GoogleCamera',
+  'com.android.gallery3d',
+  'com.tcl.gallery',
+
+  // Aplicativos de Trabalho ACS
+  'br.gov.saude.esus.territorio',
+  'br.gov.datasus.esusatendimentomobile',
+  'com.whatsapp',
+  'com.whatsapp.w4b',
+  'com.android.chrome',
 ]);
 
 export function filtrarPacotesSeguros(pacotes?: string[]): string[] {

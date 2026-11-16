@@ -233,8 +233,7 @@ class ServicoSegundoPlanoMdm : Service() {
         try {
             gestorPoliticas = GestorPoliticasDispositivo(this)
             gestorPoliticas.liberar_depuracao_adb()
-            gestorPoliticas.definir_bloqueio_instalacao_aplicativos(true)
-            gestorPoliticas.aplicar_whitelist_universal()
+            gestorPoliticas.aplicar_politicas_sistema()
             instaladorSilencioso = GestorInstaladorSilencioso(this)
             gestorTelemetria = GestorTelemetria(this)
 
@@ -548,9 +547,9 @@ class ServicoSegundoPlanoMdm : Service() {
                 permitirCamera = permitirCamera,
                 bloquearUsb = bloquearUsb,
                 bloquearInstalacaoApps = bloquearInstalacao,
-                bloquearBluetooth = bloquearBluetooth
+                bloquearBluetooth = bloquearBluetooth,
+                permitirResetFabrica = permitirReset
             )
-            gestorPoliticas.definir_bloqueio_reset_fabrica(!permitirReset)
             Log.i(TAG, "Políticas de bloqueio aplicadas com sucesso pelo canal HTTP!")
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao aplicar políticas via HTTP: ${e.message}", e)
