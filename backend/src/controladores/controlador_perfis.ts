@@ -6,6 +6,7 @@ import {
   politicasMemoria,
   politicasDispositivosMemoria,
   PoliticaDTO,
+  PACOTES_ESSENCIAIS_RESTAURACAO,
 } from './controlador_politicas';
 import crypto from 'crypto';
 
@@ -433,9 +434,14 @@ export async function aplicar_perfil_provisionamento(
     // CASO A: APLICAÇÃO EM TODA A FROTA
     // =========================================================================
     if (alvo === 'todos' || !dispositivo_id || dispositivo_id === 'todos') {
-      // Calcula pacotes liberados comparando com a política global anterior
+      // Garante que Calculadora, Relógio, e-SUS, Câmera e desmarcados sejam enviados em pacotes_liberados
       const pacotesAntigos = politicasMemoria.pacotes_ocultos || [];
-      const pacotesLiberados = pacotesAntigos.filter((p) => !pacotesSeguros.includes(p));
+      const pacotesLiberados = Array.from(
+        new Set([
+          ...PACOTES_ESSENCIAIS_RESTAURACAO,
+          ...pacotesAntigos.filter((p) => !pacotesSeguros.includes(p))
+        ])
+      ).filter((p) => !pacotesSeguros.includes(p));
 
       // Atualiza a política global em memória
       Object.assign(politicasMemoria, {
@@ -448,6 +454,7 @@ export async function aplicar_perfil_provisionamento(
         modo_quiosque_app: perfil.modo_quiosque_app || null,
         habilitar_modo_quiosque: perfil.habilitar_modo_quiosque,
         pacotes_ocultos: pacotesSeguros,
+        pacotes_liberados: PACOTES_ESSENCIAIS_RESTAURACAO.filter((p) => !pacotesSeguros.includes(p)),
         urls_permitidas: perfil.urls_permitidas,
       });
 
@@ -541,6 +548,7 @@ export async function aplicar_perfil_provisionamento(
         bloquear_instalacao_apps: perfil.bloquear_instalacao_apps,
         bloquear_bluetooth: perfil.bloquear_bluetooth,
         pacotes_ocultos: pacotesSeguros,
+        pacotes_liberados: PACOTES_ESSENCIAIS_RESTAURACAO.filter((p) => !pacotesSeguros.includes(p)),
         urls_permitidas: perfil.urls_permitidas,
         modo_quiosque_app: perfil.modo_quiosque_app,
         habilitar_modo_quiosque: perfil.habilitar_modo_quiosque,

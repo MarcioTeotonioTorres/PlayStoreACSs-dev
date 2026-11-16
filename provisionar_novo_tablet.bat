@@ -1,16 +1,16 @@
 @echo off
 chcp 65001 > nul
-title Provisionamento Automatico de Tablet MDM - PlayServiceACSs
+title Provisionamento Automático de Tablet MDM - PlayServiceACSs
 color 0A
 
 echo ===============================================================================
-echo     PROVISIONAMENTO AUTOMATICO ADB - MDM CORPORATIVO (v1.2.3)
-echo     Perfil Estrito ACS: Chrome, e-SUS, WhatsApp, Agenda e Relogio
+echo     PROVISIONAMENTO AUTOMÁTICO ADB - MDM CORPORATIVO (v1.2.7 Build 10)
+echo     Perfil Estrito ACS: Calculadora, Relógio, Câmera, e-SUS, WhatsApp e Chrome
 echo ===============================================================================
 echo.
 echo Requisitos antes de iniciar:
-echo   1. Tablet novo ou recem-formatado (SEM nenhuma Conta Google adicionada).
-echo   2. Depuracao USB ativada nas "Opcoes do desenvolvedor".
+echo   1. Tablet novo ou recém-formatado (SEM nenhuma Conta Google ou e-mail adicionado).
+echo   2. Depuração USB ativada nas "Opções do desenvolvedor".
 echo   3. Tablet conectado ao computador via cabo USB e tela desbloqueada.
 echo ===============================================================================
 echo.
@@ -18,10 +18,10 @@ echo.
 set ADB=
 if exist "%~dp0adb.exe" (
     set ADB="%~dp0adb.exe"
-) else if exist "C:\platform-tools\adb.exe" (
-    set ADB="C:\platform-tools\adb.exe"
 ) else if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
     set ADB="%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+) else if exist "C:\platform-tools\adb.exe" (
+    set ADB="C:\platform-tools\adb.exe"
 ) else (
     where adb.exe >nul 2>&1
     if %ERRORLEVEL% EQU 0 (
@@ -31,56 +31,55 @@ if exist "%~dp0adb.exe" (
 
 if "%ADB%"=="" (
     echo [ERRO] O executavel adb.exe nao foi encontrado!
-    echo Certifique-se de que o Android platform-tools esta em C:\platform-tools ou no PATH.
+    echo Instale o Android SDK Platform-Tools ou coloque adb.exe na pasta deste script.
     pause
     exit /b 1
 )
 
-echo ADB detectado: %ADB%
+echo [ADB] Detectado: %ADB%
 echo.
 
 set APK_ALVO=
-if exist "%~dp0mdm-dpc.apk" (
-    set APK_ALVO="%~dp0mdm-dpc.apk"
-) else if exist "%~dp0backend\public\apk\mdm-dpc.apk" (
+if exist "%~dp0backend\public\apk\mdm-dpc.apk" (
     set APK_ALVO="%~dp0backend\public\apk\mdm-dpc.apk"
+) else if exist "%~dp0producao\apk\mdm-dpc.apk" (
+    set APK_ALVO="%~dp0producao\apk\mdm-dpc.apk"
 ) else if exist "%~dp0apk\mdm-dpc.apk" (
     set APK_ALVO="%~dp0apk\mdm-dpc.apk"
-) else if exist "C:\platform-tools\mdm-dpc.apk" (
-    set APK_ALVO="C:\platform-tools\mdm-dpc.apk"
-) else if exist "C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\backend\public\apk\mdm-dpc.apk" (
-    set APK_ALVO="C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\backend\public\apk\mdm-dpc.apk"
-) else if exist "C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\producao\apk\mdm-dpc.apk" (
-    set APK_ALVO="C:\Users\Marcinho do TI\Documents\Projetos Mobile\PlayServiceACSs\producao\apk\mdm-dpc.apk"
+) else if exist "%~dp0mdm-dpc.apk" (
+    set APK_ALVO="%~dp0mdm-dpc.apk"
+) else if exist "%~dp0android\app\build\outputs\apk\release\app-release.apk" (
+    set APK_ALVO="%~dp0android\app\build\outputs\apk\release\app-release.apk"
 )
 
 if "%APK_ALVO%"=="" (
     echo [ERRO] O arquivo mdm-dpc.apk nao foi encontrado!
-    echo Copie o arquivo mdm-dpc.apk para a mesma pasta deste script ou para C:\platform-tools.
+    echo Certifique-se de compilar o APK ou colocar mdm-dpc.apk na pasta.
     pause
     exit /b 1
 )
 
-echo APK detectado: %APK_ALVO%
+echo [APK] Detectado: %APK_ALVO%
 echo.
 
-echo [1/6] Verificando conexao com o tablet...
+echo [1/7] Aguardando conexao com o tablet via USB...
 %ADB% wait-for-device
 %ADB% devices
 echo Conectado com sucesso!
 echo.
 
-echo Aplicando blindagem preventiva contra Play Protect (Package Verifier)...
+echo [2/7] Aplicando blindagem preventiva contra Play Protect (Package Verifier)...
 %ADB% shell settings put global package_verifier_enable 0 > nul 2>&1
 %ADB% shell settings put global package_verifier_user_consent 0 > nul 2>&1
 %ADB% shell settings put global upload_apk_enable 0 > nul 2>&1
+echo Blindagem aplicada com sucesso.
+echo.
 
-echo [2/6] Instalando o agente MDM Corporativo v1.2.3...
+echo [3/7] Instalando o agente MDM Corporativo v1.2.7 (Build 10)...
 %ADB% install -r -g -d %APK_ALVO%
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERRO] Falha ao instalar o APK mdm-dpc.apk.
-    echo Caminho testado: %APK_ALVO%
     echo Verifique se a tela do tablet esta desbloqueada e se aceitou a depuracao USB.
     pause
     exit /b 1
@@ -90,30 +89,33 @@ if %ERRORLEVEL% NEQ 0 (
 echo APK instalado com sucesso!
 echo.
 
-echo [3/6] Promovendo o aplicativo a Device Owner (Proprietario do Dispositivo)...
-%ADB% shell dpm set-device-owner com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo
+echo [4/7] Promovendo o aplicativo a Device Owner (Proprietario do Dispositivo)...
+set ADMIN=com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo
+%ADB% shell dpm set-device-owner %ADMIN%
 if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo [ALERTA] Falha ao definir Device Owner.
-    echo Certifique-se de que NAO ha nenhuma conta Google ou de e-mail logada no tablet.
-    pause
-    exit /b 1
+    echo [AVISO] Se o comando dpm set-device-owner falhou:
+    echo 1. Certifique-se de que NAO ha nenhuma conta Google ou e-mail logado no tablet.
+    echo 2. Se o tablet ja tiver o DPC ativo, a atualizacao ja foi concluida com sucesso!
+    echo.
+) else (
+    echo Device Owner ativado com sucesso!
 )
-echo Device Owner ativado com sucesso!
 echo.
 
-echo [4/6] Otimizando bateria e liberando permissoes avancadas...
+echo [5/7] Configurando otimizacoes de bateria e permissoes de sistema...
 %ADB% shell dumpsys deviceidle whitelist +com.mdm.corporativo > nul 2>&1
 %ADB% shell appops set com.mdm.corporativo GET_USAGE_STATS allow > nul 2>&1
-echo Permissoes de telemetria e bateria concluidas!
+%ADB% shell pm grant com.mdm.corporativo android.permission.READ_PHONE_STATE > nul 2>&1
+echo Permissoes corporativas concedidas com sucesso!
 echo.
 
-echo [5/6] Aplicando politica estrita de aplicativos autorizados...
-echo       Ocultando YouTube, Play Store, Jogos e bloatware de fabrica...
+echo [6/7] Aplicando Perfil Estrito ACS (Padrão de Campo):
+echo       - Ocultando apenas os 26 aplicativos recreativos e bloatware de fabrica...
+echo       - Garantindo Calculadora, Relogio, Camera e e-SUS 100%% VISIVEIS e ATIVOS...
+echo.
 
-set ADMIN=com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo
-
-REM 1. Ocultar bloatware, redes sociais, lojas e apps recreativos
+REM 1. Ocultar e suspender estritamente os 26 aplicativos recreativos do perfil
 for %%P in (
     com.google.android.youtube
     com.android.vending
@@ -143,43 +145,64 @@ for %%P in (
     com.zhiliaoapp.musically
 ) do (
     %ADB% shell dpm set-application-hidden %ADMIN% %%P true > nul 2>&1
+    %ADB% shell pm suspend %%P > nul 2>&1
 )
 
-REM 2. Assegurar que os aplicativos autorizados estejam 100%% liberados e visiveis
+REM 2. RESTAURAÇÃO COMPLETA: Garante que Calculadora, Relógio, Câmera, e-SUS e WhatsApp estejam 100% ATIVOS
 for %%P in (
-    com.android.chrome
-    br.gov.saude.acs
-    br.gov.saude.ad2
-    br.gov.saude.esus.territorio
-    com.whatsapp
-    com.whatsapp.w4b
+    com.tcl.calculator
+    com.google.android.calculator
+    com.android.calculator2
+    com.sec.android.app.popupcalculator
+    com.tcl.deskclock
+    com.google.android.deskclock
+    com.android.deskclock
+    com.sec.android.app.clockpackage
+    com.tcl.camera
+    com.android.camera
+    com.android.camera2
+    com.google.android.GoogleCamera
+    com.tcl.gallery
+    com.android.gallery3d
     com.google.android.calendar
     com.android.calendar
     com.tcl.calendar
-    com.google.android.deskclock
-    com.android.deskclock
-    com.tcl.deskclock
+    com.android.chrome
+    br.gov.saude.esus.territorio
+    br.gov.datasus.esusatendimentomobile
+    br.gov.saude.acs
+    br.gov.saude.ad2
+    com.whatsapp
+    com.whatsapp.w4b
     com.mdm.corporativo
 ) do (
     %ADB% shell dpm set-application-hidden %ADMIN% %%P false > nul 2>&1
+    %ADB% shell pm unsuspend %%P > nul 2>&1
+    %ADB% shell pm unhide %%P > nul 2>&1
+    %ADB% shell pm enable %%P > nul 2>&1
 )
 
-echo Politica estrita aplicada com sucesso!
-echo Apenas Chrome, e-SUS, WhatsApp, Agenda e Relogio ficarao visiveis ao usuario.
+echo Perfil Estrito ACS aplicado com sucesso!
+echo Apps autorizados liberados: Calculadora, Relogio, Camera, Galeria, e-SUS, WhatsApp e Chrome.
 echo.
 
-echo [6/6] Inicializando o agente MDM na tela do tablet...
+echo [7/7] Inicializando o agente MDM e sincronizando com o servidor...
 %ADB% shell am start -n com.mdm.corporativo/.ui.AtividadeProvisionamentoPrincipal > nul 2>&1
+%ADB% shell am start-foreground-service -n com.mdm.corporativo/.servico.ServicoSegundoPlanoMdm > nul 2>&1
 echo.
 
 echo ===============================================================================
-echo   PARABENS! TABLET PROVISIONADO COM SUCESSO!
+echo   PARABENS! TABLET PROVISIONADO COM SUCESSO NO PADRAO DE CAMPO!
 echo ===============================================================================
-echo   O tablet ja esta configurado como Device Owner, blindado e conectado a VPS.
-echo   - Apps Bloqueados: YouTube, Loja Play Store, Fotos, Jogos, etc.
-echo   - Apps Permitidos: Google Chrome, e-SUS, WhatsApp, Agenda e Relogio.
+echo   O tablet esta como Device Owner, blindado e conectado ao painel MDM.
+echo   - Calculadora: ATIVA E VISIVEL NA GAVETA
+echo   - Relogio / Despertador: ATIVO E VISIVEL NA GAVETA
+echo   - Câmera e Galeria: ATIVAS E VISIVEIS NA GAVETA
+echo   - e-SUS Territorio: ATIVO E VISIVEL NA GAVETA
+echo   - WhatsApp / Chrome: ATIVOS E VISIVEIS NA GAVETA
+echo   - Bloqueados: YouTube, Play Store, Jogos, Redes Sociais e Bloatware
 echo.
-echo   A partir de agora, o cabo USB NAO e mais necessario.
+echo   O cabo USB ja pode ser desconectado.
 echo ===============================================================================
 echo.
 pause

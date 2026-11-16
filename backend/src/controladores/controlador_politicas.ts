@@ -76,6 +76,29 @@ export function filtrarPacotesSeguros(pacotes?: string[]): string[] {
   );
 }
 
+// Lista de pacotes essenciais de trabalho que SEMPRE devem ser restaurados e desuspensos
+export const PACOTES_ESSENCIAIS_RESTAURACAO = [
+  'com.tcl.calculator',
+  'com.google.android.calculator',
+  'com.android.calculator2',
+  'com.sec.android.app.popupcalculator',
+  'com.tcl.deskclock',
+  'com.google.android.deskclock',
+  'com.android.deskclock',
+  'com.sec.android.app.clockpackage',
+  'com.tcl.camera',
+  'com.android.camera',
+  'com.android.camera2',
+  'com.google.android.GoogleCamera',
+  'com.tcl.gallery',
+  'com.android.gallery3d',
+  'br.gov.saude.esus.territorio',
+  'br.gov.datasus.esusatendimentomobile',
+  'com.whatsapp',
+  'com.whatsapp.w4b',
+  'com.android.chrome',
+];
+
 // Armazenamento em memória das políticas caso o PostgreSQL local não esteja conectado
 export const politicasDispositivosMemoria = new Map<string, any>();
 
@@ -174,9 +197,14 @@ export async function atualizar_politicas_globais_frota(
     const pacotesNovosBrutos = dto.pacotes_ocultos ?? (politicasMemoria.pacotes_ocultos || []);
     const pacotesNovos = filtrarPacotesSeguros(pacotesNovosBrutos);
 
-    // Calcula quais pacotes foram removidos da lista de ocultos para enviar explicitamente como liberados
+    // Garante que Calculadora, Relógio, e-SUS, Câmera e pacotes desmarcados sejam enviados em pacotes_liberados
     const pacotesAntigos = politicasMemoria.pacotes_ocultos || [];
-    const pacotesLiberados = pacotesAntigos.filter(p => !pacotesNovos.includes(p));
+    const pacotesLiberados = Array.from(
+      new Set([
+        ...PACOTES_ESSENCIAIS_RESTAURACAO,
+        ...pacotesAntigos.filter(p => !pacotesNovos.includes(p))
+      ])
+    ).filter(p => !pacotesNovos.includes(p));
 
     // Atualiza cópia em memória
     politicasMemoria = {
@@ -285,6 +313,7 @@ export async function atualizar_politicas_dispositivo(
         bloquear_instalacao_apps: dto.bloquear_instalacao_apps ?? true,
         bloquear_bluetooth: dto.bloquear_bluetooth ?? false,
         pacotes_ocultos: pacotesSeguros,
+        pacotes_liberados: PACOTES_ESSENCIAIS_RESTAURACAO.filter(p => !pacotesSeguros.includes(p)),
         urls_permitidas: dto.urls_permitidas || [],
       },
     };

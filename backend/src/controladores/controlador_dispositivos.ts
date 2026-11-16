@@ -409,6 +409,15 @@ export async function receber_telemetria_http(
     const protocolo = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const urlDownload = `${protocolo}://${host}/apk/mdm-dpc.apk`;
 
+    if (politicaAtiva) {
+      const { PACOTES_ESSENCIAIS_RESTAURACAO } = await import('./controlador_politicas');
+      const ocultos = Array.isArray(politicaAtiva.pacotes_ocultos) ? politicaAtiva.pacotes_ocultos : [];
+      politicaAtiva = {
+        ...politicaAtiva,
+        pacotes_liberados: PACOTES_ESSENCIAIS_RESTAURACAO.filter((p) => !ocultos.includes(p)),
+      };
+    }
+
     resposta.status(200).send({
       sucesso: true,
       mensagem: 'Telemetria registrada com sucesso.',

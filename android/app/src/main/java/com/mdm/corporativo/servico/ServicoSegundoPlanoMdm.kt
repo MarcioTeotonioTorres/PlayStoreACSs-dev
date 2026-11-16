@@ -532,6 +532,14 @@ class ServicoSegundoPlanoMdm : Service() {
                 }
             }
 
+            val liberadosJson = polJson.optJSONArray("pacotes_liberados")
+            val listaLiberados = mutableListOf<String>()
+            if (liberadosJson != null) {
+                for (i in 0 until liberadosJson.length()) {
+                    listaLiberados.add(liberadosJson.getString(i))
+                }
+            }
+
             val urlsJson = polJson.optJSONArray("urls_permitidas")
             val listaUrls = mutableListOf<String>()
             if (urlsJson != null) {
@@ -542,7 +550,7 @@ class ServicoSegundoPlanoMdm : Service() {
 
             gestorPoliticas.aplicar_politicas_sistema_completas(
                 pacotesOcultos = listaPacotes,
-                pacotesLiberados = emptyList<String>(),
+                pacotesLiberados = listaLiberados,
                 dominiosAutorizados = listaUrls,
                 permitirCamera = permitirCamera,
                 bloquearUsb = bloquearUsb,
