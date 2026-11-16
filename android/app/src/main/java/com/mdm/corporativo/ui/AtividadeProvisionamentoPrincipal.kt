@@ -35,11 +35,31 @@ class AtividadeProvisionamentoPrincipal : Activity() {
 
             inicializar_componentes_tela()
             atualizar_status_diagnostico()
+            garantir_isencao_bateria()
 
             // Garante que o serviço MDM esteja em execução
             ServicoSegundoPlanoMdm.iniciar_servico(this)
         } catch (t: Throwable) {
             android.util.Log.e("MDM_Atividade", "Erro na inicialização da atividade: ${t.message}", t)
+        }
+    }
+
+    /**
+     * Garante que o DPC não seja suspenso pelo Doze Mode do Android 14/15.
+     */
+    private fun garantir_isencao_bateria() {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                val powerManager = getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
+                if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = android.net.Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MDM_Atividade", "Aviso ao solicitar isenção de bateria: ${e.message}")
         }
     }
 

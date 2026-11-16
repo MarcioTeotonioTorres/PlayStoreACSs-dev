@@ -37,7 +37,7 @@ class ServicoSegundoPlanoMdm : Service() {
         private const val TAG = "MDM_ServicoSegundoPlano"
         private const val ID_NOTIFICACAO = 1001
         private const val ID_CANAL = "canal_mdm_servico_permanente"
-        private const val INTERVALO_TELEMETRIA_MS = 86_400_000L // 24 horas (economiza recursos da VPS e bateria)
+        private const val INTERVALO_TELEMETRIA_MS = 300_000L // 5 minutos (mantém o tablet sempre atualizado no dashboard e sincronizado com a VPS)
         const val ACAO_FORCAR_SINCRONIZACAO = "com.mdm.corporativo.FORCAR_SINCRONIZACAO"
         const val ACAO_RESULTADO_INSTALACAO_NOTIFICAR = "com.mdm.corporativo.ACAO_RESULTADO_INSTALACAO_NOTIFICAR"
         const val ACAO_SINCRONIZACAO_DIARIA_ALARME = "com.mdm.corporativo.ACAO_SINCRONIZACAO_DIARIA_ALARME"
@@ -200,6 +200,7 @@ class ServicoSegundoPlanoMdm : Service() {
 
     private val escopoServico = CoroutineScope(Dispatchers.IO + Job())
     private var jobTelemetria: Job? = null
+    private var jobGuardiaoConexao: Job? = null
 
     private lateinit var gestorPoliticas: GestorPoliticasDispositivo
     private lateinit var instaladorSilencioso: GestorInstaladorSilencioso
@@ -238,6 +239,7 @@ class ServicoSegundoPlanoMdm : Service() {
             gestorTelemetria = GestorTelemetria(this)
 
             configurar_cliente_mqtt()
+            iniciar_guardiao_conexao()
             iniciar_ciclo_telemetria()
             agendar_sincronizacao_diaria(this)
         } catch (t: Throwable) {
@@ -556,11 +558,35 @@ class ServicoSegundoPlanoMdm : Service() {
     }
 
     /**
-     * Interrompe o ciclo de envio de telemetria.
+     * Interrompe o ciclo de envio de telemetria e o guardião de conexão.
      */
     fun parar_ciclo_telemetria() {
         jobTelemetria?.cancel()
         jobTelemetria = null
+        jobGuardiaoConexao?.cancel()
+        jobGuardiaoConexao = null
+    }
+
+    /**
+     * Guardião ativo que vigia a saúde do canal MQTT a cada 60 segundos.
+     * Caso o tablet sofra oscilação de Wi-Fi, 4G ou saída de modo de repouso (Doze Mode),
+     * este guardião reconecta automaticamente sem exigir qualquer toque na tela pelo operador.
+     */
+    fun iniciar_guardiao_conexao() {
+        jobGuardiaoConexao?.cancel()
+        jobGuardiaoConexao = escopoServico.launch {
+            while (isActive) {
+                delay(60_000L) // Vigia a cada 60 segundos
+                try {
+                    if (::clienteMqtt.isInitialized && !clienteMqtt.esta_conectado()) {
+                        Log.i(TAG, "[Guardião MDM] Queda de socket MQTT detectada. Reconectando ao broker automaticamente...")
+                        clienteMqtt.conectar_broker_mqtt()
+                    }
+                } catch (t: Throwable) {
+                    Log.w(TAG, "[Guardião MDM] Aviso ao verificar reconexão: ${t.message}")
+                }
+            }
+        }
     }
 
     /**

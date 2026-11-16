@@ -75,6 +75,13 @@ class ClienteMqttSeguro(
     }
 
     /**
+     * Verifica se o socket MQTT está atualmente ativo e conectado ao broker.
+     */
+    fun esta_conectado(): Boolean {
+        return clienteMqtt?.isConnected == true
+    }
+
+    /**
      * Estabelece conexão com o broker MQTT via TLS seguro com fallback TCP.
      */
     fun conectar_broker_mqtt() {

@@ -415,8 +415,8 @@ export async function receber_telemetria_http(
       politica: politicaAtiva,
       comandos_pendentes: comandosPendentes,
       atualizacao_dpc: {
-        versao_codigo: 8,
-        versao_nome: '1.2.5',
+        versao_codigo: 9,
+        versao_nome: '1.2.6',
         url_apk: urlDownload,
         obrigatoria: false,
       },
