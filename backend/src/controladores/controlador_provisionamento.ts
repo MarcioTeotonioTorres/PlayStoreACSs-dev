@@ -46,8 +46,8 @@ export async function obter_versao_dpc_mais_recente(
   resposta: FastifyReply
 ): Promise<void> {
   try {
-    const versaoCodigo = 7;
-    const versaoNome = '1.2.4';
+    const versaoCodigo = 8;
+    const versaoNome = '1.2.5';
     const host = process.env.DOMINIO_EXTERNO || 'mdmplaystoreacs.duckdns.org';
     const protocolo = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const urlDownload = `${protocolo}://${host}/apk/mdm-dpc.apk`;
