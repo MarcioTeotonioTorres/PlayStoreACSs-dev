@@ -101,6 +101,7 @@ class GestorComandosMdm(
                         val urlDownload = parametros.optString("url_apk", "")
                         val caminhoLocal = parametros.optString("caminho_local", "")
                         val nomeArquivoParam = parametros.optString("nome_arquivo", "")
+                        val nomeExibicao = if (nomeArquivoParam.isNotEmpty()) nomeArquivoParam else "pacote"
 
                         if (urlDownload.isNotEmpty()) {
                             val ehPacoteCompactado = nomeArquivoParam.endsWith(".xapk", ignoreCase = true) ||
@@ -110,8 +111,42 @@ class GestorComandosMdm(
                                                      urlDownload.contains(".apks", ignoreCase = true)
                             val extensao = if (ehPacoteCompactado) ".xapk" else ".apk"
                             val arquivoTemporario = File(contexto.cacheDir, "temp_update_${System.currentTimeMillis()}$extensao")
-                            val downloadOk = baixar_apk_remoto(urlDownload, arquivoTemporario.absolutePath)
+
+                            // Resposta imediata para o operador saber que o tablet recebeu a ordem e já iniciou
+                            clienteMqtt.enviar_resposta_comando(
+                                comandoId,
+                                "processando",
+                                "Tablet conectado: iniciando download de $nomeExibicao..."
+                            )
+
+                            val downloadOk = baixar_apk_remoto(urlDownload, arquivoTemporario.absolutePath) { porcentagem, baixadoMb, totalMb ->
+                                val msgProgresso = if (totalMb > 0) {
+                                    String.format(
+                                        java.util.Locale.US,
+                                        "Baixando %s: %d%% (%.1f MB / %.1f MB)...",
+                                        nomeExibicao,
+                                        porcentagem,
+                                        baixadoMb,
+                                        totalMb
+                                    )
+                                } else {
+                                    String.format(
+                                        java.util.Locale.US,
+                                        "Baixando %s: %.1f MB transferidos...",
+                                        nomeExibicao,
+                                        baixadoMb
+                                    )
+                                }
+                                clienteMqtt.enviar_resposta_comando(comandoId, "processando", msgProgresso)
+                            }
+
                             if (downloadOk) {
+                                clienteMqtt.enviar_resposta_comando(
+                                    comandoId,
+                                    "processando",
+                                    "Download 100% concluído (${if (ehPacoteCompactado) "XAPK/APKS" else "APK"}). Descompactando e preparando sessão..."
+                                )
+
                                 val sucesso = instaladorSilencioso.instalar_aplicativo_silencioso(arquivoTemporario.absolutePath, comandoId)
                                 // Libera imediatamente o cache temporário para economizar espaço de armazenamento no tablet
                                 try {
@@ -124,7 +159,7 @@ class GestorComandosMdm(
                                     clienteMqtt.enviar_resposta_comando(
                                         comandoId,
                                         "processando",
-                                        "Download (${if (ehPacoteCompactado) "XAPK/APKS" else "APK"}) concluído com êxito. Sessão de instalação submetida ao SO Android. Aguardando confirmação..."
+                                        "Pacotes injetados no sistema. SO Android compilando e instalando em segundo plano..."
                                     )
                                 } else {
                                     clienteMqtt.enviar_resposta_comando(comandoId, "falha", "Falha ao submeter sessão do instalador Android.")
@@ -291,9 +326,14 @@ class GestorComandosMdm(
 
     /**
      * Realiza o download seguro e resiliente do APK/XAPK para um arquivo local temporário.
-     * Suporta arquivos grandes (150MB+), conexões lentas (timeout de 5min) e redirecionamentos HTTP/HTTPS.
+     * Suporta arquivos grandes (150MB+), conexões lentas (timeout de 5min), redirecionamentos HTTP/HTTPS
+     * e telemetria de progresso em tempo real enviada via callback.
      */
-    fun baixar_apk_remoto(urlApk: String, destinoLocal: String): Boolean {
+    fun baixar_apk_remoto(
+        urlApk: String,
+        destinoLocal: String,
+        onProgresso: ((porcentagem: Int, baixadoMb: Double, totalMb: Double) -> Unit)? = null
+    ): Boolean {
         var urlAtual = urlApk.trim()
         var redirecionamentos = 0
         val maxRedirecionamentos = 5
@@ -315,6 +355,7 @@ class GestorComandosMdm(
                 conexao.readTimeout = 300000   // 5 minutos para pacotes pesados (ex: WhatsApp 147MB, e-SUS 80MB)
                 conexao.requestMethod = "GET"
                 conexao.setRequestProperty("User-Agent", "MDM-Corporativo-DPC/1.2.2")
+                conexao.setRequestProperty("Accept-Encoding", "identity")
                 conexao.connect()
 
                 val codigoHttp = conexao.responseCode
@@ -350,13 +391,36 @@ class GestorComandosMdm(
                 val arquivoDestino = File(destinoLocal)
                 arquivoDestino.parentFile?.mkdirs()
                 val saida = FileOutputStream(arquivoDestino)
-                val buffer = ByteArray(65536) // Buffer de 64KB (8x mais rápido)
+                val buffer = ByteArray(65536) // Buffer de 64KB (alta performance)
                 var bytesLidos: Int
                 var totalGravado = 0L
+                var ultimaPorcentagem = -1
+                var ultimoTempoNotificacao = System.currentTimeMillis()
 
                 while (entrada.read(buffer).also { bytesLidos = it } != -1) {
                     saida.write(buffer, 0, bytesLidos)
                     totalGravado += bytesLidos
+
+                    if (onProgresso != null) {
+                        val agora = System.currentTimeMillis()
+                        val baixadoMb = totalGravado / (1024.0 * 1024.0)
+                        val totalMb = if (totalBytes > 0) totalBytes / (1024.0 * 1024.0) else -1.0
+                        val porcentagem = if (totalBytes > 0) ((totalGravado * 100) / totalBytes).toInt() else -1
+
+                        // Notifica a cada 10% ou no mínimo a cada 4 segundos
+                        val avancou10 = (porcentagem >= 0 && (porcentagem >= ultimaPorcentagem + 10 || porcentagem == 100))
+                        val passou4s = (agora - ultimoTempoNotificacao >= 4000)
+
+                        if ((avancou10 || passou4s) && (porcentagem != ultimaPorcentagem || passou4s)) {
+                            ultimaPorcentagem = porcentagem
+                            ultimoTempoNotificacao = agora
+                            try {
+                                onProgresso(porcentagem, baixadoMb, totalMb)
+                            } catch (t: Throwable) {
+                                Log.w(TAG, "Aviso no callback de progresso: ${t.message}")
+                            }
+                        }
+                    }
                 }
                 saida.flush()
                 saida.close()

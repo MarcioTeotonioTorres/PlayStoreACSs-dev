@@ -155,20 +155,30 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
         texto: `⏳ Ordem despachada com sucesso! Aguardando o tablet iniciar o download e processamento...`,
       });
 
-      // Rastreia em tempo real por até 90 segundos a resposta do tablet
+      // Rastreia em tempo real por até 5 minutos (300 segundos) a resposta e o progresso de download do tablet
       if (resp.comando_id) {
         const cmdId = resp.comando_id;
         const inicio = Date.now();
         const intervalo = setInterval(async () => {
           try {
-            if (Date.now() - inicio > 90000) {
+            if (Date.now() - inicio > 300000) {
               clearInterval(intervalo);
+              setMensagemStatus({
+                tipo: 'erro',
+                texto: `⏱️ Tempo de monitoramento contínuo (5 min) atingido. Se o pacote for grande (ex: WhatsApp 95MB) ou a conexão 4G/Wi-Fi do tablet for lenta, o download pode ainda estar em andamento no dispositivo. Acompanhe a telemetria na aba Dispositivos.`,
+              });
               return;
             }
             const infoCmd = await consultar_status_comando_api(cmdId);
             const cmd = infoCmd.comando;
             if (cmd) {
-              if (cmd.status === 'processando') {
+              if (cmd.status === 'pendente') {
+                const segundos = Math.floor((Date.now() - inicio) / 1000);
+                setMensagemStatus({
+                  tipo: 'info',
+                  texto: `⏳ Ordem despachada (${segundos}s). Aguardando o tablet iniciar download e confirmar recebimento...`,
+                });
+              } else if (cmd.status === 'processando') {
                 setMensagemStatus({
                   tipo: 'info',
                   texto: `⏳ Tablet conectado: ${cmd.resposta?.mensagem || 'Baixando pacote e gravando sessão no SO Android...'}`,
