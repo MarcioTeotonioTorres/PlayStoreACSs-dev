@@ -334,6 +334,102 @@ export const ModalDetalhesDispositivo: React.FC<PropriedadesModalDetalhes> = ({
               </p>
             </div>
           </div>
+
+          {/* Seção 4: Aplicativos Instalados & Inventário */}
+          <div>
+            <h4
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                color: '#38bdf8',
+                marginBottom: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <Smartphone size={15} /> Aplicativos Instalados ({dispositivo.aplicativos_instalados?.length || 0})
+            </h4>
+
+            {dispositivo.aplicativos_instalados && dispositivo.aplicativos_instalados.length > 0 ? (
+              <div
+                style={{
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid var(--borda-suave)',
+                  borderRadius: '10px',
+                  maxHeight: '220px',
+                  overflowY: 'auto',
+                  padding: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {dispositivo.aplicativos_instalados.map((app) => (
+                    <div
+                      key={app.pacote}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: app.esta_oculto || app.esta_suspenso ? '#ef4444' : '#10b981',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                          {app.nome || app.pacote}
+                        </span>
+                        <span style={{ fontSize: '10.5px', color: '#94a3b8', fontFamily: 'monospace' }}>
+                          ({app.pacote})
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {app.versao_nome && (
+                          <span
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              color: '#38bdf8',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            v{app.versao_nome}
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontSize: '10.5px',
+                            color: app.esta_oculto || app.esta_suspenso ? '#f87171' : '#34d399',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {app.esta_oculto ? 'Oculto' : app.esta_suspenso ? 'Suspenso' : 'Ativo'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                Nenhum aplicativo reportado na última telemetria deste dispositivo.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Rodapé do Modal */}

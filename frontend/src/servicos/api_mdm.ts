@@ -5,6 +5,9 @@ export interface AplicativoInstaladoItem {
   nome: string;
   versao_nome: string;
   versao_codigo: number;
+  eh_sistema?: boolean;
+  esta_oculto?: boolean;
+  esta_suspenso?: boolean;
 }
 
 export interface MetricasFrotaResposta {

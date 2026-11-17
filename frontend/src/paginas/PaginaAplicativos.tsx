@@ -161,11 +161,11 @@ export const PaginaAplicativos: React.FC<PropriedadesPaginaAplicativos> = ({ dis
         const inicio = Date.now();
         const intervalo = setInterval(async () => {
           try {
-            if (Date.now() - inicio > 300000) {
+            if (Date.now() - inicio > 900000) {
               clearInterval(intervalo);
               setMensagemStatus({
                 tipo: 'erro',
-                texto: `⏱️ Tempo de monitoramento contínuo (5 min) atingido. Se o pacote for grande (ex: WhatsApp 95MB) ou a conexão 4G/Wi-Fi do tablet for lenta, o download pode ainda estar em andamento no dispositivo. Acompanhe a telemetria na aba Dispositivos.`,
+                texto: `⏱️ Tempo de monitoramento contínuo (15 min) atingido. Se o pacote for muito grande ou a conexão 4G/Wi-Fi do tablet for lenta, o download pode ainda estar em andamento no dispositivo. Acompanhe a telemetria na aba Dispositivos.`,
               });
               return;
             }

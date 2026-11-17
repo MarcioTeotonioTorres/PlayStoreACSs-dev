@@ -15,8 +15,10 @@ import {
   Smartphone,
   Shield,
   User,
+  Eye,
 } from 'lucide-react';
 import { DispositivoItem } from '../servicos/api_mdm';
+import { ModalDetalhesDispositivo } from './ModalDetalhesDispositivo';
 
 type FiltroStatus =
   | 'todos'
@@ -48,6 +50,7 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
   const [termoBusca, setTermoBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todos');
   const [ordemOciosidade, setOrdemOciosidade] = useState<OrdemOciosidade>('padrao');
+  const [dispositivoParaDetalhes, setDispositivoParaDetalhes] = useState<DispositivoItem | null>(null);
 
   function ao_digitar_busca(evento: React.ChangeEvent<HTMLInputElement>) {
     setTermoBusca(evento.target.value);
@@ -298,7 +301,12 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                 const temUsuario = Boolean(disp.usuario_nome);
 
                 return (
-                  <tr key={disp.id || disp.numero_serie}>
+                  <tr
+                    key={disp.id || disp.numero_serie}
+                    onClick={() => setDispositivoParaDetalhes(disp)}
+                    style={{ cursor: 'pointer' }}
+                    title="Clique em qualquer linha para abrir detalhes, telemetria e lista de aplicativos instalados"
+                  >
                     {/* Status */}
                     <td>
                       <span className={`badge-status ${isOnline ? 'conectado' : 'desconectado'}`}>
@@ -525,8 +533,22 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                       <div style={{ display: 'inline-flex', gap: '5px' }}>
                         <button
                           className="btn btn-secundario btn-acao-rapida"
+                          title="Ver Detalhes, Telemetria e Aplicativos"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDispositivoParaDetalhes(disp);
+                          }}
+                          style={{ padding: '5px 8px', fontSize: '11px', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+                        >
+                          <Eye size={12} />
+                        </button>
+                        <button
+                          className="btn btn-secundario btn-acao-rapida"
                           title="Bloquear Tela Imediatamente"
-                          onClick={() => aoBloquearDispositivo(disp)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            aoBloquearDispositivo(disp);
+                          }}
                           style={{ padding: '5px 8px', fontSize: '11px' }}
                         >
                           <Lock size={12} />
@@ -534,7 +556,10 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                         <button
                           className="btn btn-secundario btn-acao-rapida"
                           title="Reiniciar Tablet"
-                          onClick={() => aoReiniciarDispositivo(disp)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            aoReiniciarDispositivo(disp);
+                          }}
                           style={{ padding: '5px 8px', fontSize: '11px' }}
                         >
                           <RotateCcw size={12} />
@@ -542,7 +567,10 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                         <button
                           className="btn btn-secundario btn-acao-rapida"
                           title="Mais Comandos"
-                          onClick={() => aoAbrirComandosCompletos(disp)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            aoAbrirComandosCompletos(disp);
+                          }}
                           style={{ padding: '5px 8px', fontSize: '11px' }}
                         >
                           <MoreVertical size={12} />
@@ -551,7 +579,10 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
                           <button
                             className="btn btn-acao-rapida"
                             title="Remover da Frota"
-                            onClick={() => aoRemoverDispositivo(disp)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              aoRemoverDispositivo(disp);
+                            }}
                             style={{
                               background: 'rgba(239, 68, 68, 0.12)',
                               border: '1px solid rgba(239, 68, 68, 0.35)',
@@ -576,6 +607,13 @@ export const TabelaDispositivos: React.FC<PropriedadesTabela> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Modal de Detalhes, Telemetria e Aplicativos Instalados */}
+      <ModalDetalhesDispositivo
+        visivel={Boolean(dispositivoParaDetalhes)}
+        dispositivo={dispositivoParaDetalhes}
+        aoFechar={() => setDispositivoParaDetalhes(null)}
+      />
     </div>
   );
 };
