@@ -61,8 +61,6 @@ for %%P in (
     com.tcl.gallery
     com.android.gallery3d
     com.google.android.apps.photos
-    com.tcl.fmradio
-    com.android.fmradio
     com.tcl.notes
     com.android.chrome
     br.gov.saude.esus.territorio

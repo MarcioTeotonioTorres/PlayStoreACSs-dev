@@ -68,12 +68,10 @@ export const PACOTES_VITAIS_IMUNES = new Set([
   'com.android.documentsui',
   'com.tcl.filemanager',
 
-  // Gravadores de Som / Voz e Rádio FM
+  // Gravadores de Som / Voz
   'com.tcl.soundrecorder',
   'com.android.soundrecorder',
   'com.google.android.soundrecorder',
-  'com.tcl.fmradio',
-  'com.android.fmradio',
   'com.tcl.notes',
 
   // Aplicativos de Trabalho ACS
@@ -114,8 +112,6 @@ export const PACOTES_ESSENCIAIS_RESTAURACAO = [
   'com.tcl.soundrecorder',
   'com.android.soundrecorder',
   'com.google.android.soundrecorder',
-  'com.tcl.fmradio',
-  'com.android.fmradio',
   'com.tcl.notes',
   'br.gov.saude.esus.territorio',
   'br.gov.datasus.esusatendimentomobile',
@@ -163,6 +159,8 @@ export let politicasMemoria: PoliticaDTO = {
     'com.facebook.system',
     'com.instagram.android',
     'com.zhiliaoapp.musically',
+    'com.android.fmradio',
+    'com.tcl.fmradio',
   ],
   urls_permitidas: [
     'portal.empresa.com.br',

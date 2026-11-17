@@ -143,6 +143,8 @@ for %%P in (
     com.facebook.system
     com.instagram.android
     com.zhiliaoapp.musically
+    com.android.fmradio
+    com.tcl.fmradio
 ) do (
     %ADB% shell dpm set-application-hidden %ADMIN% %%P true > nul 2>&1
     %ADB% shell pm suspend %%P > nul 2>&1
@@ -178,8 +180,6 @@ for %%P in (
     com.google.android.calendar
     com.android.calendar
     com.tcl.calendar
-    com.tcl.fmradio
-    com.android.fmradio
     com.tcl.notes
     com.android.chrome
     br.gov.saude.esus.territorio
