@@ -54,12 +54,19 @@ export const PACOTES_VITAIS_IMUNES = new Set([
   'com.sec.android.app.clockpackage',
 
   // Câmera e Galeria
+  'com.mediatek.camera',
   'com.android.camera',
   'com.android.camera2',
   'com.tcl.camera',
   'com.google.android.GoogleCamera',
   'com.android.gallery3d',
   'com.tcl.gallery',
+
+  // Gerenciador de Arquivos (Files)
+  'com.google.android.apps.nbu.files',
+  'com.google.android.documentsui',
+  'com.android.documentsui',
+  'com.tcl.filemanager',
 
   // Gravadores de Som / Voz e Rádio FM
   'com.tcl.soundrecorder',
@@ -95,11 +102,15 @@ export const PACOTES_ESSENCIAIS_RESTAURACAO = [
   'com.android.deskclock',
   'com.sec.android.app.clockpackage',
   'com.tcl.camera',
+  'com.mediatek.camera',
   'com.android.camera',
   'com.android.camera2',
   'com.google.android.GoogleCamera',
   'com.tcl.gallery',
   'com.android.gallery3d',
+  'com.google.android.apps.nbu.files',
+  'com.google.android.documentsui',
+  'com.android.documentsui',
   'com.tcl.soundrecorder',
   'com.android.soundrecorder',
   'com.google.android.soundrecorder',

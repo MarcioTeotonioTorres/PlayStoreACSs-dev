@@ -33,6 +33,9 @@ class AtividadeProvisionamentoPrincipal : Activity() {
             // Garante que o ADB nunca seja bloqueado
             gestorPoliticas.liberar_depuracao_adb()
 
+            // Restaura os apps essenciais de fábrica (Câmera, Files, Gravador, Calculadora, Relógio)
+            gestorPoliticas.restaurar_pacotes_essenciais_fabrica()
+
             inicializar_componentes_tela()
             atualizar_status_diagnostico()
             garantir_isencao_bateria()

@@ -64,12 +64,19 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             "com.sec.android.app.clockpackage",
 
             // Câmera e Galeria de Fotos Corporativa
+            "com.mediatek.camera",
             "com.android.camera",
             "com.android.camera2",
             "com.tcl.camera",
             "com.google.android.GoogleCamera",
             "com.android.gallery3d",
             "com.tcl.gallery",
+
+            // Gerenciador de Arquivos (Files)
+            "com.google.android.apps.nbu.files",
+            "com.google.android.documentsui",
+            "com.android.documentsui",
+            "com.tcl.filemanager",
 
             // Gravador de Som / Voz e Rádio FM (Utilitários Nativos de Campo)
             "com.tcl.soundrecorder",
@@ -404,6 +411,29 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Falha ao restaurar aplicativo $nomePacote: ${e.message}", e)
             false
+        }
+    }
+
+    /**
+     * Força a restauração cirúrgica dos aplicativos essenciais de fábrica:
+     * Câmera, Files, Gravador de Voz, Calculadora e Relógio.
+     */
+    fun restaurar_pacotes_essenciais_fabrica() {
+        val essenciais = listOf(
+            "com.mediatek.camera",
+            "com.google.android.apps.nbu.files",
+            "com.android.soundrecorder",
+            "com.tcl.soundrecorder",
+            "com.google.android.calculator",
+            "com.google.android.deskclock",
+            "com.tcl.camera",
+            "com.android.camera",
+            "com.google.android.GoogleCamera",
+            "com.google.android.documentsui",
+            "com.android.documentsui"
+        )
+        for (pkg in essenciais) {
+            restaurar_aplicativo_sistema(pkg)
         }
     }
 
