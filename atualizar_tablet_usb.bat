@@ -58,10 +58,25 @@ echo [2/3] Instalando versao 1.2.7 (preservando o Device Owner intacto)...
 %ADB% shell pm unhide com.mdm.corporativo > nul 2>&1
 
 echo.
-echo [3/3] Restaurando Calculadora, Relogio, Camera e apps essenciais...
+echo [3/3] Restaurando Calculadora, Relogio, Camera, Gravador, Files e apps essenciais...
 set ADMIN=com.mdm.corporativo/.receptor.ReceptorAdministradorDispositivo
 
 for %%P in (
+    com.tcl.camera
+    com.google.android.GoogleCamera
+    com.android.camera
+    com.android.camera2
+    com.mediatek.camera
+    com.google.android.documentsui
+    com.android.documentsui
+    com.google.android.apps.nbu.files
+    com.tcl.filemanager
+    com.android.filemanager
+    com.jrdcom.filemanager
+    com.tcl.soundrecorder
+    com.android.soundrecorder
+    com.google.android.soundrecorder
+    com.jrdcom.soundrecorder
     com.tcl.calculator
     com.google.android.calculator
     com.android.calculator2
@@ -70,24 +85,28 @@ for %%P in (
     com.google.android.deskclock
     com.android.deskclock
     com.sec.android.app.clockpackage
-    com.tcl.camera
-    com.android.camera
-    com.android.camera2
-    com.google.android.GoogleCamera
     com.tcl.gallery
     com.android.gallery3d
     com.google.android.calendar
     com.android.calendar
     com.tcl.calendar
+    com.tcl.fmradio
+    com.android.fmradio
+    com.tcl.notes
     com.android.chrome
     br.gov.saude.esus.territorio
     br.gov.datasus.esusatendimentomobile
+    br.gov.saude.acs
     com.whatsapp
     com.whatsapp.w4b
 ) do (
+    %ADB% shell cmd package install-existing %%P > nul 2>&1
+    %ADB% shell pm install-existing %%P > nul 2>&1
+    %ADB% shell cmd package set-application-hidden --user 0 %%P false > nul 2>&1
     %ADB% shell dpm set-application-hidden %ADMIN% %%P false > nul 2>&1
     %ADB% shell pm unsuspend %%P > nul 2>&1
     %ADB% shell pm unhide %%P > nul 2>&1
+    %ADB% shell pm default-state --user 0 %%P > nul 2>&1
     %ADB% shell pm enable %%P > nul 2>&1
 )
 
