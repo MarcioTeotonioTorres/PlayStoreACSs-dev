@@ -4,7 +4,7 @@ title Provisionamento Automático de Tablet MDM - PlayServiceACSs
 color 0A
 
 echo ===============================================================================
-echo     PROVISIONAMENTO AUTOMÁTICO ADB - MDM CORPORATIVO (v1.2.7 Build 10)
+echo     PROVISIONAMENTO AUTOMÁTICO ADB - MDM CORPORATIVO (v1.2.8 Build 11)
 echo     Perfil Estrito ACS: Calculadora, Relógio, Câmera, e-SUS, WhatsApp e Chrome
 echo ===============================================================================
 echo.
@@ -75,7 +75,7 @@ echo [2/7] Aplicando blindagem preventiva contra Play Protect (Package Verifier)
 echo Blindagem aplicada com sucesso.
 echo.
 
-echo [3/7] Instalando o agente MDM Corporativo v1.2.7 (Build 10)...
+echo [3/7] Instalando o agente MDM Corporativo v1.2.8 (Build 11)...
 %ADB% install -r -g -d %APK_ALVO%
 if %ERRORLEVEL% NEQ 0 (
     echo.
