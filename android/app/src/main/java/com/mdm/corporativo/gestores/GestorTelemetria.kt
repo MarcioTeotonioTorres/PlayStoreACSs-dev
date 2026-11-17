@@ -89,6 +89,10 @@ class GestorTelemetria(private val contexto: Context) {
     fun obter_aplicativos_gerenciados(): String {
         return try {
             val pm = contexto.packageManager
+            val dpm = contexto.getSystemService(Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager
+            val admin = com.mdm.corporativo.receptor.ReceptorAdministradorDispositivo.obter_componente_administrador(contexto)
+            val isDo = dpm != null && dpm.isDeviceOwnerApp(contexto.packageName)
+
             val pacotes = pm.getInstalledPackages(0)
             val jsonArray = org.json.JSONArray()
 
@@ -97,12 +101,21 @@ class GestorTelemetria(private val contexto: Context) {
                 val isSystem = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
                 val nomePacote = pkg.packageName ?: ""
 
-                // Inclui todos os apps corporativos/terceiros e o próprio MDM DPC
-                if (!isSystem || nomePacote.startsWith("com.mdm") || nomePacote.startsWith("com.empresa")) {
+                val temLaunchIntent = pm.getLaunchIntentForPackage(nomePacote) != null
+                val estaOculto = isDo && dpm?.isApplicationHidden(admin, nomePacote) == true
+                val estaSuspenso = isDo && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && dpm?.isPackageSuspended(admin, nomePacote) == true
+                val estaBloqueado = estaOculto || estaSuspenso
+
+                // Inclui se tem ícone no Launcher, se não é sistema, se está bloqueado ou se é corporativo
+                if (temLaunchIntent || !isSystem || estaBloqueado || nomePacote.startsWith("com.mdm")) {
                     val appObj = JSONObject()
                     appObj.put("pacote", nomePacote)
-                    val label = pm.getApplicationLabel(appInfo).toString()
+                    val label = try { pm.getApplicationLabel(appInfo).toString() } catch (_: Exception) { nomePacote }
                     appObj.put("nome", label)
+                    appObj.put("eh_sistema", isSystem)
+                    appObj.put("esta_bloqueado", estaBloqueado)
+                    appObj.put("esta_oculto", estaOculto)
+                    appObj.put("esta_suspenso", estaSuspenso)
                     appObj.put("versao_nome", pkg.versionName ?: "1.0.0")
                     val versaoCodigo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         pkg.longVersionCode

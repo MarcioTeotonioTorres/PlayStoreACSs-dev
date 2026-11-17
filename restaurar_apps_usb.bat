@@ -65,3 +65,4 @@ echo   SUCESSO! Os aplicativos foram restaurados no tablet!
 echo =====================================================================
 echo.
 pause
+

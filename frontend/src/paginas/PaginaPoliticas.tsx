@@ -317,15 +317,25 @@ export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ disposi
 
       if (resPerfis.perfis && resPerfis.perfis.length > 0) {
         setPerfis(resPerfis.perfis);
-        // Resgata o perfil ativo salvo no navegador ou pega o primeiro padrão
-        const salvo = localStorage.getItem(CHAVE_STORAGE_PERFIL_ATIVO);
-        const ativoValido = resPerfis.perfis.find((p) => p.id === salvo);
-        if (ativoValido) {
-          setPerfilAtivoId(ativoValido.id);
+        // 1. Prioriza o perfil ativo gravado no banco de dados
+        const ativoPeloBanco = resPerfis.perfis.find(
+          (p) => p.nome === resPolitica.politica?.nome || p.id === (resPolitica.politica as any)?.perfil_id
+        );
+
+        if (ativoPeloBanco) {
+          setPerfilAtivoId(ativoPeloBanco.id);
+          localStorage.setItem(CHAVE_STORAGE_PERFIL_ATIVO, ativoPeloBanco.id);
         } else {
-          const padrao = resPerfis.perfis.find((p) => p.eh_padrao) || resPerfis.perfis[0];
-          setPerfilAtivoId(padrao.id);
-          localStorage.setItem(CHAVE_STORAGE_PERFIL_ATIVO, padrao.id);
+          // 2. Fallback resiliente: storage local ou primeiro perfil padrão
+          const salvo = localStorage.getItem(CHAVE_STORAGE_PERFIL_ATIVO);
+          const ativoValido = resPerfis.perfis.find((p) => p.id === salvo);
+          if (ativoValido) {
+            setPerfilAtivoId(ativoValido.id);
+          } else {
+            const padrao = resPerfis.perfis.find((p) => p.eh_padrao) || resPerfis.perfis[0];
+            setPerfilAtivoId(padrao.id);
+            localStorage.setItem(CHAVE_STORAGE_PERFIL_ATIVO, padrao.id);
+          }
         }
       }
 

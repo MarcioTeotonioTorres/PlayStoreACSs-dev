@@ -71,6 +71,14 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             "com.android.gallery3d",
             "com.tcl.gallery",
 
+            // Gravador de Som / Voz e Rádio FM (Utilitários Nativos de Campo)
+            "com.tcl.soundrecorder",
+            "com.android.soundrecorder",
+            "com.google.android.soundrecorder",
+            "com.tcl.fmradio",
+            "com.android.fmradio",
+            "com.tcl.notes",
+
             // Aplicativos Operacionais Vitais de Saúde Pública (ACS) e Comunicação
             "br.gov.saude.esus.territorio",
             "br.gov.datasus.esusatendimentomobile",

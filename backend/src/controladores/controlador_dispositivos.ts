@@ -391,7 +391,7 @@ export async function receber_telemetria_http(
         const sqlCmds = `
           SELECT id, tipo_comando, parametros
           FROM comandos
-          WHERE dispositivo_id = $1 AND status = 'pendente'
+          WHERE dispositivo_id = $1 AND status IN ('pendente', 'enviado') AND criado_em >= NOW() - INTERVAL '2 hours'
           ORDER BY criado_em ASC
           LIMIT 5;
         `;

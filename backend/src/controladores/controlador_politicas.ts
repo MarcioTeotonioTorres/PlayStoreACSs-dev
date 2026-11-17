@@ -61,6 +61,14 @@ export const PACOTES_VITAIS_IMUNES = new Set([
   'com.android.gallery3d',
   'com.tcl.gallery',
 
+  // Gravadores de Som / Voz e Rádio FM
+  'com.tcl.soundrecorder',
+  'com.android.soundrecorder',
+  'com.google.android.soundrecorder',
+  'com.tcl.fmradio',
+  'com.android.fmradio',
+  'com.tcl.notes',
+
   // Aplicativos de Trabalho ACS
   'br.gov.saude.esus.territorio',
   'br.gov.datasus.esusatendimentomobile',
@@ -92,6 +100,12 @@ export const PACOTES_ESSENCIAIS_RESTAURACAO = [
   'com.google.android.GoogleCamera',
   'com.tcl.gallery',
   'com.android.gallery3d',
+  'com.tcl.soundrecorder',
+  'com.android.soundrecorder',
+  'com.google.android.soundrecorder',
+  'com.tcl.fmradio',
+  'com.android.fmradio',
+  'com.tcl.notes',
   'br.gov.saude.esus.territorio',
   'br.gov.datasus.esusatendimentomobile',
   'com.whatsapp',
