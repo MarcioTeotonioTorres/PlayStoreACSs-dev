@@ -213,6 +213,11 @@ echo.
 echo [7/7] Inicializando o agente MDM e sincronizando com o servidor...
 %ADB% shell am start -n com.mdm.corporativo/.ui.AtividadeProvisionamentoPrincipal > nul 2>&1
 %ADB% shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.mdm.corporativo/.receptor.ReceptorInicializacaoSistema > nul 2>&1
+
+REM Blindagem definitiva de contingencia pos-ativacao: ADB e Modo Dev sempre ativos
+%ADB% shell settings put global adb_enabled 1 > nul 2>&1
+%ADB% shell settings put global development_settings_enabled 1 > nul 2>&1
+echo Depuracao USB (ADB) e Modo Desenvolvedor reforcados como ATIVOS permanentes.
 echo.
 
 echo ===============================================================================

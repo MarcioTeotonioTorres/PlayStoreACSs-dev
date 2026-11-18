@@ -251,8 +251,8 @@ const CHAVE_STORAGE_PERFIL_ATIVO = 'mdm_perfil_ativo_frota_id';
 export const PaginaPoliticas: React.FC<PropriedadesPaginaPoliticas> = ({ dispositivos }) => {
   const [politica, setPolitica] = useState<DadosPolitica>({
     permitir_camera: true,
-    bloquear_usb: true,
-    permitir_reset_fabrica: false,
+    bloquear_usb: false,
+    permitir_reset_fabrica: true,
     bloquear_instalacao_apps: true,
     bloquear_bluetooth: false,
     habilitar_modo_quiosque: false,

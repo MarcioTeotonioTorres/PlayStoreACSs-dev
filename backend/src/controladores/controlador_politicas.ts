@@ -325,8 +325,8 @@ export async function atualizar_politicas_dispositivo(
       tipo_comando: 'aplicar_politica',
       parametros: {
         permitir_camera: dto.permitir_camera ?? true,
-        bloquear_usb: dto.bloquear_usb ?? true,
-        permitir_reset_fabrica: dto.permitir_reset_fabrica ?? false,
+        bloquear_usb: dto.bloquear_usb ?? false,
+        permitir_reset_fabrica: dto.permitir_reset_fabrica ?? true,
         bloquear_instalacao_apps: dto.bloquear_instalacao_apps ?? true,
         bloquear_bluetooth: dto.bloquear_bluetooth ?? false,
         pacotes_ocultos: pacotesSeguros,

@@ -55,8 +55,8 @@ export const ModalEditarPerfil: React.FC<PropriedadesModalEditarPerfil> = ({
       setNome(perfil.nome || '');
       setDescricao(perfil.descricao || '');
       setPermitirCamera(perfil.permitir_camera ?? true);
-      setBloquearUsb(perfil.bloquear_usb ?? true);
-      setPermitirReset(perfil.permitir_reset_fabrica ?? false);
+      setBloquearUsb(perfil.bloquear_usb ?? false);
+      setPermitirReset(perfil.permitir_reset_fabrica ?? true);
       setBloquearInstalacaoApps(perfil.bloquear_instalacao_apps ?? true);
       setBloquearBluetooth(perfil.bloquear_bluetooth ?? false);
       setPacotesOcultos(perfil.pacotes_ocultos || []);

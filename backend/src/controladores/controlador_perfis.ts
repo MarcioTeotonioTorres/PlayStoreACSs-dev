@@ -38,8 +38,8 @@ function normalizarPerfil(row: any): PerfilProvisionamentoDTO {
     descricao: row.descricao || '',
     eh_padrao: Boolean(row.eh_padrao),
     permitir_camera: row.permitir_camera ?? true,
-    bloquear_usb: row.bloquear_usb ?? true,
-    permitir_reset_fabrica: row.permitir_reset_fabrica ?? false,
+    bloquear_usb: row.bloquear_usb ?? false,
+    permitir_reset_fabrica: row.permitir_reset_fabrica ?? true,
     bloquear_instalacao_apps: row.bloquear_instalacao_apps ?? true,
     bloquear_bluetooth: row.bloquear_bluetooth ?? false,
     modo_quiosque_app: row.modo_quiosque_app || null,
@@ -168,8 +168,8 @@ export async function criar_perfil_provisionamento(
     const descricao = dto.descricao?.trim() || '';
     const eh_padrao = false; // Perfis criados pelo operador nunca são templates imutáveis de fábrica
     const permitir_camera = dto.permitir_camera ?? true;
-    const bloquear_usb = dto.bloquear_usb ?? true;
-    const permitir_reset_fabrica = dto.permitir_reset_fabrica ?? false;
+    const bloquear_usb = dto.bloquear_usb ?? false;
+    const permitir_reset_fabrica = dto.permitir_reset_fabrica ?? true;
     const bloquear_instalacao_apps = dto.bloquear_instalacao_apps ?? true;
     const bloquear_bluetooth = dto.bloquear_bluetooth ?? false;
     const modo_quiosque_app = dto.modo_quiosque_app?.trim() || null;
