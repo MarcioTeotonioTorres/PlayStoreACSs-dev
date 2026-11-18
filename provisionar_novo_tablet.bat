@@ -50,6 +50,8 @@ if exist "%~dp0backend\public\apk\mdm-dpc.apk" (
     set APK_ALVO="%~dp0mdm-dpc.apk"
 ) else if exist "%~dp0android\app\build\outputs\apk\release\app-release.apk" (
     set APK_ALVO="%~dp0android\app\build\outputs\apk\release\app-release.apk"
+) else if exist "C:\platform-tools\mdm-dpc.apk" (
+    set APK_ALVO="C:\platform-tools\mdm-dpc.apk"
 )
 
 if "%APK_ALVO%"=="" (
@@ -65,6 +67,8 @@ echo.
 echo [1/7] Aguardando conexao com o tablet via USB...
 %ADB% wait-for-device
 %ADB% devices
+%ADB% shell input keyevent 224 > nul 2>&1
+%ADB% shell wm dismiss-keyguard > nul 2>&1
 echo Conectado com sucesso!
 echo.
 
@@ -111,8 +115,8 @@ echo Permissoes corporativas concedidas com sucesso!
 echo.
 
 echo [6/7] Aplicando Perfil Estrito ACS (Padrão de Campo):
-echo       - Ocultando apenas os 26 aplicativos recreativos e bloatware de fabrica...
-echo       - Garantindo Calculadora, Relogio, Camera e e-SUS 100%% VISIVEIS e ATIVOS...
+echo       - Ocultando os 28 aplicativos recreativos e bloatware de fabrica...
+echo       - Garantindo Calculadora, Relogio, Camera, Files, Gravador e e-SUS 100%% VISIVEIS e ATIVOS...
 echo.
 
 REM 1. Ocultar e suspender estritamente os 26 aplicativos recreativos do perfil
@@ -206,7 +210,7 @@ echo.
 
 echo [7/7] Inicializando o agente MDM e sincronizando com o servidor...
 %ADB% shell am start -n com.mdm.corporativo/.ui.AtividadeProvisionamentoPrincipal > nul 2>&1
-%ADB% shell am start-foreground-service -n com.mdm.corporativo/.servico.ServicoSegundoPlanoMdm > nul 2>&1
+%ADB% shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.mdm.corporativo/.receptor.ReceptorInicializacaoSistema > nul 2>&1
 echo.
 
 echo ===============================================================================

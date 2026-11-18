@@ -60,7 +60,6 @@ for %%P in (
     com.sec.android.app.clockpackage
     com.tcl.gallery
     com.android.gallery3d
-    com.google.android.apps.photos
     com.tcl.notes
     com.android.chrome
     br.gov.saude.esus.territorio
@@ -81,9 +80,9 @@ for %%P in (
 )
 
 echo.
-echo [3/3] Reiniciando servico MDM e atualizando politicas...
-%ADB% shell am start-foreground-service -n com.mdm.corporativo/.servico.ServicoSegundoPlanoMdm >nul 2>&1
-%ADB% shell am broadcast -a com.mdm.corporativo.FORCAR_SINCRONIZACAO >nul 2>&1
+echo [3/3] Reiniciando servico MDM e sincronizando politicas...
+%ADB% shell am start -n com.mdm.corporativo/.ui.AtividadeProvisionamentoPrincipal >nul 2>&1
+%ADB% shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.mdm.corporativo/.receptor.ReceptorInicializacaoSistema >nul 2>&1
 
 echo.
 echo =====================================================================
