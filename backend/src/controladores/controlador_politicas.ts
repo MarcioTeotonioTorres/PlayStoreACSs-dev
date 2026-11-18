@@ -89,16 +89,14 @@ export function filtrarPacotesSeguros(pacotes?: string[]): string[] {
   );
 }
 
-// Lista de pacotes essenciais de trabalho que SEMPRE devem ser restaurados e desuspensos
+// Lista de pacotes essenciais de fábrica que devem ser mantidos visíveis e funcionais
 export const PACOTES_ESSENCIAIS_RESTAURACAO = [
   'com.tcl.calculator',
   'com.google.android.calculator',
   'com.android.calculator2',
-  'com.sec.android.app.popupcalculator',
   'com.tcl.deskclock',
   'com.google.android.deskclock',
   'com.android.deskclock',
-  'com.sec.android.app.clockpackage',
   'com.tcl.camera',
   'com.mediatek.camera',
   'com.android.camera',
@@ -107,16 +105,12 @@ export const PACOTES_ESSENCIAIS_RESTAURACAO = [
   'com.tcl.gallery',
   'com.android.gallery3d',
   'com.google.android.apps.nbu.files',
-  'com.google.android.documentsui',
-  'com.android.documentsui',
+  'com.tcl.filemanager',
+  'com.android.filemanager',
   'com.tcl.soundrecorder',
   'com.android.soundrecorder',
   'com.google.android.soundrecorder',
   'com.tcl.notes',
-  'br.gov.saude.esus.territorio',
-  'br.gov.datasus.esusatendimentomobile',
-  'com.whatsapp',
-  'com.whatsapp.w4b',
   'com.android.chrome',
 ];
 
@@ -126,8 +120,8 @@ export const politicasDispositivosMemoria = new Map<string, any>();
 export let politicasMemoria: PoliticaDTO = {
   nome: 'Política Padrão da Frota',
   permitir_camera: true,
-  bloquear_usb: true,
-  permitir_reset_fabrica: false,
+  bloquear_usb: false,
+  permitir_reset_fabrica: true,
   bloquear_instalacao_apps: true,
   bloquear_bluetooth: true,
   modo_quiosque_app: '',

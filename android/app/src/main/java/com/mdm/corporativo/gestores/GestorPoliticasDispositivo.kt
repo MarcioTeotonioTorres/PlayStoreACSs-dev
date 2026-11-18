@@ -140,12 +140,11 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
     fun definir_bloqueio_reset_fabrica(habilitar: Boolean): Boolean {
         return try {
             if (verificar_se_e_device_owner()) {
-                if (habilitar) {
-                    gestorPoliticas.addUserRestriction(adminComponente, UserManager.DISALLOW_FACTORY_RESET)
-                } else {
-                    gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_FACTORY_RESET)
-                }
-                Log.i(TAG, "definir_bloqueio_reset_fabrica: restrição definida como $habilitar")
+                // REGRA DE SEGURANÇA MÁXIMA DA FROTA:
+                // Jamais aplicamos DISALLOW_FACTORY_RESET no firmware para que a combinação física
+                // de botões de recuperação de fábrica (Recovery Mode) NUNCA seja travada pelo bootloader!
+                gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_FACTORY_RESET)
+                Log.i(TAG, "definir_bloqueio_reset_fabrica: Recovery de hardware mantido sempre liberado.")
                 true
             } else {
                 false
@@ -266,8 +265,11 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             } catch (_: Throwable) {
             }
 
-            // Restrição de reset de fábrica por padrão
-            definir_bloqueio_reset_fabrica(true)
+            // Mantém a depuração USB (ADB) e Modo Desenvolvedor SEMPRE ativados por padrão
+            liberar_depuracao_adb()
+
+            // Mantém o acesso ao Hard Reset físico sempre destravado
+            definir_bloqueio_reset_fabrica(false)
 
             // Proibir instalação de apps por fontes desconhecidas locais (mantém PackageInstaller DPC livre)
             definir_bloqueio_instalacao_aplicativos(true)
@@ -292,8 +294,8 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
     }
 
     /**
-     * Garante que a porta de depuração USB (ADB) nunca seja desativada pelo Device Owner.
-     * Limpa a restrição DISALLOW_DEBUGGING_FEATURES e reativa ADB_ENABLED nas configurações globais.
+     * Garante que o Modo Desenvolvedor e a porta de depuração USB (ADB) nunca sejam desativados.
+     * Ativa ADB_ENABLED e development_settings_enabled nas configurações globais por padrão.
      */
     fun liberar_depuracao_adb(): Boolean {
         return try {
@@ -304,7 +306,12 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
                 } catch (eSetting: Throwable) {
                     Log.w(TAG, "Aviso ao definir ADB_ENABLED: ${eSetting.message}")
                 }
-                Log.i(TAG, "Depuração USB (ADB) liberada nas restrições de Device Owner.")
+                try {
+                    gestorPoliticas.setGlobalSetting(adminComponente, "development_settings_enabled", "1")
+                } catch (eDev: Throwable) {
+                    Log.w(TAG, "Aviso ao definir development_settings_enabled: ${eDev.message}")
+                }
+                Log.i(TAG, "Modo desenvolvedor e Depuração USB (ADB) ativados por padrão em todas as políticas.")
                 true
             } else false
         } catch (e: Exception) {
@@ -384,17 +391,12 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
 
     /**
      * Restaura o estado de visibilidade e execução de um aplicativo nativo do sistema.
+     * Utiliza unhide e unsuspend sem chamar enableSystemApp para evitar instabilidade de boot no Android 15.
      */
     fun restaurar_aplicativo_sistema(nomePacote: String): Boolean {
         return try {
             if (verificar_se_e_device_owner()) {
                 gestorPoliticas.setApplicationHidden(adminComponente, nomePacote, false)
-                
-                try {
-                    gestorPoliticas.enableSystemApp(adminComponente, nomePacote)
-                } catch (e: Exception) {
-                    Log.d(TAG, "enableSystemApp não aplicável (talvez não seja um app do sistema): $nomePacote")
-                }
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     gestorPoliticas.setPackagesSuspended(adminComponente, arrayOf(nomePacote), false)
@@ -426,9 +428,7 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             "com.google.android.deskclock",
             "com.tcl.camera",
             "com.android.camera",
-            "com.google.android.GoogleCamera",
-            "com.google.android.documentsui",
-            "com.android.documentsui"
+            "com.google.android.GoogleCamera"
         )
         for (pkg in essenciais) {
             restaurar_aplicativo_sistema(pkg)

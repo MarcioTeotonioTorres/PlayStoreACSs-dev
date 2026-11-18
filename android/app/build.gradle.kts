@@ -11,8 +11,8 @@ android {
         applicationId = "com.mdm.corporativo"
         minSdk = 26 // Android 8.0 Oreo (compatível com os tablets)
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.2.8"
+        versionCode = 12
+        versionName = "1.2.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
