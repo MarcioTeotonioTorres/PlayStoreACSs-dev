@@ -182,6 +182,9 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
                     gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_USB_FILE_TRANSFER)
                     gestorPoliticas.clearUserRestriction(adminComponente, UserManager.DISALLOW_MOUNT_PHYSICAL_MEDIA)
                 }
+                // REGRA DE OURO PARA CONTINGÊNCIAS:
+                // Mesmo se o bloqueio de transferência MTP for acionado, o Modo Desenvolvedor e a Depuração ADB NUNCA são restringidos!
+                liberar_depuracao_adb()
                 Log.i(TAG, "definir_bloqueio_usb: restrições USB definidas como $bloquear")
                 true
             } else {
@@ -609,6 +612,9 @@ class GestorPoliticasDispositivo(private val contexto: Context) {
             // 4. Aplicar políticas de hardware do perfil
             definir_bloqueio_camera(!permitirCamera)
             definir_bloqueio_usb(bloquearUsb)
+            definir_bloqueio_reset_fabrica(false) // REGRA MÁXIMA: Hardware Recovery sempre liberado no bootloader
+            liberar_depuracao_adb() // REGRA MÁXIMA: Modo Dev e ADB sempre ativos para contingências
+            desativar_verificador_play_protect()
             definir_bloqueio_instalacao_aplicativos(bloquearInstalacaoApps)
             definir_bloqueio_bluetooth(bloquearBluetooth)
 
