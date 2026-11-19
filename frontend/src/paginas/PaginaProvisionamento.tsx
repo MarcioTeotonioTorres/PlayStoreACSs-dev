@@ -54,7 +54,7 @@ export const PaginaProvisionamento: React.FC = () => {
                 fontWeight: 700,
               }}
             >
-              Versão Estável v1.2.3
+              Versão Estável v1.2.9 (Build 12)
             </span>
           </div>
           <p className="pagina-subtitulo">
@@ -63,11 +63,11 @@ export const PaginaProvisionamento: React.FC = () => {
         </div>
       </div>
 
-      {/* Destaque Inicial: O que é o modo Device Owner */}
+      {/* Destaque Inicial: Perfil Estrito ACS Vinculado ao Provisionamento */}
       <div
         style={{
-          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
+          background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%)',
+          border: '1px solid rgba(56, 189, 248, 0.35)',
           borderRadius: '12px',
           padding: '20px 24px',
           marginBottom: '24px',
@@ -78,23 +78,61 @@ export const PaginaProvisionamento: React.FC = () => {
       >
         <div
           style={{
-            background: 'rgba(59, 130, 246, 0.2)',
+            background: 'rgba(56, 189, 248, 0.2)',
             padding: '12px',
             borderRadius: '10px',
-            color: '#60a5fa',
+            color: '#38bdf8',
             flexShrink: 0,
           }}
         >
           <ShieldCheck size={28} />
         </div>
-        <div>
-          <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '6px' }}>
-            Privilégio Total de Hardware e Gerenciamento Corporativo
-          </h4>
-          <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.6' }}>
-            A promoção para <strong>Device Owner</strong> concede autoridade máxima ao aplicativo MDM. É através deste modo que o tablet permite:
-            a leitura do <strong>número de série real do hardware</strong> (impresso na carcaça), instalação silenciosa de APKs sem intervenção do usuário, bloqueio agressivo de desinstalação, restrição de reset de fábrica, e bloqueio de lojas não autorizadas ou transferência via Bluetooth.
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span
+                style={{
+                  background: 'rgba(16, 185, 129, 0.2)',
+                  color: '#34d399',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                }}
+              >
+                ★ PERFIL PADRÃO ATIVO
+              </span>
+              <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
+                Perfil Estrito ACS (Padrão de Campo)
+              </h4>
+            </div>
+            <a
+              href="/politicas"
+              className="btn btn-secundario"
+              style={{ fontSize: '11.5px', padding: '5px 12px', textDecoration: 'none' }}
+            >
+              Gerenciar Diretrizes em Políticas & Perfis →
+            </a>
+          </div>
+          <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 12px 0' }}>
+            Todo tablet provisionado com o APK v1.2.9 é automaticamente vinculado ao <strong>Perfil Estrito ACS</strong>:
+            a restauração de fábrica por combinação física de botões (Recovery) e a depuração USB (ADB) são <strong>mantidas liberadas</strong> para contingência; 28 aplicativos recreativos/bloatware são ocultados; e os aplicativos de trabalho (Câmera, Arquivos, Gravador, Calculadora, Relógio e e-SUS) permanecem 100% disponíveis.
           </p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '11.5px' }}>
+            <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: 600 }}>
+              ✓ Hard Reset via Hardware: Permitido
+            </span>
+            <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 600 }}>
+              ✓ Depuração USB / ADB: Sempre Ativo
+            </span>
+            <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', fontWeight: 600 }}>
+              🔒 28 Bloatwares Ocultos
+            </span>
+            <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', fontWeight: 600 }}>
+              ⛔ Bloqueio de APKs Externos: Ativo
+            </span>
+          </div>
         </div>
       </div>
 

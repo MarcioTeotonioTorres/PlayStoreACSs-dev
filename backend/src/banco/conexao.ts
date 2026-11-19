@@ -210,7 +210,7 @@ export let perfisProvisionamentoMemoria: PerfilProvisionamentoSimulado[] = [
   {
     id: 'perfil-estrito-acs',
     nome: 'Perfil Estrito ACS (Padrão de Campo)',
-    descricao: 'Alta restrição para tablets em campo: 26 apps recreativos ocultos, USB bloqueado, Bluetooth desligado, instalação de APKs proibida e reset de fábrica bloqueado.',
+    descricao: 'Diretrizes oficiais de campo para os tablets dos ACS (APK v1.2.9 Build 12): 28 apps recreativos e bloatware ocultos, restauração de fábrica de hardware permitida, conexão USB/ADB ativa para manutenção, instalação de APKs externos bloqueada e apps essenciais de trabalho (Câmera, Files, Calculadora, Gravador, Relógio e e-SUS) 100% protegidos.',
     eh_padrao: true,
     permitir_camera: true,
     bloquear_usb: false,
@@ -1286,6 +1286,35 @@ export async function executar_migracoes_banco(): Promise<void> {
     await poolInstancia.query(`UPDATE usuarios SET perfil = 'adm' WHERE perfil = 'admin';`).catch(() => {});
     await poolInstancia.query(`UPDATE usuarios SET perfil = 'supervisor' WHERE perfil = 'operador';`).catch(() => {});
     await poolInstancia.query(`CREATE INDEX IF NOT EXISTS idx_usuarios_tablets_dispositivo ON usuarios_tablets(dispositivo_id);`).catch(() => {});
+
+    // Conciliação e garantia do Perfil Estrito ACS (APK v1.2.9 Build 12) no banco
+    await poolInstancia.query(`
+      UPDATE perfis_provisionamento
+      SET bloquear_usb = FALSE,
+          permitir_reset_fabrica = TRUE,
+          descricao = 'Diretrizes oficiais de campo para os tablets dos ACS (APK v1.2.9 Build 12): 28 apps recreativos e bloatware ocultos, restauração de fábrica de hardware permitida, conexão USB/ADB ativa para manutenção, instalação de APKs externos bloqueada e apps essenciais de trabalho (Câmera, Files, Calculadora, Gravador, Relógio e e-SUS) 100% protegidos.',
+          atualizado_em = NOW()
+      WHERE nome ILIKE '%Perfil Estrito ACS%' OR (eh_padrao = TRUE AND nome ILIKE '%ACS%');
+    `).catch(() => {});
+
+    await poolInstancia.query(`
+      UPDATE politicas
+      SET bloquear_usb = FALSE,
+          permitir_reset_fabrica = TRUE,
+          atualizado_em = NOW();
+    `).catch(() => {});
+
+    await poolInstancia.query(`
+      UPDATE dispositivos
+      SET perfil_ativo_id = (
+        SELECT id FROM perfis_provisionamento 
+        WHERE eh_padrao = TRUE 
+        ORDER BY CASE WHEN nome ILIKE '%Perfil Estrito ACS%' THEN 0 ELSE 1 END, atualizado_em DESC 
+        LIMIT 1
+      ),
+      perfil_ativo_em = NOW()
+      WHERE perfil_ativo_id IS NULL;
+    `).catch(() => {});
 
     console.log('[MDM Banco] Migrações estruturais, tabela de usuários, perfis e cadastro de tablets verificadas com sucesso no PostgreSQL.');
   } catch (erro: any) {

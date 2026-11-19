@@ -364,6 +364,42 @@ export async function receber_telemetria_http(
 
     if (!politicaAtiva) {
       try {
+        // 1b. Perfil de provisionamento especificamente atribuído ao dispositivo
+        const resPerfilDisp = await executar_consulta(
+          `SELECT p.permitir_camera, p.bloquear_usb, p.permitir_reset_fabrica,
+                  p.bloquear_instalacao_apps, p.bloquear_bluetooth, p.modo_quiosque_app,
+                  p.habilitar_modo_quiosque, p.pacotes_ocultos, p.urls_permitidas
+           FROM dispositivos d
+           JOIN perfis_provisionamento p ON d.perfil_ativo_id = p.id
+           WHERE d.numero_serie = $1 LIMIT 1;`,
+          [snNormalizado]
+        );
+        if (resPerfilDisp.rows.length > 0) {
+          politicaAtiva = resPerfilDisp.rows[0];
+        }
+      } catch (_) {}
+    }
+
+    if (!politicaAtiva) {
+      try {
+        // 1c. Perfil de provisionamento padrão ativo da frota (ex: Perfil Estrito ACS)
+        const resPerfilPadrao = await executar_consulta(`
+          SELECT permitir_camera, bloquear_usb, permitir_reset_fabrica,
+                 bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app,
+                 habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas
+          FROM perfis_provisionamento
+          WHERE eh_padrao = TRUE
+          ORDER BY CASE WHEN nome ILIKE '%Perfil Estrito ACS%' THEN 0 ELSE 1 END, atualizado_em DESC
+          LIMIT 1;
+        `);
+        if (resPerfilPadrao.rows.length > 0) {
+          politicaAtiva = resPerfilPadrao.rows[0];
+        }
+      } catch (_) {}
+    }
+
+    if (!politicaAtiva) {
+      try {
         const resPol = await executar_consulta(`
           SELECT permitir_camera, bloquear_usb, permitir_reset_fabrica,
                  bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app,
