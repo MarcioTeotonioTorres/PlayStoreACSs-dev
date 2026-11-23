@@ -139,21 +139,27 @@ echo       - Ocultando os 28 aplicativos recreativos e bloatware de fabrica...
 echo       - Garantindo Calculadora, Relogio, Camera, Files, Gravador e e-SUS 100%% VISIVEIS e ATIVOS...
 echo.
 
-REM 1. Ocultar e suspender estritamente os 28 aplicativos recreativos do perfil
+REM 1. Ocultar e suspender estritamente os 34 aplicativos recreativos e bloatware do perfil
 for %%P in (
     com.google.android.youtube
+    com.google.android.apps.youtube.kids
     com.android.vending
     com.google.android.apps.photos
     com.google.android.gm
     com.google.android.apps.tachyon
     com.google.android.videos
     com.google.android.apps.docs
+    com.google.android.apps.books
+    com.google.android.apps.kids.home
+    com.google.android.apps.googleassistant
     com.google.android.apps.youtube.music
     com.google.android.googlequicksearchbox
     com.google.android.apps.magazines
     com.google.android.play.games
     com.google.android.apps.podcasts
     com.google.android.feedback
+    com.qidian.Int.reader
+    com.tcl.usercare
     com.tcl.live
     com.tcl.community
     com.tcl.appstore
