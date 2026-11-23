@@ -64,9 +64,29 @@ if "%APK_ALVO%"=="" (
 echo [APK] Detectado: %APK_ALVO%
 echo.
 
-echo [1/7] Aguardando conexao com o tablet via USB...
-%ADB% wait-for-device
+echo [1/7] Verificando conexao com o tablet via USB (ADB)...
 %ADB% devices
+echo.
+echo Testando comunicacao com o dispositivo...
+%ADB% get-state >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ===============================================================================
+    echo [ATENÇÃO] Tablet nao detectado ou depuracao USB nao autorizada!
+    echo ===============================================================================
+    echo Para provisionar via ADB, o tablet precisa:
+    echo   1. Estar LIGADO no sistema Android (tela inicial ou de configuracao).
+    echo   2. Estar com "Depuracao USB" ATIVADA em "Opcoes do desenvolvedor".
+    echo   3. Ter autorizado a conexao na mensagem exibida na tela ("Permitir depuracao USB").
+    echo.
+    echo Se o tablet acabou de ser formatado de fabrica, o metodo mais facil e rapido e:
+    echo   -> Na tela "Ola" (selecao de idioma), TOQUE 6 VEZES seguidas na tela vazia.
+    echo   -> Escaneie o QR Code exibido no painel Web MDM (/provisionamento).
+    echo ===============================================================================
+    echo.
+    echo Aguardando autorizacao do tablet (conecte o cabo e aceite na tela)...
+    %ADB% wait-for-device
+)
 %ADB% shell input keyevent 224 > nul 2>&1
 %ADB% shell wm dismiss-keyguard > nul 2>&1
 echo Conectado com sucesso!
