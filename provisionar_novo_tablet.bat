@@ -170,7 +170,7 @@ for %%P in (
     com.android.fmradio
     com.tcl.fmradio
 ) do (
-    "%ADB%" shell dpm set-application-hidden "%ADMIN%" %%P true > nul 2>&1
+    "%ADB%" shell pm disable-user --user 0 %%P > nul 2>&1
     "%ADB%" shell pm suspend %%P > nul 2>&1
 )
 
