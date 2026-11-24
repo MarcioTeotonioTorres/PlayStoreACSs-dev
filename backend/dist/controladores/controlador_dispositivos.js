@@ -1,0 +1,537 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.obter_resumo_frota = obter_resumo_frota;
+exports.listar_dispositivos = listar_dispositivos;
+exports.obter_detalhes_dispositivo = obter_detalhes_dispositivo;
+exports.cadastrar_dispositivo_manual = cadastrar_dispositivo_manual;
+exports.receber_telemetria_http = receber_telemetria_http;
+exports.receber_resposta_comando_http = receber_resposta_comando_http;
+exports.remover_dispositivo = remover_dispositivo;
+exports.consultar_status_comando = consultar_status_comando;
+exports.sincronizar_telemetria_frota = sincronizar_telemetria_frota;
+const conexao_1 = require("../banco/conexao");
+/**
+ * Retorna as métricas consolidadas da frota de 250 tablets com foco especial em controle de ociosidade.
+ */
+async function obter_resumo_frota(requisicao, resposta) {
+    try {
+        const sqlMetricas = `
+      SELECT
+        COUNT(*)::int AS total_dispositivos,
+        COUNT(*) FILTER (WHERE status_conexao = 'conectado' AND ultimo_contato >= NOW() - INTERVAL '25 hours')::int AS conectados,
+        COUNT(*) FILTER (WHERE status_conexao = 'desconectado' OR ultimo_contato < NOW() - INTERVAL '25 hours' OR ultimo_contato IS NULL)::int AS desconectados,
+        COUNT(*) FILTER (WHERE bateria <= 20)::int AS bateria_critica,
+        COUNT(*) FILTER (WHERE sinal_wifi_rssi < -75)::int AS sinal_wifi_fraco,
+        COUNT(*) FILTER (
+          WHERE status_conexao = 'conectado' AND ultimo_contato >= NOW() - INTERVAL '25 hours'
+            AND app_foco IS NOT NULL
+            AND app_foco NOT IN ('Sistema / Área de Trabalho', 'Tela Bloqueada / Repouso')
+            AND COALESCE(tempo_ocioso_minutos, 0) < 5
+        )::int AS em_uso_ativo,
+        COUNT(*) FILTER (
+          WHERE (COALESCE(tempo_ocioso_minutos, 0) >= 120 AND COALESCE(tempo_ocioso_minutos, 0) < 1440)
+             OR (ultimo_contato < NOW() - INTERVAL '2 hours' AND ultimo_contato >= NOW() - INTERVAL '24 hours')
+        )::int AS ociosos_moderados,
+        COUNT(*) FILTER (
+          WHERE (ultimo_contato < NOW() - INTERVAL '25 hours' OR ultimo_contato IS NULL)
+             OR (tempo_ocioso_minutos >= 1440)
+        )::int AS ociosos_criticos,
+        ROUND(AVG(
+          CASE
+            WHEN ultimo_contato < NOW() - INTERVAL '25 hours' THEN
+              COALESCE(tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - ultimo_contato)) / 60))::int
+            ELSE
+              COALESCE(tempo_ocioso_minutos, 0)
+          END
+        ))::int AS tempo_ocioso_medio_minutos
+      FROM dispositivos;
+    `;
+        const resultado = await (0, conexao_1.executar_consulta)(sqlMetricas);
+        const metricas = resultado.rows[0] || {
+            total_dispositivos: 0,
+            conectados: 0,
+            desconectados: 0,
+            bateria_critica: 0,
+            sinal_wifi_fraco: 0,
+            em_uso_ativo: 0,
+            ociosos_moderados: 0,
+            ociosos_criticos: 0,
+            tempo_ocioso_medio_minutos: 0,
+        };
+        const total = metricas.total_dispositivos || 0;
+        const taxaUtilizacao = total > 0 ? Math.round(((metricas.em_uso_ativo || 0) / total) * 100) : 0;
+        resposta.status(200).send({
+            sucesso: true,
+            capacidade_frota: 250,
+            metricas: {
+                ...metricas,
+                taxa_utilizacao_percentual: taxaUtilizacao,
+            },
+            atualizado_em: new Date().toISOString(),
+        });
+    }
+    catch (erro) {
+        console.error('Erro em obter_resumo_frota:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro interno ao consultar resumo da frota.' });
+    }
+}
+/**
+ * Lista todos os tablets gerenciados com suporte a busca, filtros e ordenação por ociosidade.
+ */
+async function listar_dispositivos(requisicao, resposta) {
+    try {
+        const { status, busca, ordem, limite = '50', offset = '0' } = requisicao.query;
+        let clausulasWhere = [];
+        let parametros = [];
+        let contador = 1;
+        if (status && status !== 'todos') {
+            if (status === 'conectado') {
+                clausulasWhere.push(`ultimo_contato >= NOW() - INTERVAL '3 minutes'`);
+            }
+            else if (status === 'desconectado') {
+                clausulasWhere.push(`(ultimo_contato < NOW() - INTERVAL '3 minutes' OR ultimo_contato IS NULL)`);
+            }
+            else if (status === 'bateria_baixa') {
+                clausulasWhere.push(`bateria <= 20`);
+            }
+            else if (status === 'em_uso_ativo') {
+                clausulasWhere.push(`ultimo_contato >= NOW() - INTERVAL '3 minutes' AND app_foco IS NOT NULL AND app_foco NOT IN ('Sistema / Área de Trabalho', 'Tela Bloqueada / Repouso') AND COALESCE(tempo_ocioso_minutos, 0) < 5`);
+            }
+            else if (status === 'ociosos_moderados') {
+                clausulasWhere.push(`((COALESCE(tempo_ocioso_minutos, 0) >= 120 AND COALESCE(tempo_ocioso_minutos, 0) < 1440) OR (ultimo_contato < NOW() - INTERVAL '2 hours' AND ultimo_contato >= NOW() - INTERVAL '24 hours'))`);
+            }
+            else if (status === 'ociosos_criticos') {
+                clausulasWhere.push(`((ultimo_contato < NOW() - INTERVAL '24 hours' OR ultimo_contato IS NULL) OR (tempo_ocioso_minutos >= 1440))`);
+            }
+            else {
+                clausulasWhere.push(`status_conexao = $${contador++}`);
+                parametros.push(status);
+            }
+        }
+        if (busca && busca.trim().length > 0) {
+            clausulasWhere.push(`(numero_serie ILIKE $${contador} OR modelo ILIKE $${contador} OR ssid_wifi ILIKE $${contador} OR usuario_nome ILIKE $${contador} OR usuario_unidade_basica ILIKE $${contador} OR usuario_matricula ILIKE $${contador})`);
+            parametros.push(`%${busca}%`);
+            contador++;
+        }
+        const whereSql = clausulasWhere.length > 0 ? `WHERE ${clausulasWhere.join(' AND ')}` : '';
+        let ordenacaoSql = `ORDER BY (CASE WHEN ultimo_contato >= NOW() - INTERVAL '3 minutes' THEN 0 ELSE 1 END) ASC, ultimo_contato DESC`;
+        if (ordem === 'maior_ociosidade') {
+            ordenacaoSql = `ORDER BY tempo_ocioso_calculado DESC, ultimo_contato ASC`;
+        }
+        else if (ordem === 'menor_ociosidade') {
+            ordenacaoSql = `ORDER BY tempo_ocioso_calculado ASC, ultimo_contato DESC`;
+        }
+        const sqlLista = `
+      WITH cte_dispositivos AS (
+        SELECT
+          d.id, d.numero_serie, d.modelo, d.versao_so,
+          CASE
+            WHEN d.status_conexao = 'conectado' AND d.ultimo_contato >= NOW() - INTERVAL '25 hours' THEN 'conectado'
+            ELSE 'desconectado'
+          END AS status_conexao,
+          d.bateria, d.esta_carregando, d.sinal_wifi_rssi, d.ssid_wifi,
+          d.app_foco,
+          CASE
+            WHEN d.ultimo_contato < NOW() - INTERVAL '25 hours' THEN
+              COALESCE(d.tempo_ocioso_minutos, 0) + GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - d.ultimo_contato)) / 60))::int
+            ELSE
+              COALESCE(d.tempo_ocioso_minutos, 0)
+          END AS tempo_ocioso_calculado,
+          d.memoria_ram_livre_mb, d.armazenamento_livre_mb,
+          d.ultimo_contato, d.criado_em,
+          d.perfil_ativo_id, d.perfil_ativo_em,
+          ut.nome_completo AS usuario_nome,
+          ut.unidade_basica AS usuario_unidade_basica,
+          ut.matricula AS usuario_matricula,
+          ut.telefone AS usuario_telefone,
+          ut.cpf AS usuario_cpf,
+          ut.email AS usuario_email,
+          COALESCE(pp.nome, 'Perfil Estrito ACS (Padrão de Campo)') AS perfil_ativo_nome
+        FROM dispositivos d
+        LEFT JOIN usuarios_tablets ut ON d.id = ut.dispositivo_id
+        LEFT JOIN perfis_provisionamento pp ON d.perfil_ativo_id = pp.id
+      )
+      SELECT
+        id, numero_serie, modelo, versao_so, versao_so AS versao_android,
+        status_conexao, bateria, esta_carregando, sinal_wifi_rssi, ssid_wifi,
+        app_foco, tempo_ocioso_calculado AS tempo_ocioso_minutos,
+        memoria_ram_livre_mb, armazenamento_livre_mb,
+        perfil_ativo_id, perfil_ativo_nome, perfil_ativo_em,
+        usuario_nome, usuario_unidade_basica, usuario_matricula, usuario_telefone, usuario_cpf, usuario_email,
+        ultimo_contato, criado_em
+      FROM cte_dispositivos
+      ${whereSql}
+      ${ordenacaoSql}
+      LIMIT $${contador++} OFFSET $${contador++};
+    `;
+        parametros.push(Number(limite), Number(offset));
+        const resultado = await (0, conexao_1.executar_consulta)(sqlLista, parametros);
+        resposta.status(200).send({
+            sucesso: true,
+            total_retornado: resultado.rows.length,
+            dispositivos: resultado.rows,
+        });
+    }
+    catch (erro) {
+        console.error('Erro em listar_dispositivos:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao listar dispositivos.' });
+    }
+}
+/**
+ * Consulta a telemetria e o histórico recente de um tablet específico.
+ */
+async function obter_detalhes_dispositivo(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        const sqlDispositivo = `SELECT * FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
+        const resDispositivo = await (0, conexao_1.executar_consulta)(sqlDispositivo, [id]);
+        if (resDispositivo.rows.length === 0) {
+            resposta.status(404).send({ sucesso: false, mensagem: 'Dispositivo não encontrado.' });
+            return;
+        }
+        const dispositivo = resDispositivo.rows[0];
+        const sqlComandos = `
+      SELECT id, tipo_comando, parametros, status, resposta, criado_em, executado_em
+      FROM comandos
+      WHERE dispositivo_id = $1
+      ORDER BY criado_em DESC
+      LIMIT 10;
+    `;
+        const resComandos = await (0, conexao_1.executar_consulta)(sqlComandos, [dispositivo.id]);
+        const sqlTelemetria = `
+      SELECT bateria, sinal_wifi_rssi, memoria_ram_livre_mb, armazenamento_livre_mb, registrado_em
+      FROM logs_telemetria
+      WHERE dispositivo_id = $1
+      ORDER BY registrado_em DESC
+      LIMIT 20;
+    `;
+        const resTelemetria = await (0, conexao_1.executar_consulta)(sqlTelemetria, [dispositivo.id]);
+        resposta.status(200).send({
+            sucesso: true,
+            dispositivo,
+            ultimos_comandos: resComandos.rows,
+            historico_telemetria: resTelemetria.rows,
+        });
+    }
+    catch (erro) {
+        console.error('Erro em obter_detalhes_dispositivo:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao obter detalhes do dispositivo.' });
+    }
+}
+/**
+ * Cadastra um novo tablet na frota imediatamente.
+ */
+async function cadastrar_dispositivo_manual(requisicao, resposta) {
+    try {
+        const { numero_serie, modelo, versao_so, bateria, sinal_wifi_rssi, ssid_wifi, app_foco } = requisicao.body;
+        if (!numero_serie || numero_serie.trim().length === 0) {
+            resposta.status(400).send({ sucesso: false, mensagem: 'O número de série é obrigatório.' });
+            return;
+        }
+        const snLimpo = numero_serie.trim().toUpperCase();
+        // Validação estrita de duplicidade no banco ignorando case e espaços
+        const checkSql = 'SELECT id, numero_serie FROM dispositivos WHERE UPPER(TRIM(numero_serie)) = $1';
+        const checkRes = await (0, conexao_1.executar_consulta)(checkSql, [snLimpo]);
+        if (checkRes.rows.length > 0) {
+            resposta.status(409).send({
+                sucesso: false,
+                mensagem: `O tablet com serial ${snLimpo} já se encontra cadastrado na frota.`,
+            });
+            return;
+        }
+        const sqlInsert = `
+      INSERT INTO dispositivos (
+        numero_serie, modelo, versao_so, status_conexao, bateria, esta_carregando,
+        sinal_wifi_rssi, ssid_wifi, app_foco, ultimo_contato, atualizado_em
+      ) VALUES (
+        $1, $2, $3, 'desconectado', $4, false, $5, $6, $7, NOW(), NOW()
+      ) RETURNING *;
+    `;
+        const res = await (0, conexao_1.executar_consulta)(sqlInsert, [
+            snLimpo,
+            modelo?.trim() || 'Samsung Galaxy Tab A9+',
+            versao_so?.trim() || 'Android 14 (API 34)',
+            bateria ?? 100,
+            sinal_wifi_rssi ?? -50,
+            ssid_wifi?.trim() || 'Corporativo-WiFi',
+            app_foco?.trim() || 'com.mdm.corporativo',
+        ]);
+        resposta.status(201).send({
+            sucesso: true,
+            mensagem: `Dispositivo ${res.rows[0].numero_serie} cadastrado com sucesso na frota!`,
+            dispositivo: res.rows[0],
+        });
+    }
+    catch (erro) {
+        console.error('Erro em cadastrar_dispositivo_manual:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao cadastrar dispositivo.' });
+    }
+}
+/**
+ * Endpoint HTTP REST para recepção de telemetria periódica direta de tablets Android.
+ */
+async function receber_telemetria_http(requisicao, resposta) {
+    try {
+        const dados = requisicao.body;
+        if (!dados || !dados.numero_serie || dados.numero_serie.trim().length === 0) {
+            resposta.status(400).send({ sucesso: false, mensagem: 'Número de série é obrigatório.' });
+            return;
+        }
+        const snNormalizado = dados.numero_serie.trim().toUpperCase();
+        dados.numero_serie = snNormalizado;
+        const { processar_mensagem_telemetria } = await Promise.resolve().then(() => __importStar(require('../servicos/servico_mqtt')));
+        await processar_mensagem_telemetria(snNormalizado, dados);
+        // 1. Obtém as diretrizes ativas: prioriza política personalizada do dispositivo, se houver
+        let politicaAtiva = null;
+        try {
+            const resDispPol = await (0, conexao_1.executar_consulta)(`SELECT politica_personalizada FROM dispositivos WHERE numero_serie = $1 LIMIT 1;`, [snNormalizado]);
+            if (resDispPol.rows.length > 0 && resDispPol.rows[0].politica_personalizada) {
+                politicaAtiva = typeof resDispPol.rows[0].politica_personalizada === 'string'
+                    ? JSON.parse(resDispPol.rows[0].politica_personalizada)
+                    : resDispPol.rows[0].politica_personalizada;
+            }
+        }
+        catch (_) { }
+        if (!politicaAtiva) {
+            try {
+                const { politicasDispositivosMemoria } = await Promise.resolve().then(() => __importStar(require('./controlador_politicas')));
+                if (politicasDispositivosMemoria.has(snNormalizado)) {
+                    politicaAtiva = politicasDispositivosMemoria.get(snNormalizado);
+                }
+            }
+            catch (_) { }
+        }
+        if (!politicaAtiva) {
+            try {
+                // 1b. Perfil de provisionamento especificamente atribuído ao dispositivo
+                const resPerfilDisp = await (0, conexao_1.executar_consulta)(`SELECT p.permitir_camera, p.bloquear_usb, p.permitir_reset_fabrica,
+                  p.bloquear_instalacao_apps, p.bloquear_bluetooth, p.modo_quiosque_app,
+                  p.habilitar_modo_quiosque, p.pacotes_ocultos, p.urls_permitidas
+           FROM dispositivos d
+           JOIN perfis_provisionamento p ON d.perfil_ativo_id = p.id
+           WHERE d.numero_serie = $1 LIMIT 1;`, [snNormalizado]);
+                if (resPerfilDisp.rows.length > 0) {
+                    politicaAtiva = resPerfilDisp.rows[0];
+                }
+            }
+            catch (_) { }
+        }
+        if (!politicaAtiva) {
+            try {
+                // 1c. Perfil de provisionamento padrão ativo da frota (ex: Perfil Estrito ACS)
+                const resPerfilPadrao = await (0, conexao_1.executar_consulta)(`
+          SELECT permitir_camera, bloquear_usb, permitir_reset_fabrica,
+                 bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app,
+                 habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas
+          FROM perfis_provisionamento
+          WHERE eh_padrao = TRUE
+          ORDER BY CASE WHEN nome ILIKE '%Perfil Estrito ACS%' THEN 0 ELSE 1 END, atualizado_em DESC
+          LIMIT 1;
+        `);
+                if (resPerfilPadrao.rows.length > 0) {
+                    politicaAtiva = resPerfilPadrao.rows[0];
+                }
+            }
+            catch (_) { }
+        }
+        if (!politicaAtiva) {
+            try {
+                const resPol = await (0, conexao_1.executar_consulta)(`
+          SELECT permitir_camera, bloquear_usb, permitir_reset_fabrica,
+                 bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app,
+                 habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas
+          FROM politicas
+          ORDER BY atualizado_em DESC
+          LIMIT 1;
+        `);
+                if (resPol.rows.length > 0) {
+                    politicaAtiva = resPol.rows[0];
+                }
+                else {
+                    const { politicasMemoria } = await Promise.resolve().then(() => __importStar(require('./controlador_politicas')));
+                    politicaAtiva = politicasMemoria;
+                }
+            }
+            catch (_) { }
+        }
+        // 2. Obtém comandos pendentes na fila para este dispositivo
+        let comandosPendentes = [];
+        try {
+            const sqlBuscaDisp = `SELECT id FROM dispositivos WHERE numero_serie = $1 LIMIT 1;`;
+            const resDisp = await (0, conexao_1.executar_consulta)(sqlBuscaDisp, [snNormalizado]);
+            if (resDisp.rows.length > 0) {
+                const dispId = resDisp.rows[0].id;
+                const sqlCmds = `
+          SELECT id, tipo_comando, parametros
+          FROM comandos
+          WHERE dispositivo_id = $1 AND status IN ('pendente', 'enviado') AND criado_em >= NOW() - INTERVAL '2 hours'
+          ORDER BY criado_em ASC
+          LIMIT 5;
+        `;
+                const resCmds = await (0, conexao_1.executar_consulta)(sqlCmds, [dispId]);
+                comandosPendentes = resCmds.rows;
+                // Marca comandos como 'enviado' para evitar reprocessamento em loop
+                for (const cmd of comandosPendentes) {
+                    await (0, conexao_1.executar_consulta)(`UPDATE comandos SET status = 'enviado' WHERE id = $1;`, [cmd.id]);
+                }
+            }
+        }
+        catch (_) { }
+        const host = process.env.DOMINIO_EXTERNO || 'mdmplaystoreacs.duckdns.org';
+        const protocolo = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+        const urlDownload = `${protocolo}://${host}/apk/mdm-dpc.apk`;
+        if (politicaAtiva) {
+            const { PACOTES_ESSENCIAIS_RESTAURACAO } = await Promise.resolve().then(() => __importStar(require('./controlador_politicas')));
+            const ocultos = Array.isArray(politicaAtiva.pacotes_ocultos) ? politicaAtiva.pacotes_ocultos : [];
+            politicaAtiva = {
+                ...politicaAtiva,
+                pacotes_liberados: PACOTES_ESSENCIAIS_RESTAURACAO.filter((p) => !ocultos.includes(p)),
+            };
+        }
+        resposta.status(200).send({
+            sucesso: true,
+            mensagem: 'Telemetria registrada com sucesso.',
+            politica: politicaAtiva,
+            comandos_pendentes: comandosPendentes,
+            atualizacao_dpc: {
+                versao_codigo: 12,
+                versao_nome: '1.2.9',
+                url_apk: urlDownload,
+                obrigatoria: false,
+            },
+        });
+    }
+    catch (erro) {
+        console.error('Erro em receber_telemetria_http:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao processar telemetria HTTP.' });
+    }
+}
+/**
+ * Endpoint HTTP REST para confirmação e feedback de execução de comandos pelo tablet.
+ */
+async function receber_resposta_comando_http(requisicao, resposta) {
+    try {
+        const { numero_serie, comando_id } = requisicao.params;
+        const { status, mensagem } = requisicao.body || {};
+        const { processar_resposta_comando } = await Promise.resolve().then(() => __importStar(require('../servicos/servico_mqtt')));
+        await processar_resposta_comando(numero_serie, {
+            comando_id,
+            status: status || 'executado',
+            mensagem: mensagem || 'Comando processado com sucesso pelo tablet.',
+        });
+        resposta.status(200).send({ sucesso: true, mensagem: 'Resposta do comando registrada com sucesso.' });
+    }
+    catch (erro) {
+        console.error('Erro em receber_resposta_comando_http:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Falha ao registrar resposta do comando.' });
+    }
+}
+/**
+ * Remove um tablet do inventário permanentemente (exclui telemetria e comandos associados).
+ */
+async function remover_dispositivo(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        // Verifica se o dispositivo existe
+        const sqlBusca = `SELECT id, numero_serie, modelo FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
+        const resDispositivo = await (0, conexao_1.executar_consulta)(sqlBusca, [id]);
+        if (resDispositivo.rows.length === 0) {
+            resposta.status(404).send({ sucesso: false, mensagem: 'Dispositivo não encontrado no inventário.' });
+            return;
+        }
+        const dispositivo = resDispositivo.rows[0];
+        // Remove registros dependentes (cascata manual para compatibilidade)
+        await (0, conexao_1.executar_consulta)(`DELETE FROM logs_telemetria WHERE dispositivo_id = $1;`, [dispositivo.id]);
+        await (0, conexao_1.executar_consulta)(`DELETE FROM comandos WHERE dispositivo_id = $1;`, [dispositivo.id]);
+        // Remove o dispositivo
+        await (0, conexao_1.executar_consulta)(`DELETE FROM dispositivos WHERE id = $1;`, [dispositivo.id]);
+        resposta.status(200).send({
+            sucesso: true,
+            mensagem: `Tablet ${dispositivo.modelo} (SN: ${dispositivo.numero_serie}) removido do inventário com sucesso.`,
+            dispositivo_removido: {
+                id: dispositivo.id,
+                numero_serie: dispositivo.numero_serie,
+                modelo: dispositivo.modelo,
+            },
+        });
+    }
+    catch (erro) {
+        console.error('Erro em remover_dispositivo:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao remover dispositivo do inventário.' });
+    }
+}
+/**
+ * Consulta o status atual e a resposta do tablet para um comando específico.
+ */
+async function consultar_status_comando(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        const res = await (0, conexao_1.executar_consulta)(`SELECT c.id, c.tipo_comando, c.status, c.resposta, c.criado_em, c.executado_em, d.numero_serie, d.modelo
+       FROM comandos c
+       LEFT JOIN dispositivos d ON d.id = c.dispositivo_id
+       WHERE c.id = $1 LIMIT 1;`, [id]);
+        if (res.rows.length === 0) {
+            resposta.status(404).send({ sucesso: false, mensagem: 'Comando não localizado.' });
+            return;
+        }
+        resposta.status(200).send({ sucesso: true, comando: res.rows[0] });
+    }
+    catch (erro) {
+        console.error('Erro em consultar_status_comando:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao consultar status do comando.' });
+    }
+}
+/**
+ * Despacha ordem remota via MQTT solicitando a transmissão imediata de telemetria para todos os tablets conectados.
+ */
+async function sincronizar_telemetria_frota(_requisicao, resposta) {
+    try {
+        const { despachar_comando_mqtt } = await Promise.resolve().then(() => __importStar(require('../servicos/servico_mqtt')));
+        await despachar_comando_mqtt('todos', {
+            id: crypto.randomUUID(),
+            tipo_comando: 'solicitar_telemetria',
+            parametros: {},
+        });
+        resposta.status(200).send({
+            sucesso: true,
+            mensagem: 'Solicitação de telemetria imediata despachada com sucesso para a frota.',
+        });
+    }
+    catch (erro) {
+        console.error('Erro em sincronizar_telemetria_frota:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao despachar solicitação de telemetria.' });
+    }
+}

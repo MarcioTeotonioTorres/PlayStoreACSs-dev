@@ -1,0 +1,200 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.inicializar_servico_mqtt = inicializar_servico_mqtt;
+exports.processar_mensagem_telemetria = processar_mensagem_telemetria;
+exports.processar_status_presenca = processar_status_presenca;
+exports.processar_resposta_comando = processar_resposta_comando;
+exports.despachar_comando_mqtt = despachar_comando_mqtt;
+exports.encerrar_servico_mqtt = encerrar_servico_mqtt;
+const mqtt_1 = __importDefault(require("mqtt"));
+const conexao_1 = require("../banco/conexao");
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
+let clienteMqtt = null;
+/**
+ * Inicializa a conexão com o broker MQTT (Mosquitto) e assina os tópicos da frota.
+ */
+function inicializar_servico_mqtt() {
+    const urlBroker = process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883';
+    const opcoesConexao = {
+        clientId: `mdm_backend_${Math.random().toString(16).substring(2, 8)}`,
+        clean: true,
+        reconnectPeriod: 3000,
+        connectTimeout: 10000,
+        username: process.env.MQTT_USER || undefined,
+        password: process.env.MQTT_PASSWORD || undefined,
+    };
+    console.log(`Conectando ao Broker MQTT em: ${urlBroker}`);
+    clienteMqtt = mqtt_1.default.connect(urlBroker, opcoesConexao);
+    clienteMqtt.on('connect', () => {
+        console.log('Conexão MQTT com o broker estabelecida com sucesso.');
+        // Assina tópicos de telemetria, presença e respostas de comandos para todos os tablets
+        clienteMqtt?.subscribe('mdm/dispositivos/+/telemetria', { qos: 1 });
+        clienteMqtt?.subscribe('mdm/dispositivos/+/status', { qos: 1 });
+        clienteMqtt?.subscribe('mdm/dispositivos/+/comandos/resposta', { qos: 1 });
+    });
+    clienteMqtt.on('message', async (topico, payloadBuffer) => {
+        try {
+            const conteudoStr = payloadBuffer.toString();
+            const partesTopico = topico.split('/');
+            const numeroSerie = partesTopico[2]?.trim().toUpperCase();
+            const tipoMensagem = partesTopico[3];
+            const dados = JSON.parse(conteudoStr);
+            if (tipoMensagem === 'telemetria') {
+                await processar_mensagem_telemetria(numeroSerie, dados);
+            }
+            else if (tipoMensagem === 'status') {
+                await processar_status_presenca(numeroSerie, dados);
+            }
+            else if (tipoMensagem === 'comandos' && partesTopico[4] === 'resposta') {
+                await processar_resposta_comando(numeroSerie, dados);
+            }
+        }
+        catch (erro) {
+            console.error(`Erro ao processar mensagem MQTT no tópico ${topico}:`, erro);
+        }
+    });
+    clienteMqtt.on('error', (erro) => {
+        console.error('Erro de conexão no cliente MQTT:', erro);
+    });
+    return clienteMqtt;
+}
+/**
+ * Persiste a telemetria recebida no cadastro do dispositivo e no histórico.
+ */
+async function processar_mensagem_telemetria(numeroSerie, telemetria) {
+    const snNormalizado = numeroSerie?.trim().toUpperCase();
+    if (!snNormalizado)
+        return;
+    const appsJson = typeof telemetria.aplicativos_instalados === 'string'
+        ? telemetria.aplicativos_instalados
+        : JSON.stringify(telemetria.aplicativos_instalados || []);
+    // Upsert do dispositivo no banco de dados garantindo integridade de unicidade
+    const sqlUpsert = `
+    INSERT INTO dispositivos (
+      numero_serie, modelo, versao_so, status_conexao, bateria, esta_carregando,
+      sinal_wifi_rssi, ssid_wifi, app_foco, tempo_ocioso_minutos, armazenamento_livre_mb, memoria_ram_livre_mb,
+      aplicativos_instalados, ultimo_contato, atualizado_em
+    ) VALUES (
+      $1, $2, $3, 'conectado', $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, NOW(), NOW()
+    )
+    ON CONFLICT (numero_serie) DO UPDATE SET
+      modelo = COALESCE(EXCLUDED.modelo, dispositivos.modelo),
+      versao_so = COALESCE(EXCLUDED.versao_so, dispositivos.versao_so),
+      status_conexao = 'conectado',
+      bateria = EXCLUDED.bateria,
+      esta_carregando = EXCLUDED.esta_carregando,
+      sinal_wifi_rssi = EXCLUDED.sinal_wifi_rssi,
+      ssid_wifi = EXCLUDED.ssid_wifi,
+      app_foco = EXCLUDED.app_foco,
+      tempo_ocioso_minutos = EXCLUDED.tempo_ocioso_minutos,
+      armazenamento_livre_mb = EXCLUDED.armazenamento_livre_mb,
+      memoria_ram_livre_mb = EXCLUDED.memoria_ram_livre_mb,
+      aplicativos_instalados = CASE WHEN $12::text = '[]' THEN dispositivos.aplicativos_instalados ELSE $12::jsonb END,
+      ultimo_contato = NOW(),
+      atualizado_em = NOW()
+    RETURNING id;
+  `;
+    const res = await (0, conexao_1.executar_consulta)(sqlUpsert, [
+        snNormalizado,
+        telemetria.modelo || 'Tablet Android',
+        telemetria.versao_so || 'Android',
+        telemetria.nivel_bateria ?? 100,
+        telemetria.esta_carregando ?? false,
+        telemetria.sinal_wifi_rssi ?? -50,
+        telemetria.ssid_wifi || 'Corporativo-WiFi',
+        telemetria.app_em_foco || 'Sistema',
+        telemetria.tempo_ocioso_minutos ?? 0,
+        telemetria.armazenamento_livre_mb ?? 0,
+        telemetria.memoria_ram_livre_mb ?? 0,
+        appsJson,
+    ]);
+    const dispositivoId = res.rows[0]?.id;
+    if (dispositivoId) {
+        // Insere no log histórico de telemetria
+        const sqlLog = `
+      INSERT INTO logs_telemetria (
+        dispositivo_id, bateria, sinal_wifi_rssi, memoria_ram_livre_mb,
+        armazenamento_livre_mb, app_foco, registrado_em
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW());
+    `;
+        await (0, conexao_1.executar_consulta)(sqlLog, [
+            dispositivoId,
+            telemetria.nivel_bateria ?? 100,
+            telemetria.sinal_wifi_rssi ?? -50,
+            telemetria.memoria_ram_livre_mb ?? 0,
+            telemetria.armazenamento_livre_mb ?? 0,
+            telemetria.app_em_foco || 'Sistema',
+        ]);
+    }
+}
+/**
+ * Processa a atualização de status (online/offline) enviada pelo LWT ou heartbeat.
+ */
+async function processar_status_presenca(numeroSerie, dadosStatus) {
+    const statusFormatado = dadosStatus.status === 'conectado' ? 'conectado' : 'desconectado';
+    const sql = `
+    UPDATE dispositivos
+    SET status_conexao = $1, ultimo_contato = NOW(), atualizado_em = NOW()
+    WHERE numero_serie = $2;
+  `;
+    await (0, conexao_1.executar_consulta)(sql, [statusFormatado, numeroSerie]);
+}
+/**
+ * Atualiza o status e resposta da execução do comando no banco de dados.
+ */
+async function processar_resposta_comando(numeroSerie, resposta) {
+    const sql = `
+    UPDATE comandos
+    SET status = $1, resposta = $2::jsonb, executado_em = NOW()
+    WHERE id = $3;
+  `;
+    await (0, conexao_1.executar_consulta)(sql, [
+        resposta.status,
+        JSON.stringify(resposta),
+        resposta.comando_id,
+    ]);
+    console.log(`Comando ${resposta.comando_id} atualizado para status '${resposta.status}' no tablet ${numeroSerie}`);
+}
+/**
+ * Publica um comando imediatamente no tópico MQTT do dispositivo ou broadcast da frota.
+ */
+async function despachar_comando_mqtt(numeroSerieOuFrota, comandoPayload) {
+    const topico = numeroSerieOuFrota === 'todos'
+        ? 'mdm/frota/todos/comandos'
+        : `mdm/dispositivos/${numeroSerieOuFrota}/comandos`;
+    const payloadStr = JSON.stringify(comandoPayload);
+    if (!clienteMqtt || !clienteMqtt.connected) {
+        console.warn(`[MQTT] Broker desconectado. Notificação não entregue em tempo real para: ${topico}`);
+        return false;
+    }
+    return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+            console.warn(`[MQTT] Timeout ao despachar comando para ${topico}`);
+            resolve(false);
+        }, 2500);
+        clienteMqtt?.publish(topico, payloadStr, { qos: 1 }, (erro) => {
+            clearTimeout(timeout);
+            if (erro) {
+                console.error(`Erro ao despachar comando para ${topico}:`, erro);
+                resolve(false);
+            }
+            else {
+                console.log(`Comando ${comandoPayload.tipo_comando} despachado com sucesso para ${topico}`);
+                resolve(true);
+            }
+        });
+    });
+}
+/**
+ * Encerra a conexão com o broker MQTT.
+ */
+function encerrar_servico_mqtt() {
+    if (clienteMqtt) {
+        clienteMqtt.end();
+        clienteMqtt = null;
+    }
+}

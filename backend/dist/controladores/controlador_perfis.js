@@ -1,0 +1,527 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.listar_perfis_provisionamento = listar_perfis_provisionamento;
+exports.obter_perfil_provisionamento = obter_perfil_provisionamento;
+exports.criar_perfil_provisionamento = criar_perfil_provisionamento;
+exports.atualizar_perfil_provisionamento = atualizar_perfil_provisionamento;
+exports.remover_perfil_provisionamento = remover_perfil_provisionamento;
+exports.aplicar_perfil_provisionamento = aplicar_perfil_provisionamento;
+const conexao_1 = require("../banco/conexao");
+const servico_mqtt_1 = require("../servicos/servico_mqtt");
+const controlador_politicas_1 = require("./controlador_politicas");
+const crypto_1 = __importDefault(require("crypto"));
+/**
+ * Normaliza e sanitiza um objeto de perfil lido do banco ou memória.
+ */
+function normalizarPerfil(row) {
+    return {
+        id: row.id,
+        nome: row.nome,
+        descricao: row.descricao || '',
+        eh_padrao: Boolean(row.eh_padrao),
+        permitir_camera: row.permitir_camera ?? true,
+        bloquear_usb: row.bloquear_usb ?? false,
+        permitir_reset_fabrica: row.permitir_reset_fabrica ?? true,
+        bloquear_instalacao_apps: row.bloquear_instalacao_apps ?? true,
+        bloquear_bluetooth: row.bloquear_bluetooth ?? false,
+        modo_quiosque_app: row.modo_quiosque_app || null,
+        habilitar_modo_quiosque: Boolean(row.habilitar_modo_quiosque),
+        pacotes_ocultos: (0, controlador_politicas_1.filtrarPacotesSeguros)(typeof row.pacotes_ocultos === 'string'
+            ? JSON.parse(row.pacotes_ocultos)
+            : (row.pacotes_ocultos || [])),
+        urls_permitidas: typeof row.urls_permitidas === 'string'
+            ? JSON.parse(row.urls_permitidas)
+            : (row.urls_permitidas || []),
+        criado_em: row.criado_em ? new Date(row.criado_em).toISOString() : new Date().toISOString(),
+        atualizado_em: row.atualizado_em ? new Date(row.atualizado_em).toISOString() : new Date().toISOString(),
+    };
+}
+/**
+ * Lista todos os perfis de provisionamento salvos (templates padrão e personalizados).
+ */
+async function listar_perfis_provisionamento(requisicao, resposta) {
+    try {
+        const sql = `
+      SELECT id, nome, descricao, eh_padrao, permitir_camera, bloquear_usb, permitir_reset_fabrica,
+             bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app, habilitar_modo_quiosque,
+             pacotes_ocultos, urls_permitidas, criado_em, atualizado_em
+      FROM perfis_provisionamento
+      ORDER BY eh_padrao DESC, nome ASC;
+    `;
+        const resultado = await (0, conexao_1.executar_consulta)(sql);
+        let perfis = [];
+        if (resultado.rows && resultado.rows.length > 0) {
+            perfis = resultado.rows.map(normalizarPerfil);
+        }
+        else {
+            perfis = conexao_1.perfisProvisionamentoMemoria.map(normalizarPerfil);
+        }
+        resposta.status(200).send({
+            sucesso: true,
+            total: perfis.length,
+            perfis,
+        });
+    }
+    catch (erro) {
+        console.error('Erro ao listar perfis de provisionamento:', erro);
+        resposta.status(200).send({
+            sucesso: true,
+            total: conexao_1.perfisProvisionamentoMemoria.length,
+            perfis: conexao_1.perfisProvisionamentoMemoria.map(normalizarPerfil),
+        });
+    }
+}
+/**
+ * Obtém os detalhes completos de um perfil de provisionamento específico.
+ */
+async function obter_perfil_provisionamento(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        const sql = `
+      SELECT id, nome, descricao, eh_padrao, permitir_camera, bloquear_usb, permitir_reset_fabrica,
+             bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app, habilitar_modo_quiosque,
+             pacotes_ocultos, urls_permitidas, criado_em, atualizado_em
+      FROM perfis_provisionamento
+      WHERE id::text = $1;
+    `;
+        const resultado = await (0, conexao_1.executar_consulta)(sql, [id]);
+        if (resultado.rows && resultado.rows.length > 0) {
+            resposta.status(200).send({
+                sucesso: true,
+                perfil: normalizarPerfil(resultado.rows[0]),
+            });
+            return;
+        }
+        const emMemoria = conexao_1.perfisProvisionamentoMemoria.find((p) => p.id === id);
+        if (emMemoria) {
+            resposta.status(200).send({
+                sucesso: true,
+                perfil: normalizarPerfil(emMemoria),
+            });
+            return;
+        }
+        resposta.status(404).send({
+            sucesso: false,
+            mensagem: `Perfil de provisionamento com identificador '${id}' não encontrado.`,
+        });
+    }
+    catch (erro) {
+        console.error('Erro ao obter perfil de provisionamento:', erro);
+        resposta.status(500).send({
+            sucesso: false,
+            mensagem: 'Falha interna ao consultar perfil de provisionamento.',
+        });
+    }
+}
+/**
+ * Cria e salva um novo perfil de provisionamento personalizado.
+ */
+async function criar_perfil_provisionamento(requisicao, resposta) {
+    try {
+        const dto = requisicao.body;
+        if (!dto.nome || !dto.nome.trim()) {
+            resposta.status(400).send({
+                sucesso: false,
+                mensagem: 'O nome do perfil de provisionamento é obrigatório.',
+            });
+            return;
+        }
+        const id = dto.id || crypto_1.default.randomUUID();
+        const nome = dto.nome.trim();
+        const descricao = dto.descricao?.trim() || '';
+        const eh_padrao = false; // Perfis criados pelo operador nunca são templates imutáveis de fábrica
+        const permitir_camera = dto.permitir_camera ?? true;
+        const bloquear_usb = dto.bloquear_usb ?? false;
+        const permitir_reset_fabrica = dto.permitir_reset_fabrica ?? true;
+        const bloquear_instalacao_apps = dto.bloquear_instalacao_apps ?? true;
+        const bloquear_bluetooth = dto.bloquear_bluetooth ?? false;
+        const modo_quiosque_app = dto.modo_quiosque_app?.trim() || null;
+        const habilitar_modo_quiosque = dto.habilitar_modo_quiosque ?? false;
+        const pacotes_ocultos = (0, controlador_politicas_1.filtrarPacotesSeguros)(dto.pacotes_ocultos || []);
+        const urls_permitidas = (dto.urls_permitidas || []).map((u) => u.trim().toLowerCase()).filter(Boolean);
+        // 1. Tenta persistir no PostgreSQL
+        try {
+            const sqlInsert = `
+        INSERT INTO perfis_provisionamento 
+        (id, nome, descricao, eh_padrao, permitir_camera, bloquear_usb, permitir_reset_fabrica,
+         bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app, habilitar_modo_quiosque,
+         pacotes_ocultos, urls_permitidas, criado_em, atualizado_em)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, NOW(), NOW())
+        RETURNING *;
+      `;
+            await (0, conexao_1.executar_consulta)(sqlInsert, [
+                id,
+                nome,
+                descricao,
+                eh_padrao,
+                permitir_camera,
+                bloquear_usb,
+                permitir_reset_fabrica,
+                bloquear_instalacao_apps,
+                bloquear_bluetooth,
+                modo_quiosque_app,
+                habilitar_modo_quiosque,
+                JSON.stringify(pacotes_ocultos),
+                JSON.stringify(urls_permitidas),
+            ]);
+        }
+        catch (dbErr) {
+            console.warn('Fallback: Banco de dados não gravou perfil, sincronizando em memória.', dbErr);
+        }
+        // 2. Garante persistência no repositório em memória
+        const perfilMemoria = {
+            id,
+            nome,
+            descricao,
+            eh_padrao,
+            permitir_camera,
+            bloquear_usb,
+            permitir_reset_fabrica,
+            bloquear_instalacao_apps,
+            bloquear_bluetooth,
+            modo_quiosque_app,
+            habilitar_modo_quiosque,
+            pacotes_ocultos,
+            urls_permitidas,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString(),
+        };
+        const idxExistente = conexao_1.perfisProvisionamentoMemoria.findIndex((p) => p.id === id);
+        if (idxExistente !== -1) {
+            conexao_1.perfisProvisionamentoMemoria[idxExistente] = perfilMemoria;
+        }
+        else {
+            conexao_1.perfisProvisionamentoMemoria.push(perfilMemoria);
+        }
+        resposta.status(201).send({
+            sucesso: true,
+            mensagem: `Perfil de provisionamento "${nome}" salvo com sucesso!`,
+            perfil: normalizarPerfil(perfilMemoria),
+        });
+    }
+    catch (erro) {
+        console.error('Erro ao criar perfil de provisionamento:', erro);
+        resposta.status(500).send({
+            sucesso: false,
+            mensagem: 'Falha interna ao salvar novo perfil de provisionamento.',
+        });
+    }
+}
+/**
+ * Atualiza as configurações de um perfil de provisionamento existente.
+ */
+async function atualizar_perfil_provisionamento(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        const dto = requisicao.body;
+        if (dto.nome && !dto.nome.trim()) {
+            resposta.status(400).send({
+                sucesso: false,
+                mensagem: 'O nome do perfil não pode ser vazio.',
+            });
+            return;
+        }
+        const pacotesSanitizados = dto.pacotes_ocultos ? (0, controlador_politicas_1.filtrarPacotesSeguros)(dto.pacotes_ocultos) : undefined;
+        const urlsSanitizadas = dto.urls_permitidas ? dto.urls_permitidas.map((u) => u.trim().toLowerCase()).filter(Boolean) : undefined;
+        // Atualiza no banco de dados se conectado
+        try {
+            const sqlUpdate = `
+        UPDATE perfis_provisionamento
+        SET nome = COALESCE($1, nome),
+            descricao = COALESCE($2, descricao),
+            permitir_camera = COALESCE($3, permitir_camera),
+            bloquear_usb = COALESCE($4, bloquear_usb),
+            permitir_reset_fabrica = COALESCE($5, permitir_reset_fabrica),
+            bloquear_instalacao_apps = COALESCE($6, bloquear_instalacao_apps),
+            bloquear_bluetooth = COALESCE($7, bloquear_bluetooth),
+            modo_quiosque_app = $8,
+            habilitar_modo_quiosque = COALESCE($9, habilitar_modo_quiosque),
+            pacotes_ocultos = COALESCE($10::jsonb, pacotes_ocultos),
+            urls_permitidas = COALESCE($11::jsonb, urls_permitidas),
+            atualizado_em = NOW()
+        WHERE id::text = $12
+        RETURNING *;
+      `;
+            await (0, conexao_1.executar_consulta)(sqlUpdate, [
+                dto.nome?.trim(),
+                dto.descricao?.trim(),
+                dto.permitir_camera,
+                dto.bloquear_usb,
+                dto.permitir_reset_fabrica,
+                dto.bloquear_instalacao_apps,
+                dto.bloquear_bluetooth,
+                dto.modo_quiosque_app !== undefined ? (dto.modo_quiosque_app || null) : undefined,
+                dto.habilitar_modo_quiosque,
+                pacotesSanitizados ? JSON.stringify(pacotesSanitizados) : undefined,
+                urlsSanitizadas ? JSON.stringify(urlsSanitizadas) : undefined,
+                id,
+            ]);
+        }
+        catch (dbErr) {
+            console.warn('Fallback: Erro ao atualizar perfil no BD, atualizando memória.', dbErr);
+        }
+        // Atualiza em memória
+        const perfilMemoria = conexao_1.perfisProvisionamentoMemoria.find((p) => p.id === id);
+        if (perfilMemoria) {
+            if (dto.nome !== undefined)
+                perfilMemoria.nome = dto.nome.trim();
+            if (dto.descricao !== undefined)
+                perfilMemoria.descricao = dto.descricao.trim();
+            if (dto.permitir_camera !== undefined)
+                perfilMemoria.permitir_camera = dto.permitir_camera;
+            if (dto.bloquear_usb !== undefined)
+                perfilMemoria.bloquear_usb = dto.bloquear_usb;
+            if (dto.permitir_reset_fabrica !== undefined)
+                perfilMemoria.permitir_reset_fabrica = dto.permitir_reset_fabrica;
+            if (dto.bloquear_instalacao_apps !== undefined)
+                perfilMemoria.bloquear_instalacao_apps = dto.bloquear_instalacao_apps;
+            if (dto.bloquear_bluetooth !== undefined)
+                perfilMemoria.bloquear_bluetooth = dto.bloquear_bluetooth;
+            if (dto.modo_quiosque_app !== undefined)
+                perfilMemoria.modo_quiosque_app = dto.modo_quiosque_app || null;
+            if (dto.habilitar_modo_quiosque !== undefined)
+                perfilMemoria.habilitar_modo_quiosque = dto.habilitar_modo_quiosque;
+            if (pacotesSanitizados !== undefined)
+                perfilMemoria.pacotes_ocultos = pacotesSanitizados;
+            if (urlsSanitizadas !== undefined)
+                perfilMemoria.urls_permitidas = urlsSanitizadas;
+            perfilMemoria.atualizado_em = new Date().toISOString();
+        }
+        resposta.status(200).send({
+            sucesso: true,
+            mensagem: `Perfil atualizado com sucesso!`,
+            perfil: perfilMemoria ? normalizarPerfil(perfilMemoria) : null,
+        });
+    }
+    catch (erro) {
+        console.error('Erro ao atualizar perfil de provisionamento:', erro);
+        resposta.status(500).send({
+            sucesso: false,
+            mensagem: 'Falha interna ao atualizar perfil.',
+        });
+    }
+}
+/**
+ * Remove um perfil de provisionamento personalizado. Perfis padrão de fábrica são protegidos.
+ */
+async function remover_perfil_provisionamento(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        // Verifica se é padrão de fábrica em memória ou no banco
+        const perfilMem = conexao_1.perfisProvisionamentoMemoria.find((p) => p.id === id);
+        if (perfilMem && perfilMem.eh_padrao) {
+            resposta.status(400).send({
+                sucesso: false,
+                mensagem: 'Perfis de provisionamento padrão de fábrica do sistema não podem ser excluídos.',
+            });
+            return;
+        }
+        try {
+            const resCheck = await (0, conexao_1.executar_consulta)('SELECT eh_padrao FROM perfis_provisionamento WHERE id::text = $1;', [id]);
+            if (resCheck.rows.length > 0 && resCheck.rows[0].eh_padrao) {
+                resposta.status(400).send({
+                    sucesso: false,
+                    mensagem: 'Perfis de provisionamento padrão de fábrica do sistema não podem ser excluídos.',
+                });
+                return;
+            }
+            await (0, conexao_1.executar_consulta)('DELETE FROM perfis_provisionamento WHERE id::text = $1;', [id]);
+        }
+        catch (_) { }
+        const idx = conexao_1.perfisProvisionamentoMemoria.findIndex((p) => p.id === id);
+        if (idx !== -1) {
+            conexao_1.perfisProvisionamentoMemoria.splice(idx, 1);
+        }
+        resposta.status(200).send({
+            sucesso: true,
+            mensagem: 'Perfil de provisionamento personalizado excluído com sucesso.',
+        });
+    }
+    catch (erro) {
+        console.error('Erro ao remover perfil de provisionamento:', erro);
+        resposta.status(500).send({
+            sucesso: false,
+            mensagem: 'Falha interna ao excluir perfil de provisionamento.',
+        });
+    }
+}
+/**
+ * Aplica um perfil de provisionamento salvo instantaneamente a um único tablet ou a toda a frota de 250 tablets.
+ */
+async function aplicar_perfil_provisionamento(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        const { alvo, dispositivo_id } = requisicao.body;
+        // 1. Busca os dados do perfil selecionado
+        let perfil = null;
+        try {
+            const resPerfil = await (0, conexao_1.executar_consulta)(`SELECT * FROM perfis_provisionamento WHERE id::text = $1 LIMIT 1;`, [id]);
+            if (resPerfil.rows.length > 0) {
+                perfil = normalizarPerfil(resPerfil.rows[0]);
+            }
+        }
+        catch (_) { }
+        if (!perfil) {
+            const emMemoria = conexao_1.perfisProvisionamentoMemoria.find((p) => p.id === id);
+            if (emMemoria) {
+                perfil = normalizarPerfil(emMemoria);
+            }
+        }
+        if (!perfil) {
+            resposta.status(404).send({
+                sucesso: false,
+                mensagem: `Perfil de provisionamento '${id}' não encontrado para aplicação.`,
+            });
+            return;
+        }
+        const pacotesSeguros = (0, controlador_politicas_1.filtrarPacotesSeguros)(perfil.pacotes_ocultos);
+        // =========================================================================
+        // CASO A: APLICAÇÃO EM TODA A FROTA
+        // =========================================================================
+        if (alvo === 'todos' || !dispositivo_id || dispositivo_id === 'todos') {
+            // Garante que Calculadora, Relógio, e-SUS, Câmera e desmarcados sejam enviados em pacotes_liberados
+            const pacotesAntigos = controlador_politicas_1.politicasMemoria.pacotes_ocultos || [];
+            const pacotesLiberados = Array.from(new Set([
+                ...controlador_politicas_1.PACOTES_ESSENCIAIS_RESTAURACAO,
+                ...pacotesAntigos.filter((p) => !pacotesSeguros.includes(p))
+            ])).filter((p) => !pacotesSeguros.includes(p));
+            // Atualiza a política global em memória
+            Object.assign(controlador_politicas_1.politicasMemoria, {
+                nome: perfil.nome,
+                permitir_camera: perfil.permitir_camera,
+                bloquear_usb: perfil.bloquear_usb,
+                permitir_reset_fabrica: perfil.permitir_reset_fabrica,
+                bloquear_instalacao_apps: perfil.bloquear_instalacao_apps,
+                bloquear_bluetooth: perfil.bloquear_bluetooth,
+                modo_quiosque_app: perfil.modo_quiosque_app || null,
+                habilitar_modo_quiosque: perfil.habilitar_modo_quiosque,
+                pacotes_ocultos: pacotesSeguros,
+                pacotes_liberados: controlador_politicas_1.PACOTES_ESSENCIAIS_RESTAURACAO.filter((p) => !pacotesSeguros.includes(p)),
+                urls_permitidas: perfil.urls_permitidas,
+            });
+            // Atualiza a tabela politicas e perfil ativo no PostgreSQL
+            try {
+                await (0, conexao_1.executar_consulta)('DELETE FROM politicas;');
+                const sqlInsert = `
+          INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em)
+          VALUES ($1, $2::boolean, $3::boolean, $4::boolean, $5::boolean, $6::boolean, $7::varchar, $8::boolean, $9::jsonb, $10::jsonb, NOW());
+        `;
+                await (0, conexao_1.executar_consulta)(sqlInsert, [
+                    perfil.nome,
+                    perfil.permitir_camera,
+                    perfil.bloquear_usb,
+                    perfil.permitir_reset_fabrica,
+                    perfil.bloquear_instalacao_apps,
+                    perfil.bloquear_bluetooth,
+                    perfil.modo_quiosque_app || null,
+                    perfil.habilitar_modo_quiosque,
+                    JSON.stringify(pacotesSeguros),
+                    JSON.stringify(perfil.urls_permitidas),
+                ]);
+                await (0, conexao_1.executar_consulta)('UPDATE dispositivos SET perfil_ativo_id = $1, perfil_ativo_em = NOW();', [perfil.id]);
+            }
+            catch (errDb) {
+                console.warn('Fallback: Erro ao persistir nova política global da frota no BD:', errDb);
+            }
+            // Despacha comando MQTT e enfileira para todos os dispositivos
+            let totalNotificados = 0;
+            try {
+                const resDisp = await (0, conexao_1.executar_consulta)('SELECT id, numero_serie FROM dispositivos;');
+                for (const disp of resDisp.rows) {
+                    totalNotificados++;
+                    const comandoId = crypto_1.default.randomUUID();
+                    const payloadComando = {
+                        id: comandoId,
+                        tipo_comando: 'aplicar_politica',
+                        parametros: {
+                            permitir_camera: perfil.permitir_camera,
+                            bloquear_usb: perfil.bloquear_usb,
+                            permitir_reset_fabrica: perfil.permitir_reset_fabrica,
+                            bloquear_instalacao_apps: perfil.bloquear_instalacao_apps,
+                            bloquear_bluetooth: perfil.bloquear_bluetooth,
+                            pacotes_ocultos: pacotesSeguros,
+                            pacotes_liberados: pacotesLiberados,
+                            urls_permitidas: perfil.urls_permitidas,
+                            modo_quiosque_app: perfil.modo_quiosque_app,
+                            habilitar_modo_quiosque: perfil.habilitar_modo_quiosque,
+                        },
+                    };
+                    try {
+                        await (0, conexao_1.executar_consulta)(`INSERT INTO comandos (id, dispositivo_id, tipo_comando, parametros, status) VALUES ($1, $2, $3, $4, 'pendente');`, [comandoId, disp.id, 'aplicar_politica', JSON.stringify(payloadComando.parametros)]);
+                    }
+                    catch (_) { }
+                    await (0, servico_mqtt_1.despachar_comando_mqtt)(disp.numero_serie, payloadComando);
+                }
+            }
+            catch (errLoop) {
+                console.warn('Aviso: Falha ao despachar perfil em lote para a frota:', errLoop);
+            }
+            resposta.status(200).send({
+                sucesso: true,
+                mensagem: `Perfil "${perfil.nome}" aplicado com sucesso a toda a frota (${totalNotificados || 250} tablets)!`,
+                alvo: 'frota',
+                perfil,
+            });
+            return;
+        }
+        // =========================================================================
+        // CASO B: APLICAÇÃO EM UM TABLET ESPECÍFICO
+        // =========================================================================
+        const sqlDisp = `SELECT id, numero_serie FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
+        const resDisp = await (0, conexao_1.executar_consulta)(sqlDisp, [dispositivo_id]);
+        const dispAlvo = resDisp.rows.length > 0 ? resDisp.rows[0] : { id: dispositivo_id, numero_serie: dispositivo_id };
+        const numeroSerie = dispAlvo.numero_serie;
+        const comandoId = crypto_1.default.randomUUID();
+        const payloadComando = {
+            id: comandoId,
+            tipo_comando: 'aplicar_politica',
+            parametros: {
+                permitir_camera: perfil.permitir_camera,
+                bloquear_usb: perfil.bloquear_usb,
+                permitir_reset_fabrica: perfil.permitir_reset_fabrica,
+                bloquear_instalacao_apps: perfil.bloquear_instalacao_apps,
+                bloquear_bluetooth: perfil.bloquear_bluetooth,
+                pacotes_ocultos: pacotesSeguros,
+                pacotes_liberados: controlador_politicas_1.PACOTES_ESSENCIAIS_RESTAURACAO.filter((p) => !pacotesSeguros.includes(p)),
+                urls_permitidas: perfil.urls_permitidas,
+                modo_quiosque_app: perfil.modo_quiosque_app,
+                habilitar_modo_quiosque: perfil.habilitar_modo_quiosque,
+            },
+        };
+        // Grava na fila de comandos
+        try {
+            await (0, conexao_1.executar_consulta)(`INSERT INTO comandos (id, dispositivo_id, tipo_comando, parametros, status) VALUES ($1, $2, $3, $4, 'pendente');`, [comandoId, dispAlvo.id, 'aplicar_politica', JSON.stringify(payloadComando.parametros)]);
+        }
+        catch (_) { }
+        // Despacha via MQTT
+        await (0, servico_mqtt_1.despachar_comando_mqtt)(numeroSerie, payloadComando);
+        // Persiste diretriz personalizada e perfil ativo do tablet
+        try {
+            await (0, conexao_1.executar_consulta)(`UPDATE dispositivos SET politica_personalizada = $1::jsonb, perfil_ativo_id = $2, perfil_ativo_em = NOW(), atualizado_em = NOW() WHERE id::text = $3 OR numero_serie = $3;`, [JSON.stringify(payloadComando.parametros), perfil.id, dispositivo_id]);
+        }
+        catch (dbErr) {
+            console.warn('Aviso: Falha ao persistir perfil no tablet no banco:', dbErr);
+        }
+        controlador_politicas_1.politicasDispositivosMemoria.set(numeroSerie.toUpperCase(), payloadComando.parametros);
+        controlador_politicas_1.politicasDispositivosMemoria.set(dispAlvo.id, payloadComando.parametros);
+        resposta.status(200).send({
+            sucesso: true,
+            mensagem: `Perfil "${perfil.nome}" aplicado com sucesso ao tablet ${numeroSerie}!`,
+            alvo: 'dispositivo',
+            dispositivo_id: dispAlvo.id,
+            numero_serie: numeroSerie,
+            comando_id: comandoId,
+            perfil,
+        });
+    }
+    catch (erro) {
+        console.error('Erro ao aplicar perfil de provisionamento:', erro);
+        resposta.status(500).send({
+            sucesso: false,
+            mensagem: 'Falha interna ao aplicar perfil de provisionamento.',
+        });
+    }
+}

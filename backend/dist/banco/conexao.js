@@ -1,0 +1,1262 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.perfisProvisionamentoMemoria = exports.usuariosTabletsMemoria = void 0;
+exports.cadastrar_novo_dispositivo_memoria = cadastrar_novo_dispositivo_memoria;
+exports.inicializar_pool_conexoes = inicializar_pool_conexoes;
+exports.executar_migracoes_banco = executar_migracoes_banco;
+exports.executar_consulta = executar_consulta;
+exports.obter_cliente_transacao = obter_cliente_transacao;
+exports.encerrar_pool_conexoes = encerrar_pool_conexoes;
+const pg_1 = require("pg");
+const dotenv_1 = __importDefault(require("dotenv"));
+const crypto_1 = __importDefault(require("crypto"));
+dotenv_1.default.config();
+let pool = null;
+let bancoPostgresOfflineAvisado = false;
+let politicaSimuladaMemoria = {
+    nome: 'Política Padrão Frota',
+    permitir_camera: true,
+    bloquear_usb: false,
+    permitir_reset_fabrica: true,
+    bloquear_instalacao_apps: true,
+    bloquear_bluetooth: false,
+    modo_quiosque_app: null,
+    habilitar_modo_quiosque: false,
+    pacotes_ocultos: [
+        'com.google.android.youtube',
+        'com.android.vending',
+        'com.google.android.apps.photos',
+        'com.google.android.gm',
+        'com.google.android.apps.tachyon',
+        'com.google.android.videos',
+        'com.google.android.apps.docs',
+        'com.google.android.apps.youtube.music',
+        'com.google.android.googlequicksearchbox',
+        'com.google.android.apps.magazines',
+        'com.google.android.play.games',
+        'com.google.android.apps.podcasts',
+        'com.google.android.feedback',
+        'com.tcl.live',
+        'com.tcl.community',
+        'com.tcl.appstore',
+        'com.tcl.usercenter',
+        'com.tcl.browser',
+        'com.tcl.smartswitch',
+        'com.tcl.gamecenter',
+        'com.netflix.mediaclient',
+        'com.facebook.katana',
+        'com.facebook.services',
+        'com.facebook.system',
+        'com.instagram.android',
+        'com.zhiliaoapp.musically',
+    ],
+    urls_permitidas: [
+        'portal.empresa.com.br',
+        '*.empresa.com.br',
+        'sistema.empresa.com.br',
+    ],
+    atualizado_em: new Date().toISOString(),
+};
+// Hash padrão seguro para a senha Admin@Mdm2026! (scrypt salt 'a1b2c3d4e5f60718')
+const saltAdminPadrao = 'a1b2c3d4e5f60718';
+const hashAdminPadrao = crypto_1.default.scryptSync('Admin@Mdm2026!', saltAdminPadrao, 64).toString('hex');
+let usuariosMemoria = [
+    {
+        id: 'user-sys-admin-01',
+        nome: 'Administrador Geral',
+        email: 'admin@mdm.corporativo',
+        senha_hash: `${saltAdminPadrao}:${hashAdminPadrao}`,
+        perfil: 'adm',
+        ativo: true,
+        ultimo_login: null,
+        criado_em: new Date().toISOString(),
+    },
+    {
+        id: 'user-sys-superv-01',
+        nome: 'Supervisor Operacional',
+        email: 'supervisor@mdm.corporativo',
+        senha_hash: `${saltAdminPadrao}:${hashAdminPadrao}`,
+        perfil: 'supervisor',
+        ativo: true,
+        ultimo_login: null,
+        criado_em: new Date().toISOString(),
+    },
+];
+let dispositivosMemoria = gerar_dados_simulados_frota();
+let comandosMemoria = [];
+exports.usuariosTabletsMemoria = [
+    {
+        id: 'user-tab-001',
+        nome_completo: 'Maria Aparecida da Silva',
+        matricula: '12684',
+        unidade_basica: 'USF 01 Central',
+        cpf: '102.345.678-90',
+        email: 'maria.aparecida@saude.gov.br',
+        telefone: '(81) 98765-4321',
+        dispositivo_id: dispositivosMemoria[0]?.id || null,
+        criado_em: new Date(Date.now() - 86400000 * 5).toISOString(),
+        atualizado_em: new Date(Date.now() - 86400000 * 5).toISOString(),
+    },
+    {
+        id: 'user-tab-002',
+        nome_completo: 'Carlos Eduardo Santos',
+        matricula: '12685',
+        unidade_basica: 'USF 01 Centro',
+        cpf: '213.456.789-01',
+        email: 'carlos.santos@saude.gov.br',
+        telefone: '(81) 97123-4567',
+        dispositivo_id: dispositivosMemoria[1]?.id || null,
+        criado_em: new Date(Date.now() - 86400000 * 4).toISOString(),
+        atualizado_em: new Date(Date.now() - 86400000 * 4).toISOString(),
+    },
+    {
+        id: 'user-tab-003',
+        nome_completo: 'Mariana Ferreira Lima',
+        matricula: '12686',
+        unidade_basica: 'USF 03 Porto',
+        cpf: '324.567.890-12',
+        email: 'mariana.lima@saude.gov.br',
+        telefone: '(81) 99876-5432',
+        dispositivo_id: dispositivosMemoria[2]?.id || null,
+        criado_em: new Date(Date.now() - 86400000 * 3).toISOString(),
+        atualizado_em: new Date(Date.now() - 86400000 * 3).toISOString(),
+    },
+    {
+        id: 'user-tab-004',
+        nome_completo: 'Roberto Almeida Costa',
+        unidade_basica: 'USF 04 Nossa Senhora do Ó',
+        cpf: '435.678.901-23',
+        email: 'roberto.costa@saude.gov.br',
+        telefone: '(81) 96543-2109',
+        dispositivo_id: dispositivosMemoria[3]?.id || null,
+        criado_em: new Date(Date.now() - 86400000 * 2).toISOString(),
+        atualizado_em: new Date(Date.now() - 86400000 * 2).toISOString(),
+    },
+];
+exports.perfisProvisionamentoMemoria = [
+    {
+        id: 'perfil-estrito-acs',
+        nome: 'Perfil Estrito ACS (Padrão de Campo)',
+        descricao: 'Diretrizes oficiais de campo para os tablets dos ACS (APK v1.2.9 Build 12): 28 apps recreativos e bloatware ocultos, restauração de fábrica de hardware permitida, conexão USB/ADB ativa para manutenção, instalação de APKs externos bloqueada e apps essenciais de trabalho (Câmera, Files, Calculadora, Gravador, Relógio e e-SUS) 100% protegidos.',
+        eh_padrao: true,
+        permitir_camera: true,
+        bloquear_usb: false,
+        permitir_reset_fabrica: true,
+        bloquear_instalacao_apps: true,
+        bloquear_bluetooth: true,
+        modo_quiosque_app: null,
+        habilitar_modo_quiosque: false,
+        pacotes_ocultos: [
+            'com.google.android.youtube',
+            'com.google.android.apps.youtube.kids',
+            'com.android.vending',
+            'com.google.android.apps.photos',
+            'com.google.android.gm',
+            'com.google.android.apps.tachyon',
+            'com.google.android.videos',
+            'com.google.android.apps.docs',
+            'com.google.android.apps.books',
+            'com.google.android.apps.kids.home',
+            'com.google.android.apps.googleassistant',
+            'com.google.android.apps.youtube.music',
+            'com.google.android.googlequicksearchbox',
+            'com.google.android.apps.magazines',
+            'com.google.android.play.games',
+            'com.google.android.apps.podcasts',
+            'com.google.android.feedback',
+            'com.google.android.contacts',
+            'com.google.android.apps.messaging',
+            'com.google.android.apps.maps',
+            'com.google.android.keep',
+            'com.google.android.apps.adm',
+            'com.google.android.calendar',
+            'com.qidian.Int.reader',
+            'com.tcl.usercare',
+            'com.tcl.live',
+            'com.tcl.community',
+            'com.tcl.appstore',
+            'com.tcl.usercenter',
+            'com.tcl.browser',
+            'com.tcl.smartswitch',
+            'com.tcl.gamecenter',
+            'com.netflix.mediaclient',
+            'com.facebook.katana',
+            'com.facebook.services',
+            'com.facebook.system',
+            'com.instagram.android',
+            'com.zhiliaoapp.musically',
+            'com.android.fmradio',
+            'com.tcl.fmradio',
+        ],
+        urls_permitidas: ['portal.empresa.com.br', '*.empresa.com.br', 'sistema.empresa.com.br'],
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+    },
+    {
+        id: 'perfil-treinamento-capacitacao',
+        nome: 'Perfil Treinamento e Capacitação',
+        descricao: 'Permite YouTube e Google Docs para visualização de vídeos tutoriais e manuais técnicos de saúde, mantendo jogos e redes sociais bloqueados.',
+        eh_padrao: true,
+        permitir_camera: true,
+        bloquear_usb: false,
+        permitir_reset_fabrica: true,
+        bloquear_instalacao_apps: true,
+        bloquear_bluetooth: false,
+        modo_quiosque_app: null,
+        habilitar_modo_quiosque: false,
+        pacotes_ocultos: [
+            'com.android.vending',
+            'com.google.android.apps.photos',
+            'com.google.android.gm',
+            'com.google.android.apps.tachyon',
+            'com.google.android.videos',
+            'com.google.android.apps.youtube.music',
+            'com.google.android.googlequicksearchbox',
+            'com.google.android.apps.magazines',
+            'com.google.android.play.games',
+            'com.google.android.apps.podcasts',
+            'com.tcl.live',
+            'com.tcl.community',
+            'com.tcl.appstore',
+            'com.tcl.usercenter',
+            'com.tcl.browser',
+            'com.tcl.smartswitch',
+            'com.tcl.gamecenter',
+            'com.netflix.mediaclient',
+            'com.facebook.katana',
+            'com.facebook.services',
+            'com.facebook.system',
+            'com.instagram.android',
+            'com.zhiliaoapp.musically',
+            'com.android.fmradio',
+            'com.tcl.fmradio',
+        ],
+        urls_permitidas: ['portal.empresa.com.br', '*.empresa.com.br', 'sistema.empresa.com.br', '*.youtube.com', '*.google.com'],
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+    },
+    {
+        id: 'perfil-suporte-manutencao',
+        nome: 'Perfil Manutenção e Suporte TI',
+        descricao: 'Perfil para bancada de TI: portas USB liberadas para comandos ADB, Bluetooth ativo, sem bloqueio de apps e com permissão para testes e diagnósticos.',
+        eh_padrao: true,
+        permitir_camera: true,
+        bloquear_usb: false,
+        permitir_reset_fabrica: true,
+        bloquear_instalacao_apps: false,
+        bloquear_bluetooth: false,
+        modo_quiosque_app: null,
+        habilitar_modo_quiosque: false,
+        pacotes_ocultos: [],
+        urls_permitidas: ['*'],
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+    },
+    {
+        id: 'perfil-quiosque-esus',
+        nome: 'Perfil Modo Quiosque ACS (Foco Total)',
+        descricao: 'Fixa o tablet estritamente no aplicativo de visitas ACS (e-SUS Território), impedindo saída para o Launcher ou acesso a outros menus.',
+        eh_padrao: true,
+        permitir_camera: true,
+        bloquear_usb: false,
+        permitir_reset_fabrica: true,
+        bloquear_instalacao_apps: true,
+        bloquear_bluetooth: true,
+        modo_quiosque_app: 'br.gov.saude.esus.territorio',
+        habilitar_modo_quiosque: true,
+        pacotes_ocultos: [
+            'com.google.android.youtube',
+            'com.google.android.apps.youtube.kids',
+            'com.android.vending',
+            'com.google.android.apps.photos',
+            'com.google.android.gm',
+            'com.google.android.apps.tachyon',
+            'com.google.android.videos',
+            'com.google.android.apps.docs',
+            'com.google.android.apps.books',
+            'com.google.android.apps.kids.home',
+            'com.google.android.apps.googleassistant',
+            'com.google.android.apps.youtube.music',
+            'com.google.android.googlequicksearchbox',
+            'com.google.android.apps.magazines',
+            'com.google.android.play.games',
+            'com.google.android.apps.podcasts',
+            'com.google.android.feedback',
+            'com.google.android.contacts',
+            'com.google.android.apps.messaging',
+            'com.google.android.apps.maps',
+            'com.google.android.keep',
+            'com.google.android.apps.adm',
+            'com.google.android.calendar',
+            'com.qidian.Int.reader',
+            'com.tcl.usercare',
+            'com.tcl.live',
+            'com.tcl.community',
+            'com.tcl.appstore',
+            'com.tcl.usercenter',
+            'com.tcl.browser',
+            'com.tcl.smartswitch',
+            'com.tcl.gamecenter',
+            'com.netflix.mediaclient',
+            'com.facebook.katana',
+            'com.facebook.services',
+            'com.facebook.system',
+            'com.instagram.android',
+            'com.zhiliaoapp.musically',
+            'com.android.fmradio',
+            'com.tcl.fmradio',
+        ],
+        urls_permitidas: ['portal.empresa.com.br', '*.empresa.com.br', 'sistema.empresa.com.br'],
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+    },
+];
+/**
+ * Gera dados simulados realistas para exibição imediata da frota de 250 tablets.
+ */
+function gerar_dados_simulados_frota() {
+    const modelos = [
+        'Samsung Galaxy Tab A9+ (SM-X210)',
+        'Lenovo Tab M10 Plus Gen 3',
+        'Samsung Galaxy Tab Active4 Pro',
+        'Lenovo Tab K10 Enterprise',
+        'Samsung Galaxy Tab S6 Lite',
+    ];
+    const apps = [
+        'com.empresa.operacao.pdv',
+        'com.empresa.coletor.estoque',
+        'com.google.android.apps.docs',
+        'com.mdm.corporativo',
+        'Sistema / Área de Trabalho',
+    ];
+    const lista = [];
+    for (let i = 1; i <= 25; i++) {
+        const padId = String(i).padStart(3, '0');
+        const isOnline = i <= 22; // 22 conectados, 3 desconectados
+        const bateria = i === 4 || i === 9 ? 12 : Math.floor(Math.random() * 60) + 38;
+        const rssi = i === 7 ? -82 : -(Math.floor(Math.random() * 30) + 45);
+        lista.push({
+            id: crypto_1.default.randomUUID(),
+            numero_serie: `TB-2026-${padId}`,
+            modelo: modelos[i % modelos.length],
+            versao_so: i % 2 === 0 ? 'Android 14 (API 34)' : 'Android 13 (API 33)',
+            status_conexao: isOnline ? 'conectado' : 'desconectado',
+            bateria,
+            esta_carregando: bateria < 20 || i % 5 === 0,
+            sinal_wifi_rssi: rssi,
+            ssid_wifi: i % 3 === 0 ? 'Corporativo-Galpao-01' : 'Corporativo-Matriz-5G',
+            app_foco: apps[i % apps.length],
+            tempo_ocioso_minutos: Math.floor(Math.random() * 120),
+            memoria_ram_livre_mb: Math.floor(Math.random() * 1500) + 1200,
+            armazenamento_livre_mb: Math.floor(Math.random() * 25000) + 15000,
+            ultimo_contato: new Date(Date.now() - (isOnline ? Math.floor(Math.random() * 15000) : 3600000)).toISOString(),
+            aplicativos_instalados: [
+                {
+                    pacote: 'com.empresa.operacao.pdv',
+                    nome: 'PDV ACS Mobile',
+                    versao_nome: i % 4 === 0 ? '2.3.0' : '2.4.0',
+                    versao_codigo: i % 4 === 0 ? 230 : 240,
+                },
+                {
+                    pacote: 'com.mdm.corporativo',
+                    nome: 'PlayService ACS DPC',
+                    versao_nome: '1.0.0',
+                    versao_codigo: 1,
+                },
+            ],
+        });
+    }
+    return lista;
+}
+/**
+ * Adiciona um novo dispositivo na lista em memória evitando números de série aleatórios ou duplicados.
+ */
+function cadastrar_novo_dispositivo_memoria(dados) {
+    const snLimpo = dados.numero_serie?.trim().toUpperCase() || 'TB-MANUAL-001';
+    // Verifica se o serial já existe na lista em memória para evitar registros duplicados
+    const existente = dispositivosMemoria.find((d) => d.numero_serie.toUpperCase() === snLimpo);
+    if (existente) {
+        Object.assign(existente, {
+            ...dados,
+            numero_serie: snLimpo,
+            ultimo_contato: new Date().toISOString(),
+        });
+        return existente;
+    }
+    const novo = {
+        id: crypto_1.default.randomUUID(),
+        numero_serie: snLimpo,
+        modelo: dados.modelo || 'Samsung Galaxy Tab A9+',
+        versao_so: dados.versao_so || 'Android 14 (API 34)',
+        status_conexao: dados.status_conexao || 'conectado',
+        bateria: dados.bateria ?? 100,
+        esta_carregando: dados.esta_carregando ?? false,
+        sinal_wifi_rssi: dados.sinal_wifi_rssi ?? -50,
+        ssid_wifi: dados.ssid_wifi || 'Corporativo-WiFi',
+        app_foco: dados.app_foco || 'com.mdm.corporativo',
+        tempo_ocioso_minutos: dados.tempo_ocioso_minutos ?? 0,
+        memoria_ram_livre_mb: dados.memoria_ram_livre_mb ?? 2048,
+        armazenamento_livre_mb: dados.armazenamento_livre_mb ?? 32000,
+        ultimo_contato: new Date().toISOString(),
+    };
+    dispositivosMemoria.unshift(novo);
+    return novo;
+}
+/**
+ * Processador de fallback para consultas quando o PostgreSQL ainda não está ativo localmente.
+ */
+function processar_consulta_simulada_memoria(textoSql, parametros = []) {
+    const sqlLimpo = textoSql.trim().toUpperCase();
+    // 1. Resumo da Frota com Métricas Detalhadas de Ociosidade
+    if (sqlLimpo.includes('COUNT(*)::INT AS TOTAL_DISPOSITIVOS')) {
+        const agora = Date.now();
+        const conectados = dispositivosMemoria.filter((d) => d.status_conexao === 'conectado' && (agora - new Date(d.ultimo_contato).getTime()) <= 90000000).length;
+        const bateriaCritica = dispositivosMemoria.filter((d) => d.bateria <= 20).length;
+        const sinalFraco = dispositivosMemoria.filter((d) => d.sinal_wifi_rssi < -75).length;
+        const emUsoAtivo = dispositivosMemoria.filter((d) => {
+            const ms = agora - new Date(d.ultimo_contato).getTime();
+            return ms <= 90000000 && d.app_foco && !d.app_foco.includes('Repouso') && (d.tempo_ocioso_minutos || 0) < 5;
+        }).length;
+        const ociososModerados = dispositivosMemoria.filter((d) => {
+            const ociosoMin = d.tempo_ocioso_minutos || 0;
+            return ociosoMin >= 120 && ociosoMin < 1440;
+        }).length;
+        const ociososCriticos = dispositivosMemoria.filter((d) => {
+            const ms = agora - new Date(d.ultimo_contato).getTime();
+            return ms >= 86400000 || (d.tempo_ocioso_minutos || 0) >= 1440;
+        }).length;
+        const somaOciosidade = dispositivosMemoria.reduce((acc, curr) => acc + (curr.tempo_ocioso_minutos || 0), 0);
+        const mediaOciosidade = dispositivosMemoria.length > 0 ? Math.round(somaOciosidade / dispositivosMemoria.length) : 0;
+        const row = {
+            total_dispositivos: 250,
+            conectados: conectados * 10, // Projeta escala dos 250 tablets
+            desconectados: 250 - conectados * 10,
+            bateria_critica: bateriaCritica * 3,
+            sinal_wifi_fraco: sinalFraco * 2,
+            em_uso_ativo: emUsoAtivo * 10 || 185,
+            ociosos_moderados: ociososModerados * 5 || 28,
+            ociosos_criticos: ociososCriticos * 3 || 6,
+            tempo_ocioso_medio_minutos: mediaOciosidade || 45,
+        };
+        return {
+            rows: [row],
+            command: 'SELECT',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 2. Verificação estrita de duplicidade de serial único
+    if (sqlLimpo.includes('FROM DISPOSITIVOS WHERE') && (sqlLimpo.includes('NUMERO_SERIE') || sqlLimpo.includes('UPPER(TRIM(NUMERO_SERIE))'))) {
+        const snParam = (parametros[0] || '').toString().trim().toUpperCase();
+        const encontrado = dispositivosMemoria.find((d) => d.numero_serie.toUpperCase() === snParam);
+        if (encontrado) {
+            return {
+                rows: [{ id: encontrado.id, numero_serie: encontrado.numero_serie }],
+                command: 'SELECT',
+                rowCount: 1,
+                oid: 0,
+                fields: [],
+            };
+        }
+        return {
+            rows: [],
+            command: 'SELECT',
+            rowCount: 0,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 3. Inserção de Novo Tablet com Prevenção de Duplicidade (INSERT INTO dispositivos)
+    if (sqlLimpo.startsWith('INSERT INTO DISPOSITIVOS')) {
+        const snParam = (parametros[0] || '').toString().trim().toUpperCase();
+        const modeloParam = parametros[1] || 'Samsung Galaxy Tab A9+';
+        const versaoParam = parametros[2] || 'Android 14 (API 34)';
+        const bateriaParam = parametros[3] ?? 100;
+        const rssiParam = parametros[5] ?? -50;
+        const ssidParam = parametros[6] || 'Corporativo-WiFi';
+        const appParam = parametros[7] || 'com.mdm.corporativo';
+        const disp = cadastrar_novo_dispositivo_memoria({
+            numero_serie: snParam,
+            modelo: modeloParam,
+            versao_so: versaoParam,
+            bateria: bateriaParam,
+            sinal_wifi_rssi: rssiParam,
+            ssid_wifi: ssidParam,
+            app_foco: appParam,
+        });
+        return {
+            rows: [disp],
+            command: 'INSERT',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 4. Listagem de Dispositivos (com filtros de ociosidade)
+    if (sqlLimpo.startsWith('SELECT') && sqlLimpo.includes('FROM DISPOSITIVOS')) {
+        const agora = Date.now();
+        let filtrados = dispositivosMemoria.map((d) => {
+            const msSemContato = agora - new Date(d.ultimo_contato).getTime();
+            const isOnline = msSemContato <= 180000;
+            const minsSemContato = Math.max(0, Math.floor(msSemContato / 60000));
+            return {
+                ...d,
+                status_conexao: isOnline ? 'conectado' : 'desconectado',
+                tempo_ocioso_minutos: isOnline ? (d.tempo_ocioso_minutos || 0) : (d.tempo_ocioso_minutos || 0) + minsSemContato,
+            };
+        });
+        if (parametros.length > 0) {
+            const statusParam = parametros.find((p) => typeof p === 'string' && (p === 'conectado' || p === 'desconectado'));
+            if (statusParam) {
+                filtrados = filtrados.filter((d) => d.status_conexao === statusParam);
+            }
+        }
+        return {
+            rows: filtrados,
+            command: 'SELECT',
+            rowCount: filtrados.length,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 4.1 Consulta de Políticas da Frota
+    if (sqlLimpo.includes('FROM POLITICAS')) {
+        return {
+            rows: [politicaSimuladaMemoria],
+            command: 'SELECT',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 4.2 Inserção / Atualização de Políticas Globais
+    if (sqlLimpo.startsWith('INSERT INTO POLITICAS')) {
+        if (parametros.length >= 8) {
+            politicaSimuladaMemoria = {
+                ...politicaSimuladaMemoria,
+                permitir_camera: parametros[0],
+                bloquear_usb: parametros[1],
+                permitir_reset_fabrica: parametros[2],
+                bloquear_instalacao_apps: parametros[3],
+                bloquear_bluetooth: parametros[4],
+                modo_quiosque_app: parametros[5],
+                habilitar_modo_quiosque: parametros[6],
+                pacotes_ocultos: typeof parametros[7] === 'string' ? JSON.parse(parametros[7]) : parametros[7],
+                urls_permitidas: typeof parametros[8] === 'string' ? JSON.parse(parametros[8]) : parametros[8],
+                atualizado_em: new Date().toISOString(),
+            };
+        }
+        return {
+            rows: [politicaSimuladaMemoria],
+            command: 'INSERT',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 4.3 Atualização de Política Personalizada de Tablet Específico
+    if (sqlLimpo.startsWith('UPDATE DISPOSITIVOS SET POLITICA_PERSONALIZADA')) {
+        const polData = typeof parametros[0] === 'string' ? JSON.parse(parametros[0]) : parametros[0];
+        const alvo = (parametros[1] || '').toString().trim().toUpperCase();
+        const disp = dispositivosMemoria.find((d) => d.id === alvo || d.numero_serie.toUpperCase() === alvo);
+        if (disp) {
+            disp.politica_personalizada = polData;
+        }
+        return {
+            rows: [],
+            command: 'UPDATE',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 5. Inserção de Comandos
+    if (sqlLimpo.startsWith('INSERT INTO COMANDOS')) {
+        const id = crypto_1.default.randomUUID();
+        comandosMemoria.push({
+            id,
+            dispositivo_id: parametros[0] || 'geral',
+            tipo_comando: parametros[1] || 'comando',
+            parametros: parametros[2] || {},
+            status: 'enviado',
+            criado_em: new Date().toISOString(),
+        });
+        return {
+            rows: [{ id }],
+            command: 'INSERT',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 6. Consultas e Operações em USUARIOS (Autenticação Segura)
+    if (sqlLimpo.includes('FROM USUARIOS') && !sqlLimpo.includes('USUARIOS_TABLETS')) {
+        if (sqlLimpo.includes('COUNT(*)')) {
+            return {
+                rows: [{ count: usuariosMemoria.length }],
+                command: 'SELECT',
+                rowCount: 1,
+                oid: 0,
+                fields: [],
+            };
+        }
+        if (sqlLimpo.includes('WHERE LOWER(EMAIL) = $1') || sqlLimpo.includes('WHERE EMAIL = $1')) {
+            const emailParam = (parametros[0] || '').toString().trim().toLowerCase();
+            const user = usuariosMemoria.find((u) => u.email.toLowerCase() === emailParam);
+            return {
+                rows: (user ? [user] : []),
+                command: 'SELECT',
+                rowCount: user ? 1 : 0,
+                oid: 0,
+                fields: [],
+            };
+        }
+        if (sqlLimpo.includes('WHERE ID = $1')) {
+            const idParam = (parametros[0] || '').toString();
+            const user = usuariosMemoria.find((u) => u.id === idParam);
+            return {
+                rows: (user ? [user] : []),
+                command: 'SELECT',
+                rowCount: user ? 1 : 0,
+                oid: 0,
+                fields: [],
+            };
+        }
+        return {
+            rows: usuariosMemoria,
+            command: 'SELECT',
+            rowCount: usuariosMemoria.length,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('UPDATE USUARIOS') && !sqlLimpo.startsWith('UPDATE USUARIOS_TABLETS')) {
+        if (sqlLimpo.includes('ULTIMO_LOGIN')) {
+            const idParam = (parametros[0] || '').toString();
+            const user = usuariosMemoria.find((u) => u.id === idParam);
+            if (user)
+                user.ultimo_login = new Date().toISOString();
+        }
+        else if (sqlLimpo.includes('SENHA_HASH') && !sqlLimpo.includes('SET NOME =')) {
+            const novaSenhaHash = (parametros[0] || '').toString();
+            const idParam = (parametros[1] || '').toString();
+            const user = usuariosMemoria.find((u) => u.id === idParam);
+            if (user)
+                user.senha_hash = novaSenhaHash;
+        }
+        else {
+            const idParam = (parametros[parametros.length - 1] || '').toString();
+            const user = usuariosMemoria.find((u) => u.id === idParam);
+            if (user) {
+                if (parametros[0] !== undefined)
+                    user.nome = parametros[0];
+                if (parametros[1] !== undefined)
+                    user.email = (parametros[1] || '').toString().toLowerCase();
+                if (parametros[2] !== undefined)
+                    user.perfil = parametros[2];
+                if (parametros[3] !== undefined)
+                    user.ativo = Boolean(parametros[3]);
+                if (parametros.length >= 6 && parametros[4])
+                    user.senha_hash = parametros[4];
+            }
+        }
+        return {
+            rows: [],
+            command: 'UPDATE',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('DELETE FROM USUARIOS') && !sqlLimpo.startsWith('DELETE FROM USUARIOS_TABLETS')) {
+        const idParam = (parametros[0] || '').toString();
+        const idx = usuariosMemoria.findIndex((u) => u.id === idParam);
+        if (idx !== -1) {
+            usuariosMemoria.splice(idx, 1);
+        }
+        return {
+            rows: [],
+            command: 'DELETE',
+            rowCount: idx !== -1 ? 1 : 0,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('INSERT INTO USUARIOS') && !sqlLimpo.startsWith('INSERT INTO USUARIOS_TABLETS')) {
+        const nomeParam = parametros[0] || 'Usuário';
+        const emailParam = (parametros[1] || '').toString().toLowerCase();
+        const hashParam = parametros[2] || '';
+        const perfilParam = parametros[3] || 'adm';
+        const ativoParam = parametros[4] !== undefined ? Boolean(parametros[4]) : true;
+        const usuarioExistente = usuariosMemoria.find((u) => u.email.toLowerCase() === emailParam);
+        if (usuarioExistente) {
+            usuarioExistente.nome = nomeParam;
+            usuarioExistente.senha_hash = hashParam;
+            usuarioExistente.perfil = perfilParam;
+            usuarioExistente.ativo = ativoParam;
+            return {
+                rows: [usuarioExistente],
+                command: 'INSERT',
+                rowCount: 1,
+                oid: 0,
+                fields: [],
+            };
+        }
+        const userNovo = {
+            id: crypto_1.default.randomUUID(),
+            nome: nomeParam,
+            email: emailParam,
+            senha_hash: hashParam,
+            perfil: perfilParam,
+            ativo: ativoParam,
+            ultimo_login: null,
+            criado_em: new Date().toISOString(),
+        };
+        usuariosMemoria.push(userNovo);
+        return {
+            rows: [userNovo],
+            command: 'INSERT',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 7. Consultas e Operações em PERFIS_PROVISIONAMENTO
+    if (sqlLimpo.includes('FROM PERFIS_PROVISIONAMENTO')) {
+        if (sqlLimpo.includes('COUNT(*)')) {
+            return {
+                rows: [{ count: exports.perfisProvisionamentoMemoria.length }],
+                command: 'SELECT',
+                rowCount: 1,
+                oid: 0,
+                fields: [],
+            };
+        }
+        if (sqlLimpo.includes('WHERE ID = $1') || sqlLimpo.includes('WHERE ID::TEXT = $1')) {
+            const idParam = (parametros[0] || '').toString();
+            const perfil = exports.perfisProvisionamentoMemoria.find((p) => p.id === idParam);
+            return {
+                rows: (perfil ? [perfil] : []),
+                command: 'SELECT',
+                rowCount: perfil ? 1 : 0,
+                oid: 0,
+                fields: [],
+            };
+        }
+        // Retorna todos os perfis ordenando os padrões primeiro
+        const ordenados = [...exports.perfisProvisionamentoMemoria].sort((a, b) => {
+            if (a.eh_padrao && !b.eh_padrao)
+                return -1;
+            if (!a.eh_padrao && b.eh_padrao)
+                return 1;
+            return a.nome.localeCompare(b.nome);
+        });
+        return {
+            rows: ordenados,
+            command: 'SELECT',
+            rowCount: ordenados.length,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('INSERT INTO PERFIS_PROVISIONAMENTO')) {
+        const id = parametros[0] || crypto_1.default.randomUUID();
+        const nome = parametros[1] || 'Perfil Personalizado';
+        const descricao = parametros[2] || '';
+        const eh_padrao = Boolean(parametros[3] ?? false);
+        const permitir_camera = Boolean(parametros[4] ?? true);
+        const bloquear_usb = Boolean(parametros[5] ?? true);
+        const permitir_reset_fabrica = Boolean(parametros[6] ?? false);
+        const bloquear_instalacao_apps = Boolean(parametros[7] ?? true);
+        const bloquear_bluetooth = Boolean(parametros[8] ?? false);
+        const modo_quiosque_app = parametros[9] || null;
+        const habilitar_modo_quiosque = Boolean(parametros[10] ?? false);
+        const pacotes_ocultos = typeof parametros[11] === 'string' ? JSON.parse(parametros[11]) : (parametros[11] || []);
+        const urls_permitidas = typeof parametros[12] === 'string' ? JSON.parse(parametros[12]) : (parametros[12] || []);
+        const novoPerfil = {
+            id,
+            nome,
+            descricao,
+            eh_padrao,
+            permitir_camera,
+            bloquear_usb,
+            permitir_reset_fabrica,
+            bloquear_instalacao_apps,
+            bloquear_bluetooth,
+            modo_quiosque_app,
+            habilitar_modo_quiosque,
+            pacotes_ocultos,
+            urls_permitidas,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString(),
+        };
+        exports.perfisProvisionamentoMemoria.push(novoPerfil);
+        return {
+            rows: [novoPerfil],
+            command: 'INSERT',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('UPDATE PERFIS_PROVISIONAMENTO')) {
+        // Parâmetros: nome, descricao, permitir_camera, bloquear_usb, permitir_reset_fabrica, bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, id
+        const idParam = (parametros[parametros.length - 1] || '').toString();
+        const perfil = exports.perfisProvisionamentoMemoria.find((p) => p.id === idParam);
+        if (perfil) {
+            if (parametros[0] !== undefined)
+                perfil.nome = parametros[0];
+            if (parametros[1] !== undefined)
+                perfil.descricao = parametros[1];
+            if (parametros[2] !== undefined)
+                perfil.permitir_camera = Boolean(parametros[2]);
+            if (parametros[3] !== undefined)
+                perfil.bloquear_usb = Boolean(parametros[3]);
+            if (parametros[4] !== undefined)
+                perfil.permitir_reset_fabrica = Boolean(parametros[4]);
+            if (parametros[5] !== undefined)
+                perfil.bloquear_instalacao_apps = Boolean(parametros[5]);
+            if (parametros[6] !== undefined)
+                perfil.bloquear_bluetooth = Boolean(parametros[6]);
+            if (parametros[7] !== undefined)
+                perfil.modo_quiosque_app = parametros[7] || null;
+            if (parametros[8] !== undefined)
+                perfil.habilitar_modo_quiosque = Boolean(parametros[8]);
+            if (parametros[9] !== undefined) {
+                perfil.pacotes_ocultos = typeof parametros[9] === 'string' ? JSON.parse(parametros[9]) : parametros[9];
+            }
+            if (parametros[10] !== undefined) {
+                perfil.urls_permitidas = typeof parametros[10] === 'string' ? JSON.parse(parametros[10]) : parametros[10];
+            }
+            perfil.atualizado_em = new Date().toISOString();
+        }
+        return {
+            rows: (perfil ? [perfil] : []),
+            command: 'UPDATE',
+            rowCount: perfil ? 1 : 0,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('DELETE FROM PERFIS_PROVISIONAMENTO')) {
+        const idParam = (parametros[0] || '').toString();
+        const idx = exports.perfisProvisionamentoMemoria.findIndex((p) => p.id === idParam);
+        if (idx !== -1 && !exports.perfisProvisionamentoMemoria[idx].eh_padrao) {
+            exports.perfisProvisionamentoMemoria.splice(idx, 1);
+            return {
+                rows: [],
+                command: 'DELETE',
+                rowCount: 1,
+                oid: 0,
+                fields: [],
+            };
+        }
+        return {
+            rows: [],
+            command: 'DELETE',
+            rowCount: 0,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 8. Consultas e Operações em USUARIOS_TABLETS (Cadastro de Usuário / Agente por Tablet)
+    if (sqlLimpo.includes('FROM USUARIOS_TABLETS')) {
+        if (sqlLimpo.includes('COUNT(*)')) {
+            return {
+                rows: [{ count: exports.usuariosTabletsMemoria.length }],
+                command: 'SELECT',
+                rowCount: 1,
+                oid: 0,
+                fields: [],
+            };
+        }
+        if (sqlLimpo.includes('WHERE UT.ID = $1') ||
+            sqlLimpo.includes('WHERE ID = $1') ||
+            sqlLimpo.includes('WHERE UT.ID::TEXT = $1') ||
+            sqlLimpo.includes('WHERE ID::TEXT = $1')) {
+            const idParam = (parametros[0] || '').toString();
+            const u = exports.usuariosTabletsMemoria.find((user) => user.id === idParam);
+            if (u) {
+                const disp = u.dispositivo_id
+                    ? dispositivosMemoria.find((d) => d.id === u.dispositivo_id || d.numero_serie === u.dispositivo_id)
+                    : null;
+                const row = {
+                    ...u,
+                    dispositivo_numero_serie: disp ? disp.numero_serie : null,
+                    dispositivo_modelo: disp ? disp.modelo : null,
+                    dispositivo_status: disp ? disp.status_conexao : null,
+                    dispositivo_bateria: disp ? disp.bateria : null,
+                };
+                return {
+                    rows: [row],
+                    command: 'SELECT',
+                    rowCount: 1,
+                    oid: 0,
+                    fields: [],
+                };
+            }
+            return {
+                rows: [],
+                command: 'SELECT',
+                rowCount: 0,
+                oid: 0,
+                fields: [],
+            };
+        }
+        if (sqlLimpo.includes('WHERE UT.DISPOSITIVO_ID = $1') ||
+            sqlLimpo.includes('WHERE DISPOSITIVO_ID = $1') ||
+            sqlLimpo.includes('WHERE UT.DISPOSITIVO_ID::TEXT = $1') ||
+            sqlLimpo.includes('WHERE DISPOSITIVO_ID::TEXT = $1')) {
+            const dispIdParam = (parametros[0] || '').toString();
+            const u = exports.usuariosTabletsMemoria.find((user) => user.dispositivo_id === dispIdParam);
+            if (u) {
+                return {
+                    rows: [u],
+                    command: 'SELECT',
+                    rowCount: 1,
+                    oid: 0,
+                    fields: [],
+                };
+            }
+            return {
+                rows: [],
+                command: 'SELECT',
+                rowCount: 0,
+                oid: 0,
+                fields: [],
+            };
+        }
+        // Listagem geral enriquecida com dados do tablet vinculado
+        let listaEnriquecida = exports.usuariosTabletsMemoria.map((u) => {
+            const disp = u.dispositivo_id
+                ? dispositivosMemoria.find((d) => d.id === u.dispositivo_id || d.numero_serie === u.dispositivo_id)
+                : null;
+            return {
+                ...u,
+                dispositivo_numero_serie: disp ? disp.numero_serie : null,
+                dispositivo_modelo: disp ? disp.modelo : null,
+                dispositivo_status: disp ? disp.status_conexao : null,
+                dispositivo_bateria: disp ? disp.bateria : null,
+            };
+        });
+        return {
+            rows: listaEnriquecida,
+            command: 'SELECT',
+            rowCount: listaEnriquecida.length,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('INSERT INTO USUARIOS_TABLETS')) {
+        const id = parametros[0] || crypto_1.default.randomUUID();
+        const nome_completo = parametros[1] || '';
+        const unidade_basica = parametros[2] || 'USF 01 Centro';
+        const cpf = parametros[3] || '000.000.000-00';
+        const email = (parametros[4] || '').toLowerCase();
+        const telefone = parametros[5] || '';
+        const dispositivo_id = parametros[6] || null;
+        const novoUser = {
+            id,
+            nome_completo,
+            unidade_basica,
+            cpf,
+            email,
+            telefone,
+            dispositivo_id,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString(),
+        };
+        exports.usuariosTabletsMemoria.unshift(novoUser);
+        const disp = dispositivo_id
+            ? dispositivosMemoria.find((d) => d.id === dispositivo_id || d.numero_serie === dispositivo_id)
+            : null;
+        const row = {
+            ...novoUser,
+            dispositivo_numero_serie: disp ? disp.numero_serie : null,
+            dispositivo_modelo: disp ? disp.modelo : null,
+            dispositivo_status: disp ? disp.status_conexao : null,
+            dispositivo_bateria: disp ? disp.bateria : null,
+        };
+        return {
+            rows: [row],
+            command: 'INSERT',
+            rowCount: 1,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('UPDATE USUARIOS_TABLETS')) {
+        const idParam = (parametros[parametros.length - 1] || '').toString();
+        const u = exports.usuariosTabletsMemoria.find((user) => user.id === idParam);
+        if (u) {
+            if (parametros[0] !== undefined)
+                u.nome_completo = parametros[0];
+            if (parametros[1] !== undefined)
+                u.unidade_basica = parametros[1];
+            if (parametros[2] !== undefined)
+                u.cpf = parametros[2];
+            if (parametros[3] !== undefined)
+                u.email = (parametros[3] || '').toLowerCase();
+            if (parametros[4] !== undefined)
+                u.telefone = parametros[4];
+            if (parametros[5] !== undefined)
+                u.dispositivo_id = parametros[5] || null;
+            u.atualizado_em = new Date().toISOString();
+            const disp = u.dispositivo_id
+                ? dispositivosMemoria.find((d) => d.id === u.dispositivo_id || d.numero_serie === u.dispositivo_id)
+                : null;
+            const row = {
+                ...u,
+                dispositivo_numero_serie: disp ? disp.numero_serie : null,
+                dispositivo_modelo: disp ? disp.modelo : null,
+                dispositivo_status: disp ? disp.status_conexao : null,
+                dispositivo_bateria: disp ? disp.bateria : null,
+            };
+            return {
+                rows: [row],
+                command: 'UPDATE',
+                rowCount: 1,
+                oid: 0,
+                fields: [],
+            };
+        }
+        return {
+            rows: [],
+            command: 'UPDATE',
+            rowCount: 0,
+            oid: 0,
+            fields: [],
+        };
+    }
+    if (sqlLimpo.startsWith('DELETE FROM USUARIOS_TABLETS')) {
+        const idParam = (parametros[0] || '').toString();
+        const idx = exports.usuariosTabletsMemoria.findIndex((user) => user.id === idParam);
+        if (idx !== -1) {
+            exports.usuariosTabletsMemoria.splice(idx, 1);
+            return {
+                rows: [],
+                command: 'DELETE',
+                rowCount: 1,
+                oid: 0,
+                fields: [],
+            };
+        }
+        return {
+            rows: [],
+            command: 'DELETE',
+            rowCount: 0,
+            oid: 0,
+            fields: [],
+        };
+    }
+    // 9. Fallback padrão
+    return {
+        rows: [],
+        command: 'SELECT',
+        rowCount: 0,
+        oid: 0,
+        fields: [],
+    };
+}
+/**
+ * Inicializa o pool de conexões com o PostgreSQL com resiliência para a frota.
+ */
+function inicializar_pool_conexoes() {
+    if (!pool) {
+        pool = new pg_1.Pool({
+            host: process.env.PG_HOST || process.env.DB_HOST || 'localhost',
+            port: Number(process.env.PG_PORT || process.env.DB_PORT) || 5432,
+            user: process.env.PG_USER || process.env.DB_USER || 'postgres',
+            password: process.env.PG_PASSWORD || process.env.DB_PASSWORD || 'mdm_postgres_pass_2026',
+            database: process.env.PG_DATABASE || process.env.DB_DATABASE || 'mdm_corporativo',
+            max: 30,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 3000, // Timeout rápido para fallback suave em dev
+        });
+        pool.on('error', () => {
+            // Ignora para não poluir terminal caso não haja Postgres local
+        });
+    }
+    return pool;
+}
+/**
+ * Executa as migrações estruturais necessárias de forma síncrona e segura no PostgreSQL.
+ */
+async function executar_migracoes_banco() {
+    const poolInstancia = pool || inicializar_pool_conexoes();
+    try {
+        // 1. Extensões criptográficas e de UUID
+        try {
+            await poolInstancia.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
+            await poolInstancia.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+        }
+        catch (_) {
+            // Extensões podem requerer privilégios elevados ou já estarem instaladas
+        }
+        // 2. Colunas atualizadas da frota
+        await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS tempo_ocioso_minutos INT DEFAULT 0;`).catch(() => { });
+        await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS aplicativos_instalados JSONB DEFAULT '[]'::jsonb;`).catch(() => { });
+        await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS politica_personalizada JSONB DEFAULT NULL;`).catch(() => { });
+        await poolInstancia.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE;`).catch(() => { });
+        await poolInstancia.query(`ALTER TABLE politicas ADD COLUMN IF NOT EXISTS bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE;`).catch(() => { });
+        // 3. Tabela de usuários para autenticação segura
+        await poolInstancia.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        nome VARCHAR(100) NOT NULL,
+        email VARCHAR(150) UNIQUE NOT NULL,
+        senha_hash VARCHAR(255) NOT NULL,
+        perfil VARCHAR(30) NOT NULL DEFAULT 'admin',
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        ultimo_login TIMESTAMPTZ DEFAULT NULL,
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+        await poolInstancia.query(`CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);`).catch(() => { });
+        // 4. Tabela de perfis de provisionamento e configurações de restrições
+        await poolInstancia.query(`
+      CREATE TABLE IF NOT EXISTS perfis_provisionamento (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        nome VARCHAR(150) NOT NULL,
+        descricao TEXT,
+        eh_padrao BOOLEAN NOT NULL DEFAULT FALSE,
+        permitir_camera BOOLEAN NOT NULL DEFAULT TRUE,
+        bloquear_usb BOOLEAN NOT NULL DEFAULT FALSE,
+        permitir_reset_fabrica BOOLEAN NOT NULL DEFAULT TRUE,
+        bloquear_instalacao_apps BOOLEAN NOT NULL DEFAULT TRUE,
+        bloquear_bluetooth BOOLEAN NOT NULL DEFAULT FALSE,
+        modo_quiosque_app VARCHAR(255) DEFAULT NULL,
+        habilitar_modo_quiosque BOOLEAN NOT NULL DEFAULT FALSE,
+        pacotes_ocultos JSONB NOT NULL DEFAULT '[]'::jsonb,
+        urls_permitidas JSONB NOT NULL DEFAULT '[]'::jsonb,
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+        // Semeia os perfis padrão caso a tabela esteja vazia
+        try {
+            const contagemPerfis = await poolInstancia.query(`SELECT COUNT(*)::int as total FROM perfis_provisionamento;`);
+            if (contagemPerfis.rows[0]?.total === 0) {
+                for (const perfil of exports.perfisProvisionamentoMemoria) {
+                    await poolInstancia.query(`INSERT INTO perfis_provisionamento 
+             (id, nome, descricao, eh_padrao, permitir_camera, bloquear_usb, permitir_reset_fabrica, bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas)
+             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb);`, [
+                        perfil.nome,
+                        perfil.descricao,
+                        perfil.eh_padrao,
+                        perfil.permitir_camera,
+                        perfil.bloquear_usb,
+                        perfil.permitir_reset_fabrica,
+                        perfil.bloquear_instalacao_apps,
+                        perfil.bloquear_bluetooth,
+                        perfil.modo_quiosque_app || null,
+                        perfil.habilitar_modo_quiosque,
+                        JSON.stringify(perfil.pacotes_ocultos),
+                        JSON.stringify(perfil.urls_permitidas),
+                    ]);
+                }
+                console.log('[MDM Banco] Perfis de provisionamento padrão semeados com sucesso no PostgreSQL.');
+            }
+        }
+        catch (_) { }
+        // 5. Tabela de cadastro de usuários vinculados aos tablets da frota
+        await poolInstancia.query(`
+      CREATE TABLE IF NOT EXISTS usuarios_tablets (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        nome_completo VARCHAR(150) NOT NULL,
+        matricula VARCHAR(50),
+        unidade_basica VARCHAR(150),
+        cpf VARCHAR(14),
+        email VARCHAR(150) NOT NULL,
+        telefone VARCHAR(50) NOT NULL,
+        dispositivo_id UUID REFERENCES dispositivos(id) ON DELETE SET NULL,
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+        await poolInstancia.query(`ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS matricula VARCHAR(50);`).catch(() => { });
+        await poolInstancia.query(`ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS unidade_basica VARCHAR(150);`).catch(() => { });
+        await poolInstancia.query(`ALTER TABLE usuarios_tablets ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);`).catch(() => { });
+        await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS perfil_ativo_id UUID REFERENCES perfis_provisionamento(id) ON DELETE SET NULL;`).catch(() => { });
+        await poolInstancia.query(`ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS perfil_ativo_em TIMESTAMPTZ;`).catch(() => { });
+        await poolInstancia.query(`UPDATE usuarios SET perfil = 'adm' WHERE perfil = 'admin';`).catch(() => { });
+        await poolInstancia.query(`UPDATE usuarios SET perfil = 'supervisor' WHERE perfil = 'operador';`).catch(() => { });
+        await poolInstancia.query(`CREATE INDEX IF NOT EXISTS idx_usuarios_tablets_dispositivo ON usuarios_tablets(dispositivo_id);`).catch(() => { });
+        // Conciliação e garantia do Perfil Estrito ACS (APK v1.2.9 Build 12) no banco
+        await poolInstancia.query(`
+      UPDATE perfis_provisionamento
+      SET bloquear_usb = FALSE,
+          permitir_reset_fabrica = TRUE,
+          descricao = 'Diretrizes oficiais de campo para os tablets dos ACS (APK v1.2.9 Build 12): 28 apps recreativos e bloatware ocultos, restauração de fábrica de hardware permitida, conexão USB/ADB ativa para manutenção, instalação de APKs externos bloqueada e apps essenciais de trabalho (Câmera, Files, Calculadora, Gravador, Relógio e e-SUS) 100% protegidos.',
+          atualizado_em = NOW()
+      WHERE nome ILIKE '%Perfil Estrito ACS%' OR (eh_padrao = TRUE AND nome ILIKE '%ACS%');
+    `).catch(() => { });
+        await poolInstancia.query(`
+      UPDATE politicas
+      SET bloquear_usb = FALSE,
+          permitir_reset_fabrica = TRUE,
+          atualizado_em = NOW();
+    `).catch(() => { });
+        await poolInstancia.query(`
+      UPDATE dispositivos
+      SET perfil_ativo_id = (
+        SELECT id FROM perfis_provisionamento 
+        WHERE eh_padrao = TRUE 
+        ORDER BY CASE WHEN nome ILIKE '%Perfil Estrito ACS%' THEN 0 ELSE 1 END, atualizado_em DESC 
+        LIMIT 1
+      ),
+      perfil_ativo_em = NOW()
+      WHERE perfil_ativo_id IS NULL;
+    `).catch(() => { });
+        console.log('[MDM Banco] Migrações estruturais, tabela de usuários, perfis e cadastro de tablets verificadas com sucesso no PostgreSQL.');
+    }
+    catch (erro) {
+        if (erro.code === 'ECONNREFUSED' || erro.message?.includes('timeout') || erro.code === '28P01') {
+            // PostgreSQL indisponível localmente, fallback em memória cuidará das requisições
+            return;
+        }
+        console.warn('[MDM Banco] Aviso ao executar migrações no banco:', erro?.message || erro);
+    }
+}
+/**
+ * Executa uma consulta SQL parametrizada no banco de dados com fallback gracioso.
+ */
+async function executar_consulta(textoSql, parametros = []) {
+    const poolInstancia = pool || inicializar_pool_conexoes();
+    try {
+        return await poolInstancia.query(textoSql, parametros);
+    }
+    catch (erro) {
+        if (erro.code === 'ECONNREFUSED' || erro.message?.includes('timeout') || erro.code === '28P01') {
+            if (!bancoPostgresOfflineAvisado) {
+                console.warn('\n[MDM Fallback Dev] PostgreSQL local não detectado.');
+                console.warn('[MDM Fallback Dev] Ativando repositório simulado em memória com dados da frota de 250 tablets.');
+                console.warn('[MDM Fallback Dev] Em produção na VPS, o docker-compose proverá o PostgreSQL 16.\n');
+                bancoPostgresOfflineAvisado = true;
+            }
+            return processar_consulta_simulada_memoria(textoSql, parametros);
+        }
+        throw erro;
+    }
+}
+/**
+ * Obtém um cliente do pool para transações atômicas com commit e rollback.
+ */
+async function obter_cliente_transacao() {
+    const poolInstancia = pool || inicializar_pool_conexoes();
+    return await poolInstancia.connect();
+}
+/**
+ * Encerra as conexões ativas do pool.
+ */
+async function encerrar_pool_conexoes() {
+    if (pool) {
+        await pool.end();
+        pool = null;
+    }
+}

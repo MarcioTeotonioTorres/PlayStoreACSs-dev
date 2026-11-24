@@ -1,0 +1,386 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.politicasMemoria = exports.politicasDispositivosMemoria = exports.PACOTES_ESSENCIAIS_RESTAURACAO = exports.PACOTES_VITAIS_IMUNES = void 0;
+exports.filtrarPacotesSeguros = filtrarPacotesSeguros;
+exports.obter_politicas_frota = obter_politicas_frota;
+exports.atualizar_politicas_globais_frota = atualizar_politicas_globais_frota;
+exports.atualizar_politicas_dispositivo = atualizar_politicas_dispositivo;
+exports.obter_politicas_dispositivo = obter_politicas_dispositivo;
+const conexao_1 = require("../banco/conexao");
+const servico_mqtt_1 = require("../servicos/servico_mqtt");
+const crypto_1 = __importDefault(require("crypto"));
+exports.PACOTES_VITAIS_IMUNES = new Set([
+    'com.android.settings',
+    'com.android.systemui',
+    'android',
+    'com.android.launcher',
+    'com.android.launcher3',
+    'com.tcl.launcher',
+    'com.sec.android.app.launcher',
+    'com.google.android.apps.nexuslauncher',
+    'com.android.packageinstaller',
+    'com.google.android.packageinstaller',
+    'com.android.permissioncontroller',
+    'com.google.android.permissioncontroller',
+    'com.android.inputmethod.latin',
+    'com.google.android.inputmethod.latin',
+    'com.google.android.inputmethod.gboard',
+    'com.google.android.webview',
+    'com.android.webview',
+    'com.android.providers.media',
+    'com.android.providers.media.module',
+    'com.android.providers.settings',
+    'com.android.documentsui',
+    'com.mdm.corporativo',
+    'com.google.android.gms',
+    // Calculadoras
+    'com.google.android.calculator',
+    'com.android.calculator2',
+    'com.tcl.calculator',
+    'com.sec.android.app.popupcalculator',
+    // Relógio e Despertador
+    'com.google.android.deskclock',
+    'com.android.deskclock',
+    'com.tcl.deskclock',
+    'com.sec.android.app.clockpackage',
+    // Câmera e Galeria
+    'com.mediatek.camera',
+    'com.android.camera',
+    'com.android.camera2',
+    'com.tcl.camera',
+    'com.google.android.GoogleCamera',
+    'com.android.gallery3d',
+    'com.tcl.gallery',
+    // Gerenciador de Arquivos (Files)
+    'com.google.android.apps.nbu.files',
+    'com.google.android.documentsui',
+    'com.android.documentsui',
+    'com.tcl.filemanager',
+    // Gravadores de Som / Voz
+    'com.tcl.soundrecorder',
+    'com.android.soundrecorder',
+    'com.google.android.soundrecorder',
+    'com.tcl.notes',
+    // Aplicativos de Trabalho ACS
+    'br.gov.saude.esus.territorio',
+    'br.gov.datasus.esusatendimentomobile',
+    'com.whatsapp',
+    'com.whatsapp.w4b',
+    'com.android.chrome',
+]);
+function filtrarPacotesSeguros(pacotes) {
+    if (!pacotes || !Array.isArray(pacotes))
+        return [];
+    return pacotes.filter((p) => !exports.PACOTES_VITAIS_IMUNES.has(p.trim().toLowerCase()) && !p.trim().toLowerCase().startsWith('com.android.providers.'));
+}
+// Lista de pacotes essenciais de fábrica que devem ser mantidos visíveis e funcionais
+exports.PACOTES_ESSENCIAIS_RESTAURACAO = [
+    'com.tcl.calculator',
+    'com.google.android.calculator',
+    'com.android.calculator2',
+    'com.tcl.deskclock',
+    'com.google.android.deskclock',
+    'com.android.deskclock',
+    'com.tcl.camera',
+    'com.mediatek.camera',
+    'com.android.camera',
+    'com.android.camera2',
+    'com.google.android.GoogleCamera',
+    'com.tcl.gallery',
+    'com.android.gallery3d',
+    'com.google.android.apps.nbu.files',
+    'com.tcl.filemanager',
+    'com.android.filemanager',
+    'com.tcl.soundrecorder',
+    'com.android.soundrecorder',
+    'com.google.android.soundrecorder',
+    'com.tcl.notes',
+    'com.android.chrome',
+];
+// Armazenamento em memória das políticas caso o PostgreSQL local não esteja conectado
+exports.politicasDispositivosMemoria = new Map();
+exports.politicasMemoria = {
+    nome: 'Política Padrão da Frota',
+    permitir_camera: true,
+    bloquear_usb: false,
+    permitir_reset_fabrica: true,
+    bloquear_instalacao_apps: true,
+    bloquear_bluetooth: true,
+    modo_quiosque_app: '',
+    habilitar_modo_quiosque: false,
+    pacotes_ocultos: [
+        'com.google.android.youtube',
+        'com.google.android.apps.youtube.kids',
+        'com.android.vending',
+        'com.google.android.apps.photos',
+        'com.google.android.gm',
+        'com.google.android.apps.tachyon',
+        'com.google.android.videos',
+        'com.google.android.apps.docs',
+        'com.google.android.apps.books',
+        'com.google.android.apps.kids.home',
+        'com.google.android.apps.googleassistant',
+        'com.google.android.apps.youtube.music',
+        'com.google.android.googlequicksearchbox',
+        'com.google.android.apps.magazines',
+        'com.google.android.play.games',
+        'com.google.android.apps.podcasts',
+        'com.google.android.feedback',
+        'com.google.android.contacts',
+        'com.google.android.apps.messaging',
+        'com.google.android.apps.maps',
+        'com.google.android.keep',
+        'com.google.android.apps.adm',
+        'com.google.android.calendar',
+        'com.qidian.Int.reader',
+        'com.tcl.usercare',
+        'com.tcl.live',
+        'com.tcl.community',
+        'com.tcl.appstore',
+        'com.tcl.usercenter',
+        'com.tcl.browser',
+        'com.tcl.smartswitch',
+        'com.tcl.gamecenter',
+        'com.netflix.mediaclient',
+        'com.facebook.katana',
+        'com.facebook.services',
+        'com.facebook.system',
+        'com.instagram.android',
+        'com.zhiliaoapp.musically',
+        'com.android.fmradio',
+        'com.tcl.fmradio',
+    ],
+    urls_permitidas: [
+        'portal.empresa.com.br',
+        '*.empresa.com.br',
+        'sistema.empresa.com.br',
+    ],
+};
+/**
+ * Retorna as políticas de controle e restrições ativas na frota.
+ */
+async function obter_politicas_frota(requisicao, resposta) {
+    try {
+        const sql = `
+      SELECT id, nome, permitir_camera, bloquear_usb, permitir_reset_fabrica,
+             bloquear_instalacao_apps, bloquear_bluetooth,
+             modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em
+      FROM politicas
+      ORDER BY atualizado_em DESC
+      LIMIT 1;
+    `;
+        const resultado = await (0, conexao_1.executar_consulta)(sql);
+        const dados = resultado.rows.length > 0 ? resultado.rows[0] : exports.politicasMemoria;
+        if (dados && dados.pacotes_ocultos) {
+            dados.pacotes_ocultos = filtrarPacotesSeguros(dados.pacotes_ocultos);
+        }
+        resposta.status(200).send({
+            sucesso: true,
+            politica: dados,
+        });
+    }
+    catch (erro) {
+        console.error('Erro em obter_politicas_frota:', erro);
+        resposta.status(200).send({
+            sucesso: true,
+            politica: exports.politicasMemoria,
+        });
+    }
+}
+/**
+ * Atualiza as diretrizes globais da frota e despacha as ordens via MQTT para todos os 250 tablets.
+ */
+async function atualizar_politicas_globais_frota(requisicao, resposta) {
+    try {
+        const dto = requisicao.body;
+        // Sanitiza pacotes ocultos: NUNCA permite que pacotes vitais do sistema operacional sejam bloqueados
+        const pacotesNovosBrutos = dto.pacotes_ocultos ?? (exports.politicasMemoria.pacotes_ocultos || []);
+        const pacotesNovos = filtrarPacotesSeguros(pacotesNovosBrutos);
+        // Garante que Calculadora, Relógio, e-SUS, Câmera e pacotes desmarcados sejam enviados em pacotes_liberados
+        const pacotesAntigos = exports.politicasMemoria.pacotes_ocultos || [];
+        const pacotesLiberados = Array.from(new Set([
+            ...exports.PACOTES_ESSENCIAIS_RESTAURACAO,
+            ...pacotesAntigos.filter(p => !pacotesNovos.includes(p))
+        ])).filter(p => !pacotesNovos.includes(p));
+        // Atualiza cópia em memória
+        exports.politicasMemoria = {
+            ...exports.politicasMemoria,
+            ...dto,
+            pacotes_ocultos: pacotesNovos,
+            urls_permitidas: dto.urls_permitidas ?? exports.politicasMemoria.urls_permitidas,
+        };
+        // Tenta atualizar no PostgreSQL caso conectado
+        try {
+            // Deleta qualquer política existente e insere a nova para garantir persistência 100%
+            await (0, conexao_1.executar_consulta)('DELETE FROM politicas;');
+            const sqlInsert = `
+        INSERT INTO politicas (nome, permitir_camera, bloquear_usb, permitir_reset_fabrica, bloquear_instalacao_apps, bloquear_bluetooth, modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em)
+        VALUES ('Política Padrão Frota', $1::boolean, $2::boolean, $3::boolean, $4::boolean, $5::boolean, $6::varchar, $7::boolean, $8::jsonb, $9::jsonb, NOW());
+      `;
+            await (0, conexao_1.executar_consulta)(sqlInsert, [
+                exports.politicasMemoria.permitir_camera,
+                exports.politicasMemoria.bloquear_usb,
+                exports.politicasMemoria.permitir_reset_fabrica,
+                exports.politicasMemoria.bloquear_instalacao_apps,
+                exports.politicasMemoria.bloquear_bluetooth,
+                exports.politicasMemoria.modo_quiosque_app || null,
+                exports.politicasMemoria.habilitar_modo_quiosque,
+                JSON.stringify(exports.politicasMemoria.pacotes_ocultos),
+                JSON.stringify(exports.politicasMemoria.urls_permitidas),
+            ]);
+        }
+        catch (dbErr) {
+            console.warn('Fallback: Banco de dados não disponível para salvar políticas. Mantendo em memória.', dbErr);
+        }
+        // Despacho MQTT e persistência na fila de comandos para sincronização HTTP dual-channel
+        try {
+            const resDisp = await (0, conexao_1.executar_consulta)("SELECT id, numero_serie FROM dispositivos;");
+            for (const disp of resDisp.rows) {
+                const comandoId = crypto_1.default.randomUUID();
+                const payloadComando = {
+                    id: comandoId,
+                    tipo_comando: 'aplicar_politica',
+                    parametros: {
+                        permitir_camera: exports.politicasMemoria.permitir_camera,
+                        bloquear_usb: exports.politicasMemoria.bloquear_usb,
+                        permitir_reset_fabrica: exports.politicasMemoria.permitir_reset_fabrica,
+                        bloquear_instalacao_apps: exports.politicasMemoria.bloquear_instalacao_apps,
+                        bloquear_bluetooth: exports.politicasMemoria.bloquear_bluetooth,
+                        pacotes_ocultos: exports.politicasMemoria.pacotes_ocultos,
+                        pacotes_liberados: pacotesLiberados,
+                        urls_permitidas: exports.politicasMemoria.urls_permitidas,
+                    },
+                };
+                // Grava na fila de comandos para resgate imediato via polling HTTP de telemetria
+                try {
+                    await (0, conexao_1.executar_consulta)(`INSERT INTO comandos (id, dispositivo_id, tipo_comando, parametros, status) VALUES ($1, $2, $3, $4, 'pendente');`, [comandoId, disp.id, 'aplicar_politica', JSON.stringify(payloadComando.parametros)]);
+                }
+                catch (_) { }
+                // Despacha instantaneamente via MQTT para os tablets conectados
+                await (0, servico_mqtt_1.despachar_comando_mqtt)(disp.numero_serie, payloadComando);
+            }
+        }
+        catch (errMqttLoop) {
+            // Fallback se não conseguir ler do BD, apenas ignora
+            console.warn('Aviso: Falha ao despachar comandos individuais de política.', errMqttLoop);
+        }
+        resposta.status(200).send({
+            sucesso: true,
+            mensagem: 'Políticas corporativas atualizadas e despachadas para a frota!',
+            politica: exports.politicasMemoria,
+        });
+    }
+    catch (erro) {
+        console.error('Erro em atualizar_politicas_globais_frota:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Falha ao atualizar políticas corporativas.' });
+    }
+}
+/**
+ * Aplica uma política personalizada a um único tablet específico da frota.
+ */
+async function atualizar_politicas_dispositivo(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        const dto = requisicao.body;
+        const sqlDisp = `SELECT id, numero_serie FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
+        const resDisp = await (0, conexao_1.executar_consulta)(sqlDisp, [id]);
+        const numeroSerie = resDisp.rows.length > 0 ? resDisp.rows[0].numero_serie : id;
+        const pacotesSeguros = filtrarPacotesSeguros(dto.pacotes_ocultos);
+        const comandoId = crypto_1.default.randomUUID();
+        const payloadComando = {
+            id: comandoId,
+            tipo_comando: 'aplicar_politica',
+            parametros: {
+                permitir_camera: dto.permitir_camera ?? true,
+                bloquear_usb: dto.bloquear_usb ?? false,
+                permitir_reset_fabrica: dto.permitir_reset_fabrica ?? true,
+                bloquear_instalacao_apps: dto.bloquear_instalacao_apps ?? true,
+                bloquear_bluetooth: dto.bloquear_bluetooth ?? false,
+                pacotes_ocultos: pacotesSeguros,
+                pacotes_liberados: exports.PACOTES_ESSENCIAIS_RESTAURACAO.filter(p => !pacotesSeguros.includes(p)),
+                urls_permitidas: dto.urls_permitidas || [],
+            },
+        };
+        if (resDisp.rows.length > 0) {
+            try {
+                await (0, conexao_1.executar_consulta)(`INSERT INTO comandos (id, dispositivo_id, tipo_comando, parametros, status) VALUES ($1, $2, $3, $4, 'pendente');`, [comandoId, resDisp.rows[0].id, 'aplicar_politica', JSON.stringify(payloadComando.parametros)]);
+            }
+            catch (_) { }
+        }
+        await (0, servico_mqtt_1.despachar_comando_mqtt)(numeroSerie, payloadComando);
+        // 1. Persiste a diretriz específica deste tablet no banco de dados
+        try {
+            await (0, conexao_1.executar_consulta)(`UPDATE dispositivos SET politica_personalizada = $1::jsonb, atualizado_em = NOW() WHERE id::text = $2 OR numero_serie = $2;`, [JSON.stringify(payloadComando.parametros), id]);
+        }
+        catch (dbErr) {
+            console.warn('Aviso: Falha ao persistir diretrizes do tablet no banco de dados:', dbErr);
+        }
+        // 2. Persiste em memória para fallback resiliente
+        exports.politicasDispositivosMemoria.set(numeroSerie.toUpperCase(), payloadComando.parametros);
+        exports.politicasDispositivosMemoria.set(id, payloadComando.parametros);
+        resposta.status(200).send({
+            sucesso: true,
+            mensagem: `Diretrizes salvas e enviadas via MQTT para o tablet ${numeroSerie}.`,
+            comando_id: comandoId,
+            politica: payloadComando.parametros,
+        });
+    }
+    catch (erro) {
+        console.error('Erro em atualizar_politicas_dispositivo:', erro);
+        resposta.status(500).send({ sucesso: false, mensagem: 'Erro ao despachar política para o dispositivo.' });
+    }
+}
+/**
+ * Consulta as diretrizes específicas atribuídas a um tablet (ou retorna a geral se não houver customização).
+ */
+async function obter_politicas_dispositivo(requisicao, resposta) {
+    try {
+        const { id } = requisicao.params;
+        const sqlDisp = `SELECT id, numero_serie, politica_personalizada FROM dispositivos WHERE id::text = $1 OR numero_serie = $1;`;
+        const resDisp = await (0, conexao_1.executar_consulta)(sqlDisp, [id]);
+        let politicaDisp = null;
+        let personalizada = false;
+        const numeroSerie = resDisp.rows.length > 0 ? resDisp.rows[0].numero_serie : id;
+        if (resDisp.rows.length > 0 && resDisp.rows[0].politica_personalizada) {
+            politicaDisp = typeof resDisp.rows[0].politica_personalizada === 'string'
+                ? JSON.parse(resDisp.rows[0].politica_personalizada)
+                : resDisp.rows[0].politica_personalizada;
+            personalizada = true;
+        }
+        else if (exports.politicasDispositivosMemoria.has(numeroSerie.toUpperCase()) || exports.politicasDispositivosMemoria.has(id)) {
+            politicaDisp = exports.politicasDispositivosMemoria.get(numeroSerie.toUpperCase()) || exports.politicasDispositivosMemoria.get(id);
+            personalizada = true;
+        }
+        if (!politicaDisp) {
+            const resGeral = await (0, conexao_1.executar_consulta)(`
+        SELECT id, nome, permitir_camera, bloquear_usb, permitir_reset_fabrica,
+               bloquear_instalacao_apps, bloquear_bluetooth,
+               modo_quiosque_app, habilitar_modo_quiosque, pacotes_ocultos, urls_permitidas, atualizado_em
+        FROM politicas
+        ORDER BY atualizado_em DESC
+        LIMIT 1;
+      `);
+            politicaDisp = resGeral.rows.length > 0 ? resGeral.rows[0] : exports.politicasMemoria;
+            personalizada = false;
+        }
+        if (politicaDisp && politicaDisp.pacotes_ocultos) {
+            politicaDisp.pacotes_ocultos = filtrarPacotesSeguros(politicaDisp.pacotes_ocultos);
+        }
+        resposta.status(200).send({
+            sucesso: true,
+            politica: politicaDisp,
+            personalizada,
+        });
+    }
+    catch (erro) {
+        console.error('Erro em obter_politicas_dispositivo:', erro);
+        resposta.status(200).send({
+            sucesso: true,
+            politica: exports.politicasMemoria,
+            personalizada: false,
+        });
+    }
+}
