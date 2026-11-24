@@ -139,7 +139,7 @@ echo       - Ocultando os 28 aplicativos recreativos e bloatware de fabrica...
 echo       - Garantindo Calculadora, Relogio, Camera, Files, Gravador e e-SUS 100%% VISIVEIS e ATIVOS...
 echo.
 
-REM 1. Ocultar e suspender estritamente os 34 aplicativos recreativos e bloatware do perfil
+REM 1. Ocultar e suspender estritamente os 40 aplicativos recreativos e bloatware do perfil
 for %%P in (
     com.google.android.youtube
     com.google.android.apps.youtube.kids
@@ -158,6 +158,12 @@ for %%P in (
     com.google.android.play.games
     com.google.android.apps.podcasts
     com.google.android.feedback
+    com.google.android.contacts
+    com.google.android.apps.messaging
+    com.google.android.apps.maps
+    com.google.android.keep
+    com.google.android.apps.adm
+    com.google.android.calendar
     com.qidian.Int.reader
     com.tcl.usercare
     com.tcl.live
@@ -207,10 +213,6 @@ for %%P in (
     com.sec.android.app.clockpackage
     com.tcl.gallery
     com.android.gallery3d
-    com.google.android.calendar
-    com.android.calendar
-    com.tcl.calendar
-    com.tcl.notes
     com.android.chrome
     br.gov.saude.esus.territorio
     br.gov.datasus.esusatendimentomobile
@@ -218,7 +220,7 @@ for %%P in (
     br.gov.saude.ad2
     com.whatsapp
     com.whatsapp.w4b
-    com.mdm.corporativo
+    com.mdm.corporativo 
 ) do (
     "%ADB%" shell cmd package install-existing %%P > nul 2>&1
     "%ADB%" shell pm install-existing %%P > nul 2>&1

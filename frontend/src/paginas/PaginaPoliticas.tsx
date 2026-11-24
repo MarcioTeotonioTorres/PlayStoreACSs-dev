@@ -193,6 +193,48 @@ export const CATALOGO_BLOATWARE_ACS: AppBloqueavel[] = [
     icone: '💬',
     categoria: 'Google Utilitários',
   },
+  {
+    nome: 'Contatos Google',
+    pacote: 'com.google.android.contacts',
+    descricao: 'Agenda e gerenciador de contatos pessoais',
+    icone: '👤',
+    categoria: 'Google Utilitários',
+  },
+  {
+    nome: 'Mensagens SMS',
+    pacote: 'com.google.android.apps.messaging',
+    descricao: 'Aplicativo de mensagens e SMS pessoal',
+    icone: '💬',
+    categoria: 'Google Utilitários',
+  },
+  {
+    nome: 'Google Maps',
+    pacote: 'com.google.android.apps.maps',
+    descricao: 'Mapas e navegação GPS do Google',
+    icone: '🗺️',
+    categoria: 'Google Utilitários',
+  },
+  {
+    nome: 'Notas do Keep',
+    pacote: 'com.google.android.keep',
+    descricao: 'Bloco de notas pessoal e listas',
+    icone: '📝',
+    categoria: 'Google Utilitários',
+  },
+  {
+    nome: 'Encontrar Dispositivo',
+    pacote: 'com.google.android.apps.adm',
+    descricao: 'Localizador e gerenciador pessoal do Google',
+    icone: '📍',
+    categoria: 'Google Utilitários',
+  },
+  {
+    nome: 'Agenda / Calendário',
+    pacote: 'com.google.android.calendar',
+    descricao: 'Calendário e eventos pessoais do Google',
+    icone: '📅',
+    categoria: 'Google Utilitários',
+  },
 
   // Fabricante TCL & Serviços Nativos
   {
